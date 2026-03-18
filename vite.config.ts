@@ -18,11 +18,8 @@ export default defineConfig(({ mode }) => {
         },
       },
       plugins: [react()],
-      define: {
-        // GÜVENLİK: API key sadece sunucu tarafında tanımlanır, client bundle'a dahil edilmez
-        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY || ''),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || '')
-      },
+      // GÜVENLİK: Gemini API key artık Supabase Edge Function secrets'ta saklanır.
+      // Client bundle'a hiçbir API key dahil edilmez.
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),

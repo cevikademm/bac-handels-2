@@ -1,10 +1,10 @@
 
-import { GoogleGenAI } from "@google/genai";
+import { supabase } from '../lib/supabase';
 
 // Basit bir önbellek mekanizması (Aynı metni tekrar tekrar sormamak için)
 const translationCache: Record<string, string> = {};
 
-// Demo Modu için Sözlük (API Key olmadığı durumlar için)
+// Demo Modu için Sözlük (Edge Function erişilemezse fallback)
 const DEMO_DICTIONARY: Record<string, string> = {
     "Hata düzelt": "Fehler beheben",
     "Sigorta teyit": "Versicherung bestätigen",
@@ -18,6 +18,26 @@ const DEMO_DICTIONARY: Record<string, string> = {
     "Tabela montaj": "Schildermontage"
 };
 
+// GÜVENLİK: Gemini API çağrıları Supabase Edge Function üzerinden yapılır.
+// API anahtarı hiçbir zaman client tarafına gönderilmez.
+const callGeminiProxy = async (action: string, payload: Record<string, unknown>): Promise<string | null> => {
+    try {
+        const { data, error } = await supabase.functions.invoke('gemini-proxy', {
+            body: { action, payload },
+        });
+
+        if (error) {
+            console.error('Edge Function error:', error.message);
+            return null;
+        }
+
+        return data?.result || null;
+    } catch (err) {
+        console.error('Edge Function call failed:', err);
+        return null;
+    }
+};
+
 export const translateContent = async (text: string, targetLang: 'tr' | 'de'): Promise<string> => {
     // 1. Boş metin kontrolü
     if (!text || !text.trim()) return text;
@@ -28,53 +48,37 @@ export const translateContent = async (text: string, targetLang: 'tr' | 'de'): P
         return translationCache[cacheKey];
     }
 
-    // 3. Hedef dil Türkçe ise ve metin zaten Türkçe gibiyse (basit varsayım) çevirme
-    // (Gerçek uygulamada kaynak dil tespiti daha karmaşık olabilir)
+    // 3. Hedef dil Türkçe ise çevirme
     if (targetLang === 'tr') {
-        return text; 
+        return text;
     }
 
-    // 4. Demo Sözlük Kontrolü (Hızlı tepki ve API keysiz çalışma için)
+    // 4. Demo Sözlük Kontrolü (Hızlı tepki)
     if (targetLang === 'de' && DEMO_DICTIONARY[text]) {
         return DEMO_DICTIONARY[text];
     }
 
     try {
-        // 5. Google Gemini API Çağrısı
-        // Not: process.env.API_KEY tanımlı olmalıdır.
-        if (process.env.API_KEY) {
-            // Fix: Initialize GoogleGenAI with named parameter
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            
-            const prompt = `Translate the following text to ${targetLang === 'de' ? 'German' : 'Turkish'}. Return only the translated text, do not add any explanations or quotes.\n\nText: "${text}"`;
+        // 5. Edge Function üzerinden Gemini API çağrısı
+        const result = await callGeminiProxy('translate', { text, targetLang });
 
-            // Fix: Use ai.models.generateContent directly with the correct model and prompt
-            const response = await ai.models.generateContent({
-                model: 'gemini-3-flash-preview',
-                contents: prompt,
-            });
-
-            // Fix: Access the text property directly (not a method)
-            const result = response.text?.trim();
-            if (result) {
-                translationCache[cacheKey] = result;
-                return result;
-            }
+        if (result) {
+            translationCache[cacheKey] = result;
+            return result;
         }
-        
-        // API Key yoksa simülasyon (Gerçek çeviri gibi görünmesi için)
-        // Sadece demo amaçlı, metnin sonuna [DE] ekler.
+
+        // Edge Function erişilemezse simülasyon
         return new Promise((resolve) => {
             setTimeout(() => {
                 const simulated = `[${targetLang.toUpperCase()}] ${text}`;
                 translationCache[cacheKey] = simulated;
                 resolve(simulated);
-            }, 300); // Küçük bir gecikme ekle
+            }, 300);
         });
 
     } catch (error) {
         console.error("Translation error:", error);
-        return text; // Hata durumunda orijinal metni döndür
+        return text;
     }
 };
 
@@ -88,12 +92,12 @@ export const analyzeInvoice = async (mockImage: string): Promise<string> => {
             **Tedarikçi:** Metro Grossmarket
             **Tarih:** 24.10.2023
             **Toplam Tutar:** 1.250,00 €
-            
+
             **Kalemler:**
             1. Kahve Çekirdeği (10kg) - 450€
             2. Süt (50L) - 50€
             3. Temizlik Malzemeleri - 150€
-            
+
             **Kategori:** Gider / Stok
             **Vergi Oranı:** %19
             `);
@@ -102,25 +106,37 @@ export const analyzeInvoice = async (mockImage: string): Promise<string> => {
 };
 
 export const suggestProductivity = async (tasksCompleted: number, hoursWorked: number): Promise<string> => {
-     // Simulation of Gemini Text Generation
-     return new Promise((resolve) => {
-        setTimeout(() => {
-            const ratio = tasksCompleted / hoursWorked;
-            if(ratio > 0.5) {
-                resolve("Personel performansı bu hafta %15 arttı. Verimlilik yüksek seviyede.");
-            } else {
-                 resolve("Görev tamamlama hızı standartların biraz altında. İş yükü dağılımının gözden geçirilmesi önerilir.");
-            }
-        }, 1500);
-    });
+    try {
+        const result = await callGeminiProxy('analyze', {
+            type: 'productivity',
+            data: { tasksCompleted, hoursWorked }
+        });
+
+        if (result) return result;
+    } catch (error) {
+        console.error("Productivity analysis error:", error);
+    }
+
+    // Fallback
+    const ratio = tasksCompleted / hoursWorked;
+    if (ratio > 0.5) {
+        return "Personel performansı bu hafta %15 arttı. Verimlilik yüksek seviyede.";
+    }
+    return "Görev tamamlama hızı standartların biraz altında. İş yükü dağılımının gözden geçirilmesi önerilir.";
 }
 
 export const analyzeTaskProgress = async (pendingCount: number, highPriorityCount: number): Promise<string> => {
-    // Simulation of Gemini Task Analysis
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            // More "creative" executive summary style
-            resolve(`**Sistem Özeti:** Şu an ${pendingCount} aktif iş üzerinde çalışılıyor. Dikkat: ${highPriorityCount} kritik görev teslim bekliyor. Montaj ekibi %85 kapasite ile çalışıyor, Backaffee şubesinde operasyonel hız %12 arttı. Tahmini tamamlanma: Cuma, 17:00.`);
-        }, 1200);
-    });
+    try {
+        const result = await callGeminiProxy('analyze', {
+            type: 'taskProgress',
+            data: { pendingCount, highPriorityCount }
+        });
+
+        if (result) return result;
+    } catch (error) {
+        console.error("Task analysis error:", error);
+    }
+
+    // Fallback
+    return `**Sistem Özeti:** Şu an ${pendingCount} aktif iş üzerinde çalışılıyor. Dikkat: ${highPriorityCount} kritik görev teslim bekliyor. Montaj ekibi %85 kapasite ile çalışıyor, Backaffee şubesinde operasyonel hız %12 arttı. Tahmini tamamlanma: Cuma, 17:00.`;
 };
