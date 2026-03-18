@@ -1,0 +1,197 @@
+import React, { useState, useEffect } from 'react';
+import { Lock, Mail, ArrowRight, Loader2, Check } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { Employee, Role, Branch } from '../types';
+import { useLanguage } from '../lib/i18n';
+import { GlowingEffect } from './ui/glowing-effect';
+import { logAuditEvent, secureStorageGet, secureStorageSet, secureStorageRemove } from '../lib/security';
+
+
+interface LoginProps {
+    onLogin: (user: Employee) => void;
+}
+
+const BAC_LOGO_URL = "https://xbbzwitvlrdwnoushgpf.supabase.co/storage/v1/object/public/Bac_Logo/bac.jpeg";
+
+const Login: React.FC<LoginProps> = ({ onLogin }) => {
+    // Varsayılan değerler boşaltıldı
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [rememberMe, setRememberMe] = useState(false);
+    const [loading, setLoading] = useState(false);
+    
+    const { t } = useLanguage();
+
+    // Sayfa yüklendiğinde güvenli localStorage kontrolü
+    useEffect(() => {
+        const savedEmail = secureStorageGet('remember_email');
+        if (savedEmail) {
+            setEmail(savedEmail);
+            setRememberMe(true);
+        }
+    }, []);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+
+        try {
+            let dbUser = null;
+            try {
+                // GÜVENLİK: Sadece RPC üzerinden bcrypt doğrulama - düz metin fallback kaldırıldı
+                const { data, error } = await supabase
+                    .rpc('verify_user_password', {
+                        user_email: email,
+                        user_password: password
+                    })
+                    .single();
+
+                if (!error && data) {
+                    dbUser = data;
+                }
+            } catch (dbErr) {
+                // Veritabanı bağlantı hatası - güvenli hata mesajı
+                alert("Sunucuya bağlanılamadı. Lütfen daha sonra tekrar deneyin.");
+                setLoading(false);
+                return;
+            }
+
+            // GÜVENLİK: Hardcoded fallback kaldırıldı - tüm kimlik doğrulama veritabanı üzerinden yapılır
+
+            if (dbUser) {
+                // Denetim kaydı: Başarılı giriş
+                logAuditEvent({
+                    userId: dbUser.id,
+                    userEmail: dbUser.email,
+                    action: 'LOGIN_SUCCESS',
+                    targetTable: 'profiles',
+                    targetId: dbUser.id,
+                });
+                const user: Employee = {
+                    id: dbUser.id,
+                    name: dbUser.full_name || 'İsimsiz Kullanıcı',
+                    email: dbUser.email,
+                    role: (dbUser.role as Role) || Role.STAFF,
+                    branch: (dbUser.branch as Branch) || Branch.DOM,
+                    hourlyRate: dbUser.hourly_rate || 15.00,
+                    taxClass: dbUser.tax_class || 1,
+                    avatarUrl: dbUser.avatar_url || `https://ui-avatars.com/api/?name=${dbUser.full_name}`,
+                    advances: dbUser.advances || 0,
+                    phone: dbUser.phone || '',
+                    bio: dbUser.bio || '',
+                    badges: dbUser.badges || [],
+                    tags: dbUser.tags || [],
+                    metrics: dbUser.metrics || { speed: 50, satisfaction: 50, attendance: 50 }
+                };
+                
+                // Başarılı girişte Beni Hatırla mantığı (güvenli localStorage)
+                if (rememberMe) {
+                    secureStorageSet('remember_email', email);
+                } else {
+                    secureStorageRemove('remember_email');
+                }
+
+                onLogin(user);
+            } else {
+                 // Denetim kaydı: Başarısız giriş denemesi
+                 logAuditEvent({
+                     userId: 'anonymous',
+                     userEmail: email,
+                     action: 'LOGIN_FAILED',
+                     details: { reason: 'invalid_credentials' },
+                 });
+                 alert("Hatalı e-posta veya şifre.");
+            }
+        } catch (err) {
+            alert("Bir hata oluştu. Lütfen tekrar deneyin.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 w-full h-full bg-zinc-950 overflow-hidden z-[9999]">
+             <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-indigo-900/10 rounded-full blur-3xl pointer-events-none"></div>
+             <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-blue-900/10 rounded-full blur-3xl pointer-events-none"></div>
+
+             <div className="absolute inset-0 w-full h-full overflow-y-auto custom-scrollbar">
+                 <div className="min-h-full w-full flex items-center justify-center p-4">
+                     <div className="w-full max-w-md relative z-10 my-8">
+                        <div className="text-center mb-10">
+                            <div className="inline-flex items-center justify-center w-24 h-24 rounded-2xl bg-zinc-900 border border-zinc-800 mb-6 shadow-xl shadow-indigo-900/20 overflow-hidden">
+                                 <img 
+                                    src={BAC_LOGO_URL} 
+                                    alt="BAC Logo" 
+                                    className="w-full h-full object-cover"
+                                    referrerPolicy="no-referrer"
+                                 />
+                            </div>
+                            <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">{t('login.title')}</h1>
+                            <p className="text-zinc-500">{t('login.subtitle')}</p>
+                        </div>
+
+                        <div className="glass-panel p-8 rounded-2xl border border-zinc-800 shadow-2xl bg-zinc-900/50 backdrop-blur-md relative">
+<GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} />
+                            <form onSubmit={handleSubmit} className="space-y-6">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-medium text-zinc-400 ml-1">{t('login.email')}</label>
+                                    <div className="relative">
+                                        <Mail className="absolute left-3 top-3 text-zinc-500 w-5 h-5" />
+                                        <input 
+                                            type="email" 
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder:text-zinc-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
+                                            placeholder="ornek@mail.com"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-xs font-medium text-zinc-400 ml-1">{t('login.password')}</label>
+                                    <div className="relative">
+                                        <Lock className="absolute left-3 top-3 text-zinc-500 w-5 h-5" />
+                                        <input 
+                                            type="password" 
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder:text-zinc-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
+                                            placeholder="••••••••"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Beni Hatırla Alanı */}
+                                <div 
+                                    className="flex items-center gap-2 cursor-pointer group w-fit"
+                                    onClick={() => setRememberMe(!rememberMe)}
+                                >
+                                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${rememberMe ? 'bg-indigo-600 border-indigo-500' : 'bg-zinc-900 border-zinc-700 group-hover:border-zinc-500'}`}>
+                                        {rememberMe && <Check size={14} className="text-white" />}
+                                    </div>
+                                    <span className={`text-sm select-none transition-colors ${rememberMe ? 'text-indigo-400' : 'text-zinc-500 group-hover:text-zinc-400'}`}>
+                                        Beni Hatırla
+                                    </span>
+                                </div>
+
+                                <button 
+                                    type="submit" 
+                                    disabled={loading}
+                                    className="w-full py-4 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-900/20 flex items-center justify-center gap-2 group transition-all active:scale-95"
+                                >
+                                    {loading ? <Loader2 className="animate-spin" size={20} /> : <span className="flex items-center gap-2">{t('login.btn')} <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" /></span>}
+                                </button>
+                            </form>
+                        </div>
+
+                        <p className="text-center text-xs text-zinc-600 mt-8">
+                            &copy; 2024 BAC Handels Management System
+                        </p>
+                     </div>
+                 </div>
+             </div>
+        </div>
+    );
+};
+
+export default Login;
