@@ -355,10 +355,16 @@ WHERE email LIKE '%mail.com' AND role != 'Admin';
 CREATE OR REPLACE FUNCTION verify_user_password(user_email TEXT, user_password TEXT)
 RETURNS SETOF public.profiles AS $$
 BEGIN
+  -- Bcrypt hash ile karşılaştırma ($2a$/$2b$ ile başlayan şifreler)
   RETURN QUERY
   SELECT * FROM public.profiles
   WHERE email = user_email
-  AND password = crypt(user_password, password);
+  AND (
+    -- Bcrypt hash karşılaştırma
+    (password LIKE '$2a$%' OR password LIKE '$2b$%') AND password = crypt(user_password, password)
+    -- Düz metin karşılaştırma (henüz hash'lenmemiş şifreler)
+    OR (password NOT LIKE '$2a$%' AND password NOT LIKE '$2b$%' AND password = user_password)
+  );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -373,13 +379,28 @@ CREATE OR REPLACE FUNCTION update_user_password(
 RETURNS BOOLEAN AS $$
 DECLARE
     v_user public.profiles;
+    v_stored_password TEXT;
 BEGIN
-    -- Mevcut şifreyi doğrula
-    SELECT * INTO v_user FROM public.profiles
-    WHERE id = p_user_id AND password = crypt(p_current_password, password);
+    -- Kullanıcıyı bul
+    SELECT * INTO v_user FROM public.profiles WHERE id = p_user_id;
 
     IF NOT FOUND THEN
         RETURN FALSE;
+    END IF;
+
+    v_stored_password := v_user.password;
+
+    -- Şifre doğrulama: Bcrypt hash ($2a$/$2b$ ile başlar) veya düz metin
+    IF v_stored_password LIKE '$2a$%' OR v_stored_password LIKE '$2b$%' THEN
+        -- Bcrypt hash karşılaştırma
+        IF v_stored_password != crypt(p_current_password, v_stored_password) THEN
+            RETURN FALSE;
+        END IF;
+    ELSE
+        -- Düz metin karşılaştırma (eski/yeni eklenen kullanıcılar için)
+        IF v_stored_password != p_current_password THEN
+            RETURN FALSE;
+        END IF;
     END IF;
 
     -- Yeni şifreyi bcrypt ile hashleyerek güncelle
