@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS public.time_logs (
   date DATE NOT NULL,
   start_time TEXT NOT NULL,
   end_time TEXT NOT NULL,
-  break_duration INTEGER DEFAULT 60,
+  break_duration INTEGER DEFAULT 0,
   total_hours DECIMAL(5, 2),
   status TEXT DEFAULT 'Bekliyor',
   branch TEXT,
@@ -422,7 +422,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION admin_reset_password(
     p_admin_id TEXT,
     p_target_user_id TEXT,
-    p_new_password TEXT DEFAULT 'Bac2026!'
+    p_new_password TEXT DEFAULT 'Bac123+'
 )
 RETURNS BOOLEAN AS $$
 DECLARE

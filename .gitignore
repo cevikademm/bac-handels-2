@@ -32,3 +32,5 @@ shannon/.app_pid
 *.njsproj
 *.sln
 *.sw?
+
+.vercel

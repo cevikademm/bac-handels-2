@@ -109,13 +109,14 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                     const { data, error } = await supabase
                         .from('profiles')
                         .select('*')
+                        .neq('id', currentUser.id)
                         .order('full_name');
-                    
+
                     if (error) throw error;
                     if (data) {
                         const mapped = data.map(d => ({
                             id: d.id,
-                            name: d.full_name,
+                            name: d.full_name || d.email || 'İsimsiz',
                             email: d.email,
                             role: d.role as Role,
                             branch: d.branch,
@@ -146,28 +147,35 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
             return;
         }
 
-        if (!window.confirm("Bu personelin şifresini standart 'Bac2026!' olarak sıfırlamak istediğinize emin misiniz?")) {
+        if (!window.confirm("Bu personelin şifresini standart 'Bac123+' olarak sıfırlamak istediğinize emin misiniz?")) {
             return;
         }
 
         setResetLoading(true);
         try {
-            // GÜVENLİK: Güvenli RPC fonksiyonu ile bcrypt hashlenmiş şifre sıfırlama
-            const { data, error } = await supabase.rpc('admin_reset_password', {
-                p_admin_id: currentUser?.id,
-                p_target_user_id: selectedEmployeeId,
-                p_new_password: 'Bac2026!',
-            });
+            // Doğrudan profiles tablosunu güncelle (Admin RLS politikası ile)
+            const { error } = await supabase
+                .from('profiles')
+                .update({ password: 'Bac123+', updated_at: new Date().toISOString() })
+                .eq('id', selectedEmployeeId);
 
             if (error) throw error;
-            if (data === false) {
-                alert("Yetkilendirme hatası. Bu işlemi sadece Admin yapabilir.");
-                return;
-            }
-            alert("Personel şifresi başarıyla 'Bac2026!' olarak sıfırlandı.");
+
+            // Denetim kaydı oluştur
+            logAuditEvent({
+                userId: currentUser?.id || '',
+                userEmail: currentUser?.email || '',
+                action: 'ADMIN_PASSWORD_RESET',
+                targetTable: 'profiles',
+                targetId: selectedEmployeeId,
+                details: { reset_by: currentUser?.name },
+            });
+
+            alert("Personel şifresi başarıyla 'Bac123+' olarak sıfırlandı.");
             setSelectedEmployeeId('');
         } catch (err) {
-            alert("Şifre sıfırlanırken bir hata oluştu.");
+            console.error("Şifre sıfırlama hatası:", err);
+            alert("Şifre sıfırlanırken bir hata oluştu: " + (err as Error).message);
         } finally {
             setResetLoading(false);
         }
@@ -294,8 +302,9 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                 alert("Şifreniz başarıyla güncellendi.");
                 setPassForm({ current: '', new: '', confirm: '' });
             }
-        } catch (err) {
-            alert("Şifre güncellenirken bir hata oluştu.");
+        } catch (err: any) {
+            console.error("Password update error:", err);
+            alert("Şifre güncellenirken hata: " + (err?.message || JSON.stringify(err)));
         } finally {
             setPassLoading(false);
         }
@@ -476,7 +485,7 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                                 Personel Şifre Sıfırlama
                             </h3>
                             <p className="text-sm text-zinc-400 mb-6">
-                                Personellerin şifrelerini unuttuklarında standart "Bac2026!" olarak sıfırlayabilirsiniz.
+                                Personellerin şifrelerini unuttuklarında standart "Bac123+" olarak sıfırlayabilirsiniz.
                             </p>
                             
                             <form onSubmit={handleAdminPasswordReset} className="space-y-4 max-w-lg">
@@ -489,7 +498,7 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                                     >
                                         <option value="">-- Personel Seçin --</option>
                                         {employees.map(emp => (
-                                            <option key={emp.id} value={emp.id}>{emp.name} ({emp.branch})</option>
+                                            <option key={emp.id} value={emp.id}>{emp.name}{emp.branch ? ` (${emp.branch})` : ''}{emp.role ? ` - ${emp.role}` : ''}</option>
                                         ))}
                                     </select>
                                 </div>

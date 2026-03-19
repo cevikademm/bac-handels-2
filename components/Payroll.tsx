@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Employee, Branch, Role, TimeLog, AppNotification } from '../types';
-import { Search, Plus, Filter, Calculator, Save, Trash2, Star, Trophy, Phone, Mail, X, MapPin, Briefcase, Link as LinkIcon, ThumbsUp, ThumbsDown, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Wallet, Banknote, Map, Timer, Edit2, Loader2, ArrowRightLeft, Building2, CalendarRange, Lock, Rocket, PieChart, Upload } from 'lucide-react';
+import { Search, Plus, Filter, Calculator, Save, Trash2, Star, Trophy, Phone, Mail, X, MapPin, Briefcase, Link as LinkIcon, ThumbsUp, ThumbsDown, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Wallet, Banknote, Map, Timer, Edit2, Loader2, ArrowRightLeft, Building2, CalendarRange, Lock, Rocket, PieChart, Upload, Shield } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
 import { GlowingEffect } from './ui/glowing-effect';
@@ -57,6 +57,13 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
   });
 
   const [currentMonth, setCurrentMonth] = useState<string>(new Date().toISOString().slice(0, 7));
+
+  // Arama state'i
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Admin personel listesi
+  const [adminEmployees, setAdminEmployees] = useState<Employee[]>([]);
+  const [showAdminList, setShowAdminList] = useState(false);
 
   // --- SUPABASE VERİ ÇEKME & REALTIME ---
   useEffect(() => {
@@ -118,6 +125,30 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
              setEmployees([]);
         }
 
+        // 1.5 Admin Personelleri Çek (Sadece admin kullanıcı için)
+        if (currentUser.role === Role.ADMIN) {
+            const { data: adminData } = await supabase.from('profiles').select('*').eq('role', 'Admin').order('full_name');
+            if (adminData) {
+                const formattedAdmins: Employee[] = adminData.map((e: any) => ({
+                    id: e.id,
+                    name: e.full_name,
+                    email: e.email,
+                    role: e.role as Role,
+                    branch: e.branch as Branch,
+                    hourlyRate: e.hourly_rate,
+                    taxClass: e.tax_class,
+                    avatarUrl: e.avatar_url || `https://ui-avatars.com/api/?name=${e.full_name}`,
+                    advances: 0,
+                    phone: e.phone,
+                    bio: e.bio,
+                    badges: e.badges || [],
+                    tags: e.tags || [],
+                    metrics: e.metrics || { speed: 50, satisfaction: 50, attendance: 50 }
+                }));
+                setAdminEmployees(formattedAdmins);
+            }
+        }
+
         // 2. Zaman Loglarını Çek
         let logQuery = supabase.from('time_logs').select('*');
         
@@ -139,7 +170,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                 let diffMs = e.getTime() - s.getTime();
                 if (diffMs < 0) diffMs += 24 * 60 * 60 * 1000;
                 
-                const breakMins = l.break_duration || 60;
+                const breakMins = l.break_duration || 0;
                 const netMins = (diffMs / 60000) - breakMins;
                 displayHours = Math.max(0, Number((netMins / 60).toFixed(2)));
             }
@@ -175,17 +206,23 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
     if (currentUser.role !== Role.ADMIN) {
         return employees.filter(e => e.id === currentUser.id);
     }
-    // Admin ise şube filtresine göre (veya Tümü)
-    // NOT: Admin'ler zaten 'employees' state'inde yok, bu filtre sadece branch kontrolü yapar.
-    return employees.filter(e => selectedBranch === 'ALL' || e.branch === selectedBranch);
-  }, [employees, selectedBranch, currentUser]);
+    // Admin ise şube filtresine göre (veya Tümü) + arama filtresi (büyük/küçük harf duyarsız)
+    return employees.filter(e => {
+        const branchMatch = selectedBranch === 'ALL' || e.branch === selectedBranch;
+        const searchMatch = !searchQuery || e.name.toLowerCase().includes(searchQuery.toLowerCase()) || e.email.toLowerCase().includes(searchQuery.toLowerCase());
+        return branchMatch && searchMatch;
+    });
+  }, [employees, selectedBranch, currentUser, searchQuery]);
+
+  // Tüm çalışanlar (personel + admin) birleşik listesi - detay görüntüleme için
+  const allEmployees = useMemo(() => [...employees, ...adminEmployees], [employees, adminEmployees]);
 
   const targetEmployeeId = selectedEmployeeId || (currentUser.role === Role.ADMIN ? null : currentUser.id);
-  const targetEmployee = employees.find(e => e.id === targetEmployeeId);
-  
-  const selectedEmployeeForDetail = selectedEmployeeId === 'NEW' 
-    ? (editForm as Employee) 
-    : employees.find(e => e.id === selectedEmployeeId);
+  const targetEmployee = allEmployees.find(e => e.id === targetEmployeeId);
+
+  const selectedEmployeeForDetail = selectedEmployeeId === 'NEW'
+    ? (editForm as Employee)
+    : allEmployees.find(e => e.id === selectedEmployeeId);
 
   const monthlyLogs = useMemo(() => {
     if (!targetEmployeeId) return [];
@@ -316,21 +353,31 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
               
               if(error) throw error;
               
-              setEmployees(employees.map(e => e.id === selectedEmployeeId ? { ...e, ...editForm } as Employee : e));
+              // Admin mi personel mi kontrol et ve doğru state'i güncelle
+              const isAdminEmployee = adminEmployees.some(a => a.id === selectedEmployeeId);
+              if (isAdminEmployee) {
+                  setAdminEmployees(adminEmployees.map(e => e.id === selectedEmployeeId ? { ...e, ...editForm } as Employee : e));
+              } else {
+                  setEmployees(employees.map(e => e.id === selectedEmployeeId ? { ...e, ...editForm } as Employee : e));
+              }
           }
           alert(t('common.success'));
       } catch (err: any) {
           console.warn("Veritabanı bağlantı hatası, yerel modda devam ediliyor:", err);
-          
+
           // --- FALLBACK: YEREL KAYIT ---
-          // Eğer veritabanı "Failed to fetch" verirse, uygulamanın çökmemesi için yerel state'i güncelliyoruz.
           if (selectedEmployeeId === 'NEW') {
               const tempId = `local_${Date.now()}`;
               const newEmp = { ...editForm, id: tempId } as Employee;
               setEmployees([...employees, newEmp]);
               setSelectedEmployeeId(tempId);
           } else {
-              setEmployees(employees.map(e => e.id === selectedEmployeeId ? { ...e, ...editForm } as Employee : e));
+              const isAdminEmployee = adminEmployees.some(a => a.id === selectedEmployeeId);
+              if (isAdminEmployee) {
+                  setAdminEmployees(adminEmployees.map(e => e.id === selectedEmployeeId ? { ...e, ...editForm } as Employee : e));
+              } else {
+                  setEmployees(employees.map(e => e.id === selectedEmployeeId ? { ...e, ...editForm } as Employee : e));
+              }
           }
           alert("Veritabanı bağlantısı yok. Değişiklikler demo modunda yerel olarak kaydedildi.");
       } finally {
@@ -424,15 +471,25 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
           const { error } = await supabase.from('profiles').delete().eq('id', selectedEmployeeId);
           if(error) throw error;
           
-          // Başarılı olursa state'den sil
-          setEmployees(employees.filter(e => e.id !== selectedEmployeeId));
+          // Başarılı olursa state'den sil (admin veya personel)
+          const isAdminDel = adminEmployees.some(a => a.id === selectedEmployeeId);
+          if (isAdminDel) {
+              setAdminEmployees(adminEmployees.filter(e => e.id !== selectedEmployeeId));
+          } else {
+              setEmployees(employees.filter(e => e.id !== selectedEmployeeId));
+          }
           setSelectedEmployeeId(null);
           setIsEditing(false);
       } catch (err: any) {
           console.warn("Silme hatası, yerel modda devam ediliyor:", err);
-          
+
           // --- FALLBACK: YEREL SİLME ---
-          setEmployees(employees.filter(e => e.id !== selectedEmployeeId));
+          const isAdminDel = adminEmployees.some(a => a.id === selectedEmployeeId);
+          if (isAdminDel) {
+              setAdminEmployees(adminEmployees.filter(e => e.id !== selectedEmployeeId));
+          } else {
+              setEmployees(employees.filter(e => e.id !== selectedEmployeeId));
+          }
           setSelectedEmployeeId(null);
           setIsEditing(false);
           
@@ -1020,10 +1077,53 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                   <div className="p-6 pb-4">
                      <div className="flex justify-between items-center mb-6">
                          <div><h3 className="text-xl font-bold text-white">{t('pay.tabStaff')}</h3><p className="text-xs text-zinc-500">{filteredEmployees.length} kişi</p></div>
-                         {/* ADD BUTTON NOW FOR ALL ADMINS */}
-                         {currentUser.role === Role.ADMIN && (<button onClick={handleAddNew} className="w-8 h-8 flex items-center justify-center bg-indigo-600 rounded-full text-white hover:bg-indigo-500 shadow-lg"><Plus size={18} /></button>)}
+                         <div className="flex items-center gap-2">
+                             {/* ADMIN LİSTESİ BUTONU */}
+                             {currentUser.role === Role.ADMIN && adminEmployees.length > 0 && (
+                                 <div className="relative">
+                                     <button
+                                         onClick={() => setShowAdminList(!showAdminList)}
+                                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${showAdminList ? 'bg-red-900/20 text-red-400 border-red-900/40' : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-red-400 hover:border-red-900/30'}`}
+                                     >
+                                         <Shield size={14} />
+                                         <span className="hidden md:inline">Admin</span>
+                                         <span className="text-[10px] bg-red-900/30 text-red-400 px-1.5 py-0.5 rounded-full">{adminEmployees.length}</span>
+                                         <ChevronRight size={12} className={`transition-transform duration-200 ${showAdminList ? 'rotate-90' : ''}`} />
+                                     </button>
+                                     {showAdminList && (
+                                         <div className="absolute right-0 top-full mt-2 w-64 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl z-50 overflow-hidden">
+                                             <div className="p-3 border-b border-zinc-800 flex items-center gap-2">
+                                                 <Shield size={14} className="text-red-500" />
+                                                 <span className="text-xs font-bold text-white">Admin Listesi</span>
+                                             </div>
+                                             <div className="max-h-64 overflow-y-auto p-2 space-y-1">
+                                                 {adminEmployees.map(admin => (
+                                                     <div
+                                                         key={admin.id}
+                                                         onClick={() => { handleSelectEmployee(admin.id); setCurrentTab('STAFF'); setShowAdminList(false); }}
+                                                         className={`p-2.5 rounded-lg cursor-pointer transition-all border ${selectedEmployeeId === admin.id ? 'bg-red-900/20 border-red-500/30' : 'bg-zinc-950/50 border-zinc-800/50 hover:border-red-900/30 hover:bg-zinc-900/50'}`}
+                                                     >
+                                                         <div className="flex items-center gap-3">
+                                                             <img src={admin.avatarUrl} className="w-8 h-8 rounded-full object-cover border border-red-900/30" referrerPolicy="no-referrer" />
+                                                             <div className="flex-1 min-w-0">
+                                                                 <h4 className="text-xs font-semibold text-white truncate">{admin.name}</h4>
+                                                                 <p className="text-[10px] text-zinc-500 truncate">{admin.email}</p>
+                                                                 <span className="text-[10px] text-red-400">{admin.branch}</span>
+                                                             </div>
+                                                             <ChevronRight size={14} className="text-zinc-600 shrink-0" />
+                                                         </div>
+                                                     </div>
+                                                 ))}
+                                             </div>
+                                         </div>
+                                     )}
+                                 </div>
+                             )}
+                             {/* ADD BUTTON NOW FOR ALL ADMINS */}
+                             {currentUser.role === Role.ADMIN && (<button onClick={handleAddNew} className="w-8 h-8 flex items-center justify-center bg-indigo-600 rounded-full text-white hover:bg-indigo-500 shadow-lg"><Plus size={18} /></button>)}
+                         </div>
                      </div>
-                     <div className="relative mb-4"><Search size={16} className="absolute left-3 top-3 text-zinc-500" /><input type="text" placeholder={t('pay.search')} className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-zinc-200 outline-none focus:border-indigo-500"/></div>
+                     <div className="relative mb-4"><Search size={16} className="absolute left-3 top-3 text-zinc-500" /><input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t('pay.search')} className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-zinc-200 outline-none focus:border-indigo-500"/></div>
                      
                      {/* BRANCH FILTRESI - SADECE ADMIN İÇİN GÖSTER */}
                      {currentUser.role === Role.ADMIN && (
