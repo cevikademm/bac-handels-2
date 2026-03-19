@@ -165,6 +165,10 @@ const translations: Record<Language, Record<string, string>> = {
     'cal.sourceBranch': 'Kaynak Şube (Filtre)',
     'cal.branchFilter': 'Şube Filtresi',
     'cal.transferStaff': 'Transfer Edilecek Personeller',
+    'cal.tabEvents': 'Etkinlikler',
+    'cal.tabShifts': 'Çalışma Saatleri',
+    'cal.noShifts': 'Bu hafta için vardiya planı bulunamadı.',
+    'cal.personnel': 'Personel',
 
     // Payroll & Staff
     'pay.title': 'Personel & Bordro',
@@ -427,6 +431,10 @@ const translations: Record<Language, Record<string, string>> = {
     'cal.sourceBranch': 'Quellfiliale (Filter)',
     'cal.branchFilter': 'Filialfilter',
     'cal.transferStaff': 'Transferpersonal',
+    'cal.tabEvents': 'Ereignisse',
+    'cal.tabShifts': 'Arbeitszeiten',
+    'cal.noShifts': 'Kein Schichtplan für diese Woche gefunden.',
+    'cal.personnel': 'Personal',
 
     // Payroll & Staff
     'pay.title': 'Personal & Lohn',

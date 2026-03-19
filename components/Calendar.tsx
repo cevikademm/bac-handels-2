@@ -16,9 +16,12 @@ interface DisplayEvent extends CalendarEvent {
     status?: string;
 }
 
+type CalendarTab = 'EVENTS' | 'SHIFTS';
+
 const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   // --- STATE ---
   const [viewDate, setViewDate] = useState(new Date()); // Haftanın referans günü
+  const [activeTab, setActiveTab] = useState<CalendarTab>('EVENTS');
   
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -62,11 +65,21 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
             }
             const { data: eventData } = await eventQuery;
             if (eventData) {
-                const dbEvents: CalendarEvent[] = eventData.map((e: any) => ({
-                    id: e.id, title: e.title, type: e.type, date: e.date,
-                    endDate: e.end_date || e.date, startTime: e.start_time, endTime: e.end_time,
-                    attendees: e.attendees || [], description: e.description
-                }));
+                const today = new Date().toISOString().split('T')[0];
+                const dbEvents: CalendarEvent[] = eventData
+                    .filter((e: any) => {
+                        // Eski tarihli transfer kayıtlarını gösterme
+                        if (e.type === 'Şube Transferi') {
+                            const endDate = e.end_date || e.date;
+                            return endDate >= today;
+                        }
+                        return true;
+                    })
+                    .map((e: any) => ({
+                        id: e.id, title: e.title, type: e.type, date: e.date,
+                        endDate: e.end_date || e.date, startTime: e.start_time, endTime: e.end_time,
+                        attendees: e.attendees || [], description: e.description
+                    }));
                 setEvents(dbEvents);
             }
 
@@ -196,6 +209,45 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       }
       return days;
   }, [currentWeekStart]);
+
+  // --- SHIFT GRID (for Working Hours tab) ---
+  const shiftGrid = useMemo(() => {
+      const weekStartStr = currentWeekStart.toISOString().split('T')[0];
+
+      // employeeId -> { dayIndex -> timeSlot[] }
+      const employeeShiftMap = new Map<string, Map<number, string[]>>();
+
+      shifts.forEach((schedule: any) => {
+          if (schedule.week_start_date !== weekStartStr) return;
+
+          schedule.days.forEach((empId: string, dayIndex: number) => {
+              if (!empId) return;
+              if (currentUser.role !== Role.ADMIN && empId !== currentUser.id) return;
+
+              if (!employeeShiftMap.has(empId)) {
+                  employeeShiftMap.set(empId, new Map());
+              }
+              const dayMap = employeeShiftMap.get(empId)!;
+              if (!dayMap.has(dayIndex)) {
+                  dayMap.set(dayIndex, []);
+              }
+              dayMap.get(dayIndex)!.push(schedule.time_slot || '09:00-17:00');
+          });
+      });
+
+      // Group by branch
+      const branchGroups = new Map<string, { employee: Employee; days: Map<number, string[]> }[]>();
+
+      employeeShiftMap.forEach((dayMap, empId) => {
+          const emp = employees.find(e => e.id === empId);
+          if (!emp) return;
+          const branch = emp.branch || 'Havuz';
+          if (!branchGroups.has(branch)) branchGroups.set(branch, []);
+          branchGroups.get(branch)!.push({ employee: emp, days: dayMap });
+      });
+
+      return branchGroups;
+  }, [shifts, employees, currentWeekStart, currentUser]);
 
   const changeWeek = (direction: 'prev' | 'next') => {
       const newDate = new Date(viewDate);
@@ -455,101 +507,196 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
         <div className="flex-1 flex flex-col h-full bg-zinc-950 relative">
             
             {/* Header / Week Nav */}
-            <div className="p-4 md:p-6 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/90 backdrop-blur z-20 sticky top-0">
-                <div className="flex items-center gap-4">
-                    <button onClick={() => changeWeek('prev')} className="p-2 hover:bg-zinc-900 rounded-lg text-zinc-400 hover:text-white transition-colors"><ChevronLeft size={20}/></button>
-                    <div>
+            <div className="p-4 md:p-6 border-b border-zinc-800 flex flex-col md:flex-row md:items-center gap-3 bg-zinc-950/90 backdrop-blur z-20 sticky top-0">
+                <div className="flex items-center justify-between md:justify-start gap-4">
+                    <div className="flex items-center gap-2">
+                        <button onClick={() => changeWeek('prev')} className="p-2 hover:bg-zinc-900 rounded-lg text-zinc-400 hover:text-white transition-colors"><ChevronLeft size={20}/></button>
                         <h2 className="text-lg md:text-xl font-bold text-white text-center min-w-[150px]">
                             {formatDate(weekDays[0], {day: 'numeric', month: 'short'})} - {formatDate(weekDays[6], {day: 'numeric', month: 'short', year: 'numeric'})}
                         </h2>
+                        <button onClick={() => changeWeek('next')} className="p-2 hover:bg-zinc-900 rounded-lg text-zinc-400 hover:text-white transition-colors"><ChevronRight size={20}/></button>
                     </div>
-                    <button onClick={() => changeWeek('next')} className="p-2 hover:bg-zinc-900 rounded-lg text-zinc-400 hover:text-white transition-colors"><ChevronRight size={20}/></button>
+
+                    {/* Mobile Add Button */}
+                    {activeTab === 'EVENTS' && (
+                        <button
+                            onClick={() => { setNewEventForm(p => ({...p, date: new Date().toISOString().split('T')[0]})); setShowAddModal(true); }}
+                            className="md:hidden w-10 h-10 flex items-center justify-center bg-indigo-600 rounded-full text-white shadow-lg"
+                        >
+                            <Plus size={20} />
+                        </button>
+                    )}
                 </div>
-                
-                {/* Mobile Add Button */}
-                <button 
-                    onClick={() => { setNewEventForm(p => ({...p, date: new Date().toISOString().split('T')[0]})); setShowAddModal(true); }}
-                    className="md:hidden w-10 h-10 flex items-center justify-center bg-indigo-600 rounded-full text-white shadow-lg"
-                >
-                    <Plus size={20} />
-                </button>
+
+                {/* Tab Switcher */}
+                <div className="flex bg-zinc-900 p-1 rounded-xl border border-zinc-800 md:ml-auto">
+                    <button
+                        onClick={() => setActiveTab('EVENTS')}
+                        className={`flex-1 md:flex-none px-4 py-1.5 text-xs font-medium rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                            activeTab === 'EVENTS'
+                                ? 'bg-zinc-800 text-white shadow'
+                                : 'text-zinc-500 hover:text-zinc-300'
+                        }`}
+                    >
+                        <List size={14} /> {t('cal.tabEvents')}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('SHIFTS')}
+                        className={`flex-1 md:flex-none px-4 py-1.5 text-xs font-medium rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                            activeTab === 'SHIFTS'
+                                ? 'bg-indigo-600 text-white shadow'
+                                : 'text-zinc-500 hover:text-zinc-300'
+                        }`}
+                    >
+                        <Clock size={14} /> {t('cal.tabShifts')}
+                    </button>
+                </div>
             </div>
 
             {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8 space-y-6">
-                {weekDays.map(day => {
-                    const dateStr = day.toISOString().split('T')[0];
-                    const isCurrentDay = isToday(day);
-                    
-                    // Filter events for this day
-                    const dayEvents = combinedEvents.filter(e => {
-                        if (!e.isTask && !e.isShift && e.endDate) return dateStr >= e.date && dateStr <= e.endDate;
-                        return e.date === dateStr;
-                    }).sort((a,b) => a.startTime.localeCompare(b.startTime));
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8">
+                {activeTab === 'EVENTS' ? (
+                    /* --- EVENTS TAB (mevcut haftalık ajanda) --- */
+                    <div className="space-y-6">
+                        {weekDays.map(day => {
+                            const dateStr = day.toISOString().split('T')[0];
+                            const isCurrentDay = isToday(day);
 
-                    return (
-                        <div key={dateStr} className={`flex flex-col md:flex-row gap-4 md:gap-8 group ${dayEvents.length === 0 ? 'opacity-50 hover:opacity-80 transition-opacity' : ''}`}>
-                            {/* Date Column */}
-                            <div className="md:w-32 flex-shrink-0 pt-2 flex md:flex-col items-center md:items-start gap-2 md:gap-0">
-                                <span className={`text-xs font-bold uppercase tracking-wider ${isCurrentDay ? 'text-indigo-400' : 'text-zinc-500'}`}>
-                                    {formatDate(day, {weekday: 'long'})}
-                                </span>
-                                <div className={`text-2xl font-light ${isCurrentDay ? 'text-white' : 'text-zinc-400'}`}>
-                                    {day.getDate()}
-                                </div>
-                                {isCurrentDay && <div className="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded mt-1 hidden md:block">{t('cal.today')}</div>}
-                            </div>
+                            const dayEvents = combinedEvents.filter(e => {
+                                if (!e.isTask && !e.isShift && e.endDate) return dateStr >= e.date && dateStr <= e.endDate;
+                                return e.date === dateStr;
+                            }).sort((a,b) => a.startTime.localeCompare(b.startTime));
 
-                            {/* Events List */}
-                            <div className="flex-1 space-y-3 pb-6 border-b border-zinc-800/50 group-last:border-none">
-                                {dayEvents.length === 0 ? (
-                                    <div className="py-2 text-sm text-zinc-600 italic">{t('cal.noEvents')}</div>
-                                ) : (
-                                    dayEvents.map(evt => (
-                                        <div 
-                                            key={evt.id}
-                                            onClick={() => setSelectedEvent(evt)}
-                                            className="bg-zinc-900/40 hover:bg-zinc-900 border border-zinc-800/60 hover:border-zinc-700 rounded-xl p-4 cursor-pointer transition-all hover:translate-x-1 group/card relative overflow-hidden"
-                                        >
-                                            {/* Left Colored Strip */}
-                                            <div className={`absolute top-0 bottom-0 left-0 w-1 ${
-                                                evt.isTask ? 'bg-blue-500' : 
-                                                evt.isShift ? 'bg-zinc-500' :
-                                                evt.type === 'Şube Transferi' ? 'bg-orange-500' : 
-                                                evt.type === 'Toplantı' ? 'bg-indigo-500' : 'bg-zinc-500'
-                                            }`}></div>
-
-                                            <div className="flex justify-between items-start pl-3">
-                                                <div className="flex-1">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <span className="text-xs font-mono text-zinc-500 flex items-center gap-1">
-                                                            <Clock size={12}/> {evt.startTime} - {evt.endTime}
-                                                        </span>
-                                                        {evt.type === 'Şube Transferi' && <span className="text-[10px] bg-orange-500/20 text-orange-400 px-1.5 rounded font-bold">TRANSFER</span>}
-                                                        {evt.isShift && <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 rounded font-bold">VARDİYA</span>}
-                                                    </div>
-                                                    <h4 className="text-base font-bold text-zinc-200 group-hover/card:text-white transition-colors">{getText(evt.title)}</h4>
-                                                    {evt.description && <p className="text-xs text-zinc-500 mt-1 line-clamp-1">{getText(evt.description)}</p>}
-                                                </div>
-                                                
-                                                {/* Avatars */}
-                                                <div className="flex -space-x-2 pl-2">
-                                                    {evt.attendees.slice(0, 3).map(id => {
-                                                        const emp = employees.find(e => e.id === id);
-                                                        return emp ? <img key={id} src={emp.avatarUrl} className="w-8 h-8 rounded-full border-2 border-zinc-900 bg-zinc-800" title={emp.name} referrerPolicy="no-referrer" /> : null;
-                                                    })}
-                                                    {evt.attendees.length > 3 && <div className="w-8 h-8 rounded-full bg-zinc-800 border-2 border-zinc-900 flex items-center justify-center text-[10px] text-zinc-400">+{evt.attendees.length-3}</div>}
-                                                </div>
-                                            </div>
+                            return (
+                                <div key={dateStr} className={`flex flex-col md:flex-row gap-4 md:gap-8 group ${dayEvents.length === 0 ? 'opacity-50 hover:opacity-80 transition-opacity' : ''}`}>
+                                    <div className="md:w-32 flex-shrink-0 pt-2 flex md:flex-col items-center md:items-start gap-2 md:gap-0">
+                                        <span className={`text-xs font-bold uppercase tracking-wider ${isCurrentDay ? 'text-indigo-400' : 'text-zinc-500'}`}>
+                                            {formatDate(day, {weekday: 'long'})}
+                                        </span>
+                                        <div className={`text-2xl font-light ${isCurrentDay ? 'text-white' : 'text-zinc-400'}`}>
+                                            {day.getDate()}
                                         </div>
-                                    ))
-                                )}
+                                        {isCurrentDay && <div className="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded mt-1 hidden md:block">{t('cal.today')}</div>}
+                                    </div>
+
+                                    <div className="flex-1 space-y-3 pb-6 border-b border-zinc-800/50 group-last:border-none">
+                                        {dayEvents.length === 0 ? (
+                                            <div className="py-2 text-sm text-zinc-600 italic">{t('cal.noEvents')}</div>
+                                        ) : (
+                                            dayEvents.map(evt => (
+                                                <div
+                                                    key={evt.id}
+                                                    onClick={() => setSelectedEvent(evt)}
+                                                    className="bg-zinc-900/40 hover:bg-zinc-900 border border-zinc-800/60 hover:border-zinc-700 rounded-xl p-4 cursor-pointer transition-all hover:translate-x-1 group/card relative overflow-hidden"
+                                                >
+                                                    <div className={`absolute top-0 bottom-0 left-0 w-1 ${
+                                                        evt.isTask ? 'bg-blue-500' :
+                                                        evt.isShift ? 'bg-zinc-500' :
+                                                        evt.type === 'Şube Transferi' ? 'bg-orange-500' :
+                                                        evt.type === 'Toplantı' ? 'bg-indigo-500' : 'bg-zinc-500'
+                                                    }`}></div>
+
+                                                    <div className="flex justify-between items-start pl-3">
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <span className="text-xs font-mono text-zinc-500 flex items-center gap-1">
+                                                                    <Clock size={12}/> {evt.startTime} - {evt.endTime}
+                                                                </span>
+                                                                {evt.type === 'Şube Transferi' && <span className="text-[10px] bg-orange-500/20 text-orange-400 px-1.5 rounded font-bold">TRANSFER</span>}
+                                                                {evt.isShift && <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 rounded font-bold">VARDİYA</span>}
+                                                            </div>
+                                                            <h4 className="text-base font-bold text-zinc-200 group-hover/card:text-white transition-colors">{getText(evt.title)}</h4>
+                                                            {evt.description && <p className="text-xs text-zinc-500 mt-1 line-clamp-1">{getText(evt.description)}</p>}
+                                                        </div>
+
+                                                        <div className="flex -space-x-2 pl-2">
+                                                            {evt.attendees.slice(0, 3).map(id => {
+                                                                const emp = employees.find(e => e.id === id);
+                                                                return emp ? <img key={id} src={emp.avatarUrl} className="w-8 h-8 rounded-full border-2 border-zinc-900 bg-zinc-800" title={emp.name} referrerPolicy="no-referrer" /> : null;
+                                                            })}
+                                                            {evt.attendees.length > 3 && <div className="w-8 h-8 rounded-full bg-zinc-800 border-2 border-zinc-900 flex items-center justify-center text-[10px] text-zinc-400">+{evt.attendees.length-3}</div>}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                        <div className="h-20"></div>
+                    </div>
+                ) : (
+                    /* --- SHIFTS TAB (Çalışma Saatleri grid) --- */
+                    <div>
+                        {shiftGrid.size === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
+                                <Clock size={48} className="mb-4 opacity-30" />
+                                <p className="text-sm">{t('cal.noShifts')}</p>
                             </div>
-                        </div>
-                    );
-                })}
-                
-                <div className="h-20"></div> {/* Bottom Spacer */}
+                        ) : (
+                            <div className="space-y-8">
+                                {Array.from(shiftGrid.entries()).map(([branch, empList]) => (
+                                    <div key={branch} className="bg-zinc-900/30 rounded-xl border border-zinc-800 overflow-hidden">
+                                        {/* Branch Header */}
+                                        <div className="px-4 py-3 bg-zinc-900/50 border-b border-zinc-800 flex items-center gap-2">
+                                            <Building2 size={16} className="text-indigo-400" />
+                                            <span className="text-sm font-bold text-white">{branch}</span>
+                                            <span className="text-xs text-zinc-500 ml-auto">{empList.length} {t('cal.personnel')}</span>
+                                        </div>
+
+                                        {/* Grid Table */}
+                                        <div className="overflow-x-auto custom-scrollbar">
+                                            <table className="w-full min-w-[640px]">
+                                                <thead>
+                                                    <tr className="border-b border-zinc-800/50">
+                                                        <th className="text-left px-4 py-2.5 text-xs text-zinc-500 font-medium w-44">{t('cal.personnel')}</th>
+                                                        {weekDays.map((day, i) => (
+                                                            <th key={i} className={`text-center px-2 py-2.5 text-xs font-medium ${isToday(day) ? 'text-indigo-400' : 'text-zinc-500'}`}>
+                                                                <div>{formatDate(day, {weekday: 'short'})}</div>
+                                                                <div className={`text-[10px] mt-0.5 ${isToday(day) ? 'text-indigo-300' : 'text-zinc-600'}`}>{day.getDate()}</div>
+                                                            </th>
+                                                        ))}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {empList.map(({ employee, days }) => (
+                                                        <tr key={employee.id} className="border-b border-zinc-800/30 hover:bg-zinc-900/40 transition-colors">
+                                                            <td className="px-4 py-3">
+                                                                <div className="flex items-center gap-2.5">
+                                                                    <img src={employee.avatarUrl} className="w-7 h-7 rounded-full border border-zinc-700" referrerPolicy="no-referrer" />
+                                                                    <span className="text-sm text-zinc-200 font-medium truncate max-w-[120px]">{employee.name}</span>
+                                                                </div>
+                                                            </td>
+                                                            {weekDays.map((day, dayIndex) => {
+                                                                const slots = days.get(dayIndex);
+                                                                const isCurrent = isToday(day);
+                                                                return (
+                                                                    <td key={dayIndex} className={`text-center px-2 py-3 ${isCurrent ? 'bg-indigo-950/20' : ''}`}>
+                                                                        {slots ? (
+                                                                            slots.map((slot, si) => (
+                                                                                <div key={si} className="text-[11px] bg-indigo-500/15 text-indigo-300 rounded-md px-2 py-1 mb-0.5 font-mono whitespace-nowrap">
+                                                                                    {slot}
+                                                                                </div>
+                                                                            ))
+                                                                        ) : (
+                                                                            <span className="text-zinc-700 text-xs">--</span>
+                                                                        )}
+                                                                    </td>
+                                                                );
+                                                            })}
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        <div className="h-20"></div>
+                    </div>
+                )}
             </div>
         </div>
 

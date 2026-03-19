@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Employee, Branch, Role, TimeLog, AppNotification } from '../types';
-import { Search, Plus, Filter, Calculator, Save, Trash2, Phone, Mail, X, MapPin, Briefcase, Link as LinkIcon, ThumbsUp, ThumbsDown, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Wallet, Banknote, Map, Timer, Edit2, Loader2, ArrowRightLeft, Building2, CalendarRange, Lock, Rocket, PieChart, Upload, Shield } from 'lucide-react';
+import { Search, Plus, Filter, Calculator, Save, Trash2, Phone, Mail, X, MapPin, Briefcase, Link as LinkIcon, ThumbsUp, ThumbsDown, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Wallet, Banknote, Map, Timer, Edit2, Loader2, ArrowRightLeft, Building2, CalendarRange, Lock, Rocket, PieChart, Upload, Shield, AlertTriangle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
 import { GlowingEffect } from './ui/glowing-effect';
@@ -255,7 +255,8 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
             .from('personnel_transfers')
             .select('*')
             .eq('employee_id', selectedEmployeeId)
-            .order('start_date', { ascending: false });
+            .order('start_date', { ascending: false })
+            .order('start_time', { ascending: true });
         setTransferHistory(data || []);
     };
     fetchTransferHistory();
@@ -446,7 +447,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
               start_time: transferDates.startTime || '08:00',
               end_time: transferDates.endTime || '18:00',
               attendees: [selectedEmployeeForDetail.id],
-              description: `Transfer: ${'Havuz'} -> ${targetBranch}`
+              description: `Yeni Çalışma Şubeniz: ${targetBranch}`
           };
           await supabase.from('calendar_events').insert([transferEvent]);
 
@@ -455,7 +456,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
               id: `notif_${Date.now()}`,
               type: 'TRANSFER',
               title: t('dash.transferAlert'),
-              message: `${selectedEmployeeForDetail.name}: ${'Havuz'} -> ${targetBranch} (${transferDates.startDate} - ${transferDates.endDate})`,
+              message: `${selectedEmployeeForDetail.name}: Yeni Çalışma Şubeniz: ${targetBranch} (${transferDates.startDate} - ${transferDates.endDate})`,
               timestamp: new Date().toISOString(),
               recipientId: selectedEmployeeForDetail.id
           });
@@ -479,7 +480,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
               id: `notif_${Date.now()}`,
               type: 'TRANSFER',
               title: 'Personel Transferi (Demo)',
-              message: `${selectedEmployeeForDetail.name}, ${'Havuz'} -> ${targetBranch} (Demo mod)`,
+              message: `${selectedEmployeeForDetail.name}: Yeni Çalışma Şubeniz: ${targetBranch} (Demo mod)`,
               timestamp: new Date().toISOString(),
               recipientId: selectedEmployeeForDetail.id
           });
@@ -898,7 +899,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                                             {hasTransfer && (
                                                                 <div className="flex gap-0.5 mt-1">
                                                                     {dayTransfers.slice(0, 3).map((tr: any) => (
-                                                                        <div key={tr.id} className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-orange-300' : 'bg-orange-500'}`} title={`${tr.from_branch} → ${tr.to_branch}`}></div>
+                                                                        <div key={tr.id} className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-orange-300' : 'bg-orange-500'}`} title={`Yeni Çalışma Şubeniz: ${tr.to_branch}`}></div>
                                                                     ))}
                                                                 </div>
                                                             )}
@@ -915,7 +916,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                                 {(selectedTransferDay ? [selectedTransferDay] : sortedDates).map(dateStr => {
                                                     const dayTransfers = transferHistory.filter((tr: any) =>
                                                         dateStr >= tr.start_date && dateStr <= tr.end_date
-                                                    );
+                                                    ).sort((a: any, b: any) => (a.start_time || '00:00').localeCompare(b.start_time || '00:00'));
                                                     if (dayTransfers.length === 0) return null;
                                                     const isToday = dateStr === today.toISOString().split('T')[0];
                                                     const dateObj = new Date(dateStr);
@@ -935,33 +936,35 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                                             {/* O güne ait tüm transferler */}
                                                             <div className="space-y-1.5">
                                                                 {dayTransfers.map((tr: any) => (
-                                                                    <div key={tr.id} className={`p-2.5 rounded-lg border ${tr.status === 'cancelled' ? 'bg-zinc-900/20 border-zinc-800/30 opacity-50' : tr.status === 'active' ? 'bg-orange-950/30 border-orange-700/40' : 'bg-zinc-900/30 border-zinc-800/50'}`}>
+                                                                    <div key={tr.id} className={`p-2.5 rounded-lg border ${tr.status === 'active' ? 'bg-orange-950/30 border-orange-700/40' : 'bg-zinc-900/30 border-zinc-800/50'}`}>
                                                                         <div className="flex items-center justify-between">
                                                                             <div className="flex items-center gap-1.5">
-                                                                                <span className="text-[11px] text-zinc-400 bg-zinc-800/50 px-1.5 py-0.5 rounded">{tr.from_branch}</span>
-                                                                                <ArrowRightLeft size={10} className="text-orange-500"/>
+                                                                                <span className="text-[11px] text-zinc-400">Yeni Çalışma Şubeniz:</span>
                                                                                 <span className="text-[11px] text-white font-semibold bg-orange-600/20 px-1.5 py-0.5 rounded border border-orange-500/20">{tr.to_branch}</span>
                                                                             </div>
                                                                             <div className="flex items-center gap-1">
                                                                                 <span className="text-[10px] text-zinc-500 flex items-center gap-0.5">
                                                                                     <Clock size={9}/> {tr.start_time}-{tr.end_time}
                                                                                 </span>
-                                                                                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${tr.status === 'active' ? 'bg-orange-600/20 text-orange-400' : tr.status === 'cancelled' ? 'bg-red-600/20 text-red-400' : 'bg-zinc-700/30 text-zinc-400'}`}>
-                                                                                    {tr.status === 'active' ? 'Aktif' : tr.status === 'cancelled' ? 'İptal' : 'Bitti'}
+                                                                                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${tr.status === 'active' ? 'bg-orange-600/20 text-orange-400' : 'bg-zinc-700/30 text-zinc-400'}`}>
+                                                                                    {tr.status === 'active' ? 'Aktif' : 'Bitti'}
                                                                                 </span>
-                                                                                {tr.status === 'active' && (
-                                                                                    <button
-                                                                                        onClick={async () => {
-                                                                                            if(!confirm('Bu transferi iptal etmek istediğinize emin misiniz?')) return;
-                                                                                            await supabase.from('personnel_transfers').update({ status: 'cancelled' }).eq('id', tr.id);
-                                                                                            setTransferHistory(prev => prev.map((t: any) => t.id === tr.id ? { ...t, status: 'cancelled' } : t));
-                                                                                        }}
-                                                                                        className="text-zinc-600 hover:text-red-400 transition-colors"
-                                                                                        title="İptal Et"
-                                                                                    >
-                                                                                        <X size={12}/>
-                                                                                    </button>
-                                                                                )}
+                                                                                <button
+                                                                                    onClick={async () => {
+                                                                                        if(!confirm('Bu transfer kalıcı olarak silinecek. Emin misiniz?')) return;
+                                                                                        await supabase.from('personnel_transfers').delete().eq('id', tr.id);
+                                                                                        // Takvimden de ilgili etkinliği sil
+                                                                                        await supabase.from('calendar_events').delete()
+                                                                                            .eq('type', 'Şube Transferi')
+                                                                                            .eq('date', tr.start_date)
+                                                                                            .contains('attendees', [selectedEmployeeForDetail!.id]);
+                                                                                        setTransferHistory(prev => prev.filter((t: any) => t.id !== tr.id));
+                                                                                    }}
+                                                                                    className="text-zinc-600 hover:text-red-400 transition-colors"
+                                                                                    title="Sil"
+                                                                                >
+                                                                                    <Trash2 size={11}/>
+                                                                                </button>
                                                                             </div>
                                                                         </div>
                                                                     </div>
@@ -1068,97 +1071,237 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
 
   return (
     <div className="h-full flex flex-col relative overflow-hidden bg-zinc-950">
-        {/* TRANSFER MODAL */}
-        {showTransferModal && selectedEmployeeForDetail && (
-            <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95">
-                    <div className="p-5 border-b border-zinc-800 flex justify-between items-center">
-                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                             <Rocket size={20} className="text-orange-500" /> {t('cal.transfer')}
-                        </h3>
-                        <button onClick={() => setShowTransferModal(false)} className="text-zinc-500 hover:text-white"><X size={20} /></button>
-                    </div>
-                    <div className="p-6 space-y-6">
-                        <div className="text-center">
-                             <div className="w-16 h-16 rounded-full bg-zinc-800 mx-auto mb-3 flex items-center justify-center border-2 border-zinc-700">
-                                 <img src={selectedEmployeeForDetail.avatarUrl} className="w-full h-full rounded-full opacity-80" referrerPolicy="no-referrer" />
-                             </div>
-                             <h4 className="text-white font-medium">{selectedEmployeeForDetail.name}</h4>
-                             <p className="text-xs text-zinc-500 mt-1">Durum: <span className="text-emerald-400">Havuzda</span></p>
-                        </div>
-                        
-                        <div className="space-y-4">
-                            <div className="space-y-2">
-                                <label className="text-xs font-medium text-zinc-400 flex items-center gap-2"><Building2 size={14}/> {t('cal.targetBranch')}</label>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {Object.values(Branch).map(branch => (
-                                        <button 
-                                            key={branch}
-                                            onClick={() => setTargetBranch(branch)}
-                                            className={`px-3 py-2 text-xs font-medium rounded-lg border transition-all ${targetBranch === branch ? 'bg-orange-600 text-white border-orange-500 shadow-lg shadow-orange-900/20' : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-700'}`}
-                                        >
-                                            {branch}
-                                        </button>
-                                    ))}
+        {/* TRANSFER MODAL — KREATIV TASARIM */}
+        {showTransferModal && selectedEmployeeForDetail && (() => {
+            // Çakışma hesaplayıcı
+            const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+            const getConflictsForBranch = (branch: string) => transferHistory.filter((tr: any) => {
+                if (tr.status === 'cancelled' || tr.to_branch === branch) return false;
+                if (!transferDates.startDate || !transferDates.endDate) return false;
+                const dateOverlap = tr.start_date <= transferDates.endDate && tr.end_date >= transferDates.startDate;
+                if (!dateOverlap) return false;
+                const trS = toMin(tr.start_time || '08:00'), trE = toMin(tr.end_time || '18:00');
+                const nS = toMin(transferDates.startTime || '08:00'), nE = toMin(transferDates.endTime || '18:00');
+                return nS < trE && trS < nE;
+            });
+            const allConflicts = getConflictsForBranch(targetBranch);
+            const hasAnyConflict = allConflicts.length > 0;
+
+            return (
+            <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+                <div className="bg-gradient-to-b from-zinc-900 via-zinc-900 to-zinc-950 border border-zinc-700/50 rounded-3xl shadow-[0_0_80px_rgba(249,115,22,0.08)] w-full max-w-md max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95">
+
+                    {/* HEADER — Gradient accent bar (sabit) */}
+                    <div className="relative overflow-hidden shrink-0">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 via-amber-400 to-orange-600"></div>
+                        <div className="p-5 flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-lg shadow-orange-900/30">
+                                    <ArrowRightLeft size={18} className="text-white" />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-bold text-white tracking-tight">Transfer Planla</h3>
+                                    <p className="text-[10px] text-zinc-500 mt-0.5">Personel görevlendirme</p>
                                 </div>
                             </div>
-                            
-                            <div className="space-y-2">
-                                <label className="text-xs font-medium text-zinc-400 flex items-center gap-2"><CalendarRange size={14}/> Transfer Süresi</label>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <span className="text-[10px] text-zinc-500 block mb-1">Başlangıç Tarihi</span>
-                                        <input
-                                            type="date"
-                                            value={transferDates.startDate}
-                                            onChange={(e) => setTransferDates({...transferDates, startDate: e.target.value})}
-                                            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1.5 text-xs text-white"
-                                        />
-                                    </div>
-                                    <div>
-                                        <span className="text-[10px] text-zinc-500 block mb-1">Bitiş Tarihi</span>
-                                        <input
-                                            type="date"
-                                            value={transferDates.endDate}
-                                            onChange={(e) => setTransferDates({...transferDates, endDate: e.target.value})}
-                                            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1.5 text-xs text-white"
-                                        />
-                                    </div>
+                            <button onClick={() => setShowTransferModal(false)} className="w-8 h-8 rounded-full bg-zinc-800/80 hover:bg-zinc-700 flex items-center justify-center transition-colors group">
+                                <X size={16} className="text-zinc-400 group-hover:text-white" />
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="px-5 pb-5 space-y-5 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+                        {/* PERSONEL KARTI */}
+                        <div className="flex items-center gap-3 p-3 rounded-2xl bg-zinc-800/30 border border-zinc-800/50">
+                            <div className="relative">
+                                <div className="w-12 h-12 rounded-xl overflow-hidden ring-2 ring-zinc-700 shadow-lg">
+                                    <img src={selectedEmployeeForDetail.avatarUrl} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                                 </div>
-                                <div className="grid grid-cols-2 gap-3 mt-2">
-                                    <div>
-                                        <span className="text-[10px] text-zinc-500 block mb-1">Başlangıç Saati</span>
-                                        <input
-                                            type="time"
-                                            value={transferDates.startTime}
-                                            onChange={(e) => setTransferDates({...transferDates, startTime: e.target.value})}
-                                            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1.5 text-xs text-white"
-                                        />
-                                    </div>
-                                    <div>
-                                        <span className="text-[10px] text-zinc-500 block mb-1">Bitiş Saati</span>
-                                        <input
-                                            type="time"
-                                            value={transferDates.endTime}
-                                            onChange={(e) => setTransferDates({...transferDates, endTime: e.target.value})}
-                                            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1.5 text-xs text-white"
-                                        />
-                                    </div>
+                                <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-zinc-900"></div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <h4 className="text-sm font-semibold text-white truncate">{selectedEmployeeForDetail.name}</h4>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">Havuzda</span>
+                                    {transferHistory.filter((t: any) => t.status === 'active').length > 0 && (
+                                        <span className="text-[10px] text-zinc-500">{transferHistory.filter((t: any) => t.status === 'active').length} aktif transfer</span>
+                                    )}
                                 </div>
                             </div>
                         </div>
 
-                        <button
-                            onClick={handleTransfer}
-                            disabled={isLoading}
-                            className="w-full py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-all shadow-lg flex items-center justify-center gap-2"
+                        {/* TARIH & SAAT — Kompakt grid */}
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-2">
+                                <CalendarRange size={13} className="text-zinc-500" />
+                                <span className="text-xs font-medium text-zinc-400">Tarih & Saat</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div className="space-y-1">
+                                    <span className="text-[10px] text-zinc-600 font-medium uppercase tracking-wider">Başlangıç</span>
+                                    <input type="date" value={transferDates.startDate} onChange={(e) => setTransferDates({...transferDates, startDate: e.target.value})}
+                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 transition-all" />
+                                </div>
+                                <div className="space-y-1">
+                                    <span className="text-[10px] text-zinc-600 font-medium uppercase tracking-wider">Bitiş</span>
+                                    <input type="date" value={transferDates.endDate} onChange={(e) => setTransferDates({...transferDates, endDate: e.target.value})}
+                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 transition-all" />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div className="relative">
+                                    <Clock size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600" />
+                                    <input type="time" value={transferDates.startTime} onChange={(e) => {
+                                        const val = e.target.value;
+                                        const [h, m] = val.split(':').map(Number);
+                                        const endH = Math.min(h + 1, 23);
+                                        const autoEnd = `${String(endH).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+                                        setTransferDates({...transferDates, startTime: val, endTime: autoEnd});
+                                    }}
+                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-8 pr-3 py-2 text-xs text-white focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 transition-all" />
+                                </div>
+                                <div className="relative">
+                                    <Clock size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600" />
+                                    <input type="time" value={transferDates.endTime} onChange={(e) => setTransferDates({...transferDates, endTime: e.target.value})}
+                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-8 pr-3 py-2 text-xs text-white focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 transition-all" />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* HEDEF ŞUBE SEÇİMİ */}
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-2">
+                                <Building2 size={13} className="text-zinc-500" />
+                                <span className="text-xs font-medium text-zinc-400">Hangi şubeye gönderilecek?</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                {Object.values(Branch).map(branch => {
+                                    const isActive = targetBranch === branch;
+                                    return (
+                                        <button key={branch} onClick={() => setTargetBranch(branch)}
+                                            className={`relative flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-all duration-200 ${
+                                                isActive
+                                                    ? 'bg-orange-500/15 border-orange-500 ring-1 ring-orange-500/30'
+                                                    : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-600'
+                                            }`}
+                                        >
+                                            <div className={`w-2.5 h-2.5 rounded-full shrink-0 transition-colors ${isActive ? 'bg-orange-500 shadow-[0_0_6px_rgba(249,115,22,0.5)]' : 'bg-zinc-700'}`}></div>
+                                            <span className={`text-xs font-semibold ${isActive ? 'text-orange-300' : 'text-zinc-400'}`}>{branch}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* GÜNLÜK PROGRAM TABLOSU */}
+                        {(() => {
+                            const activeTransfers = transferHistory.filter((tr: any) => {
+                                if (tr.status === 'cancelled') return false;
+                                if (!transferDates.startDate || !transferDates.endDate) return false;
+                                return tr.start_date <= transferDates.endDate && tr.end_date >= transferDates.startDate;
+                            });
+
+                            const newStart = toMin(transferDates.startTime || '08:00');
+                            const newEnd = toMin(transferDates.endTime || '18:00');
+                            const formatTime = (m: number) => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+
+                            // Tüm görevleri birleştir: mevcut + yeni
+                            const allEntries = [
+                                ...activeTransfers.map((tr: any) => ({
+                                    id: tr.id,
+                                    branch: tr.to_branch,
+                                    start: toMin(tr.start_time || '08:00'),
+                                    end: toMin(tr.end_time || '18:00'),
+                                    isNew: false,
+                                    overlaps: newStart < toMin(tr.end_time || '18:00') && toMin(tr.start_time || '08:00') < newEnd
+                                })),
+                                { id: 'new', branch: targetBranch, start: newStart, end: newEnd, isNew: true, overlaps: false }
+                            ].sort((a, b) => a.start - b.start);
+
+                            return (
+                                <div className="space-y-2.5">
+                                    <div className="flex items-center gap-2">
+                                        <Clock size={13} className="text-zinc-500" />
+                                        <span className="text-xs font-medium text-zinc-400">Günün programı</span>
+                                        {activeTransfers.length > 0 && (
+                                            <span className="text-[10px] text-zinc-600 ml-auto">{activeTransfers.length} mevcut görev</span>
+                                        )}
+                                    </div>
+                                    <div className="rounded-xl border border-zinc-800 overflow-hidden">
+                                        {allEntries.map((entry, i) => (
+                                            <div key={entry.id} className={`flex items-center px-3 py-2.5 ${i > 0 ? 'border-t border-zinc-800/60' : ''} ${
+                                                entry.isNew ? 'bg-orange-500/8' : entry.overlaps ? 'bg-red-500/8' : 'bg-zinc-900/30'
+                                            }`}>
+                                                {/* Saat aralığı */}
+                                                <div className="w-[90px] shrink-0">
+                                                    <span className={`text-xs font-mono font-semibold ${entry.isNew ? 'text-orange-400' : entry.overlaps ? 'text-red-400' : 'text-zinc-300'}`}>
+                                                        {formatTime(entry.start)} - {formatTime(entry.end)}
+                                                    </span>
+                                                </div>
+                                                {/* Şube adı */}
+                                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                    <div className={`w-1.5 h-6 rounded-full shrink-0 ${entry.isNew ? 'bg-orange-500' : entry.overlaps ? 'bg-red-500' : 'bg-zinc-600'}`}></div>
+                                                    <span className={`text-xs font-medium truncate ${entry.isNew ? 'text-orange-300' : entry.overlaps ? 'text-red-300' : 'text-zinc-400'}`}>
+                                                        {entry.branch}
+                                                    </span>
+                                                </div>
+                                                {/* Durum etiketi */}
+                                                <div className="shrink-0 ml-2">
+                                                    {entry.isNew ? (
+                                                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/20">YENİ</span>
+                                                    ) : entry.overlaps ? (
+                                                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/20 flex items-center gap-1">
+                                                            <AlertTriangle size={9}/> ÇAKIŞMA
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-[9px] font-medium px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-500">MEVCUT</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {allEntries.length === 1 && (
+                                            <div className="px-3 py-2 border-t border-zinc-800/60 bg-zinc-900/20">
+                                                <span className="text-[10px] text-zinc-600 italic">Bu tarihte başka görev bulunmuyor</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })()}
+
+                        {/* ÇAKIŞMA UYARISI */}
+                        {hasAnyConflict && (
+                            <div className="rounded-xl border border-red-500/30 bg-red-950/20 p-3.5 space-y-2.5">
+                                <div className="flex items-center gap-2">
+                                    <AlertTriangle size={14} className="text-red-400" />
+                                    <span className="text-xs font-bold text-red-300">Dikkat: Saat çakışması var!</span>
+                                </div>
+                                <p className="text-[11px] text-red-300/70 leading-relaxed">
+                                    Bu personelin seçtiğiniz saat aralığında başka şubelerde görevi bulunuyor. Yine de devam edebilirsiniz, ancak aynı saatte iki farklı şubede çalışması gerekeceğini unutmayın.
+                                </p>
+                            </div>
+                        )}
+
+                        {/* ONAYLA BUTONU */}
+                        <button onClick={handleTransfer} disabled={isLoading}
+                            className={`w-full py-3.5 rounded-2xl font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2.5 shadow-xl ${
+                                hasAnyConflict
+                                    ? 'bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white shadow-red-900/30'
+                                    : 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white shadow-orange-900/30'
+                            } disabled:opacity-50 disabled:cursor-not-allowed`}
                         >
-                            {isLoading ? <Loader2 className="animate-spin" size={18}/> : t('cal.confirmTransfer')}
+                            {isLoading ? <Loader2 className="animate-spin" size={18}/> : (
+                                <>
+                                    {hasAnyConflict ? <AlertTriangle size={16}/> : <Rocket size={16}/>}
+                                    {hasAnyConflict ? 'Çakışmaya Rağmen Onayla' : t('cal.confirmTransfer')}
+                                </>
+                            )}
                         </button>
                     </div>
                 </div>
             </div>
-        )}
+            );
+        })()}
 
         {/* ADD TIME LOG MODAL */}
         {showTimeModal && (
