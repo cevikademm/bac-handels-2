@@ -236,7 +236,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                    const emp = employees.find(e => e.id === empId);
                    return {
                        employee_id: empId,
-                       from_branch: emp?.branch || '',
+                       from_branch: 'Havuz',
                        to_branch: targetBranch,
                        start_date: newEventForm.date,
                        end_date: newEventForm.endDate || newEventForm.date,
@@ -376,7 +376,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                                 <div className="h-px bg-zinc-800"></div>
                                 <label className="text-xs font-medium text-zinc-400 block">{t('cal.attendees')}</label>
                                 <div className="flex gap-2 overflow-x-auto pb-1">
-                                    {employees.filter(e => selectedBranches.length === 0 || selectedBranches.includes(e.branch)).map(emp => (
+                                    {employees.map(emp => (
                                         <div key={emp.id} onClick={() => toggleAttendee(emp.id)} className={`cursor-pointer flex flex-col items-center gap-1 min-w-[50px] p-2 rounded-lg border transition-all ${newEventForm.attendees?.includes(emp.id) ? 'bg-indigo-500/20 border-indigo-500' : 'bg-zinc-900 border-zinc-800'}`}>
                                             <img src={emp.avatarUrl} className="w-8 h-8 rounded-full" referrerPolicy="no-referrer" />
                                             <span className="text-[9px] text-zinc-400 truncate w-full text-center">{emp.name.split(' ')[0]}</span>
@@ -596,7 +596,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                                             <img src={emp.avatarUrl} className="w-8 h-8 rounded-full" referrerPolicy="no-referrer" />
                                             <div>
                                                 <p className="text-sm font-bold text-zinc-200">{emp.name}</p>
-                                                <p className="text-[10px] text-zinc-500">{emp.branch}</p>
+                                                <p className="text-[10px] text-zinc-500">Havuz</p>
                                             </div>
                                         </div>
                                     ) : null;

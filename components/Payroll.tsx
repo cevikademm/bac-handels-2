@@ -26,10 +26,8 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
   // SUPER ADMIN CHECK
   const isSuperAdmin = currentUser.email === 'cevikademm@gmail.com';
 
-  // Şube Seçimi
-  const [selectedBranch, setSelectedBranch] = useState<Branch | 'ALL'>(
-      currentUser.role === Role.ADMIN ? 'ALL' : currentUser.branch
-  );
+  // Şube Seçimi kaldırıldı - tüm personel havuzda
+  const selectedBranch: 'ALL' = 'ALL';
   
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(
       currentUser.role === Role.ADMIN ? null : currentUser.id
@@ -204,13 +202,12 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
     if (currentUser.role !== Role.ADMIN) {
         return employees.filter(e => e.id === currentUser.id);
     }
-    // Admin ise şube filtresine göre (veya Tümü) + arama filtresi (büyük/küçük harf duyarsız)
+    // Tüm personel havuzda - sadece arama filtresi
     return employees.filter(e => {
-        const branchMatch = selectedBranch === 'ALL' || e.branch === selectedBranch;
         const searchMatch = !searchQuery || e.name.toLowerCase().includes(searchQuery.toLowerCase()) || e.email.toLowerCase().includes(searchQuery.toLowerCase());
-        return branchMatch && searchMatch;
+        return searchMatch;
     });
-  }, [employees, selectedBranch, currentUser, searchQuery]);
+  }, [employees, currentUser, searchQuery]);
 
   // Tüm çalışanlar (personel + admin) birleşik listesi - detay görüntüleme için
   const allEmployees = useMemo(() => [...employees, ...adminEmployees], [employees, adminEmployees]);
@@ -278,7 +275,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
       setSelectedEmployeeId('NEW');
       setCurrentTab('STAFF');
       setEditForm({
-          name: '', email: '', role: Role.STAFF, branch: Branch.DOM, hourlyRate: 15.0,
+          name: '', email: '', role: Role.STAFF, hourlyRate: 15.0,
           avatarUrl: `https://ui-avatars.com/api/?name=Yeni+Personel&background=random`,
           bio: ''
       });
@@ -336,7 +333,6 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
           full_name: editForm.name,
           email: editForm.email,
           role: editForm.role,
-          branch: editForm.branch,
           hourly_rate: editForm.hourlyRate,
           avatar_url: editForm.avatarUrl,
           phone: editForm.phone,
@@ -425,13 +421,12 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
       }
 
       setIsLoading(true);
-      const oldBranch = selectedEmployeeForDetail.branch;
 
       try {
-          // 1. personnel_transfers tablosuna bağımsız kayıt ekle (profiles.branch DEĞİŞMEZ!)
+          // 1. personnel_transfers tablosuna atama kaydı ekle
           const { error: transferError } = await supabase.from('personnel_transfers').insert([{
               employee_id: selectedEmployeeForDetail.id,
-              from_branch: oldBranch,
+              from_branch: 'Havuz',
               to_branch: targetBranch,
               start_date: transferDates.startDate,
               end_date: transferDates.endDate,
@@ -451,7 +446,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
               start_time: transferDates.startTime || '08:00',
               end_time: transferDates.endTime || '18:00',
               attendees: [selectedEmployeeForDetail.id],
-              description: `Transfer: ${oldBranch} -> ${targetBranch}`
+              description: `Transfer: ${'Havuz'} -> ${targetBranch}`
           };
           await supabase.from('calendar_events').insert([transferEvent]);
 
@@ -460,7 +455,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
               id: `notif_${Date.now()}`,
               type: 'TRANSFER',
               title: t('dash.transferAlert'),
-              message: `${selectedEmployeeForDetail.name}: ${oldBranch} -> ${targetBranch} (${transferDates.startDate} - ${transferDates.endDate})`,
+              message: `${selectedEmployeeForDetail.name}: ${'Havuz'} -> ${targetBranch} (${transferDates.startDate} - ${transferDates.endDate})`,
               timestamp: new Date().toISOString(),
               recipientId: selectedEmployeeForDetail.id
           });
@@ -475,7 +470,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
               id: `notif_${Date.now()}`,
               type: 'TRANSFER',
               title: 'Personel Transferi (Demo)',
-              message: `${selectedEmployeeForDetail.name}, ${oldBranch} -> ${targetBranch} (Demo mod)`,
+              message: `${selectedEmployeeForDetail.name}, ${'Havuz'} -> ${targetBranch} (Demo mod)`,
               timestamp: new Date().toISOString(),
               recipientId: selectedEmployeeForDetail.id
           });
@@ -633,7 +628,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
           startTime: '09:00',
           endTime: '17:00',
           breakDuration: 0,
-          branch: targetEmployee ? targetEmployee.branch : Branch.DOM
+          branch: Branch.DOM
       });
       setShowTimeModal(true);
   };
@@ -745,7 +740,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                 <>
                                     {/* DİKKAT ÇEKİCİ TRANSFER BUTONU */}
                                     <button 
-                                        onClick={() => { setTargetBranch(selectedEmployeeForDetail.branch); setShowTransferModal(true); }} 
+                                        onClick={() => { setTargetBranch(Branch.DOM); setShowTransferModal(true); }} 
                                         className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white text-sm font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(249,115,22,0.4)] hover:shadow-[0_0_25px_rgba(249,115,22,0.6)] hover:scale-105 active:scale-95 border border-orange-400/20"
                                     >
                                         <ArrowRightLeft size={18} className="animate-pulse" /> 
@@ -777,7 +772,6 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                     <input value={editForm.name} onChange={(e) => setEditForm({...editForm, name: e.target.value})} className="text-3xl font-bold text-white bg-transparent border-b border-zinc-700 text-center w-full" placeholder="İsim" />
                                     <div className="flex gap-2">
                                         <select value={editForm.role} onChange={e=>setEditForm({...editForm, role: e.target.value as Role})} className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-sm text-zinc-300">{Object.values(Role).map(r=><option key={r} value={r}>{r}</option>)}</select>
-                                        <select value={editForm.branch} onChange={e=>setEditForm({...editForm, branch: e.target.value as Branch})} className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-sm text-zinc-300">{Object.values(Branch).map(b=><option key={b} value={b}>{b}</option>)}</select>
                                     </div>
                                     <div className="flex flex-col gap-2 w-full">
                                         <input value={editForm.avatarUrl} onChange={e => setEditForm({...editForm, avatarUrl: e.target.value})} className="text-xs text-zinc-400 bg-zinc-900/50 border border-zinc-800 rounded px-3 py-1.5 w-full" placeholder="Avatar URL"/>
@@ -792,8 +786,8 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                     <h1 className="text-2xl md:text-4xl font-bold text-white text-center">{selectedEmployeeForDetail.name}</h1>
                                     <div className="flex justify-center gap-3 text-zinc-400">
                                         <span className="text-sm">{selectedEmployeeForDetail.role}</span>
-                                        <span className="text-sm flex items-center gap-1 text-indigo-400 bg-indigo-900/20 px-2 py-0.5 rounded border border-indigo-500/30">
-                                            <MapPin size={12}/> {selectedEmployeeForDetail.branch}
+                                        <span className="text-sm flex items-center gap-1 text-emerald-400 bg-emerald-900/20 px-2 py-0.5 rounded border border-emerald-500/30">
+                                            Havuz
                                         </span>
                                     </div>
                                 </>
@@ -1004,9 +998,9 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                             <button onClick={() => handleMonthChange('next')} className="p-1 hover:bg-zinc-800 rounded text-zinc-400"><ChevronRight size={20}/></button>
                         </div>
                      </div>
-                    <div className="hidden md:block"><h2 className="text-lg font-bold text-white">{targetEmployee.name}</h2><span className="text-xs text-zinc-500">{targetEmployee.branch}</span></div>
+                    <div className="hidden md:block"><h2 className="text-lg font-bold text-white">{targetEmployee.name}</h2></div>
                     {/* Mobile Only Name Display */}
-                    <div className="md:hidden text-right ml-2"><h2 className="text-sm font-bold text-white">{targetEmployee.name.split(' ')[0]}</h2><span className="text-[10px] text-zinc-500">{targetEmployee.branch}</span></div>
+                    <div className="md:hidden text-right ml-2"><h2 className="text-sm font-bold text-white">{targetEmployee.name.split(' ')[0]}</h2></div>
                 </div>
                 <button onClick={handleOpenTimeModal} className="w-full md:w-auto flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs md:text-sm font-medium rounded-lg"><Plus size={16} /> <span className="inline">{t('pay.addHours')}</span></button>
             </div>
@@ -1081,7 +1075,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                  <img src={selectedEmployeeForDetail.avatarUrl} className="w-full h-full rounded-full opacity-80" referrerPolicy="no-referrer" />
                              </div>
                              <h4 className="text-white font-medium">{selectedEmployeeForDetail.name}</h4>
-                             <p className="text-xs text-zinc-500 mt-1">Mevcut Şube: <span className="text-indigo-400">{selectedEmployeeForDetail.branch}</span></p>
+                             <p className="text-xs text-zinc-500 mt-1">Durum: <span className="text-emerald-400">Havuzda</span></p>
                         </div>
                         
                         <div className="space-y-4">
@@ -1249,7 +1243,6 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                                              <div className="flex-1 min-w-0">
                                                                  <h4 className="text-xs font-semibold text-white truncate">{admin.name}</h4>
                                                                  <p className="text-[10px] text-zinc-500 truncate">{admin.email}</p>
-                                                                 <span className="text-[10px] text-red-400">{admin.branch}</span>
                                                              </div>
                                                              <ChevronRight size={14} className="text-zinc-600 shrink-0" />
                                                          </div>
@@ -1266,13 +1259,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                      </div>
                      <div className="relative mb-4"><Search size={16} className="absolute left-3 top-3 text-zinc-500" /><input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t('pay.search')} className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-zinc-200 outline-none focus:border-indigo-500"/></div>
                      
-                     {/* BRANCH FILTRESI - SADECE ADMIN İÇİN GÖSTER */}
-                     {currentUser.role === Role.ADMIN && (
-                        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                            <button onClick={() => setSelectedBranch('ALL')} className={`px-3 py-1.5 rounded-lg text-xs ${selectedBranch === 'ALL' ? 'bg-zinc-100 text-zinc-900' : 'bg-zinc-900 text-zinc-400'}`}>All</button>
-                            {Object.values(Branch).map(b => (<button key={b} onClick={() => setSelectedBranch(b)} className={`px-3 py-1.5 rounded-lg text-xs ${selectedBranch === b ? 'bg-zinc-100 text-zinc-900' : 'bg-zinc-900 text-zinc-400'}`}>{b}</button>))}
-                        </div>
-                     )}
+                     {/* ŞUBE FİLTRESİ KALDIRILDI - Tüm personel havuzda */}
                   </div>
                   <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2">
                     {isLoading && employees.length === 0 ? <div className="text-center p-4 text-zinc-500">{t('common.loading')}</div> : filteredEmployees.map(emp => (
@@ -1280,17 +1267,12 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                             <div className="flex items-center gap-4">
                                 <div className="relative">
                                     <img src={emp.avatarUrl} className="w-12 h-12 rounded-full object-cover" referrerPolicy="no-referrer" />
-                                    <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-zinc-950 ${emp.branch === Branch.DOM ? 'bg-blue-500' : 'bg-green-500'}`}></div>
+                                    <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-zinc-950 bg-emerald-500"></div>
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <h4 className={`text-sm font-semibold truncate ${selectedEmployeeId === emp.id ? 'text-white' : 'text-zinc-300'}`}>{emp.name}</h4>
                                     <div className="flex items-center gap-2 mt-0.5">
                                         <span className="text-[11px] text-zinc-500">{emp.role}</span>
-                                        {/* ŞUBE BİLGİSİ VE TRANSFER VURGUSU */}
-                                        <span className={`text-[11px] flex items-center gap-1 ${selectedBranch === emp.branch ? 'text-orange-400 font-bold' : 'text-zinc-500'}`}>
-                                            {emp.branch}
-                                            {selectedBranch === emp.branch && <ArrowRightLeft size={10} className="text-orange-500"/>}
-                                        </span>
                                     </div>
                                 </div>
                                 
@@ -1300,7 +1282,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                         onClick={(e) => {
                                             e.stopPropagation(); // Detaya girmeyi engelle
                                             setSelectedEmployeeId(emp.id); // Modal için seçimi güncelle
-                                            setTargetBranch(emp.branch); // Modal varsayılan şubesini ayarla
+                                            setTargetBranch(Branch.DOM); // Modal varsayılan şubesini ayarla
                                             setShowTransferModal(true);
                                         }}
                                         className="hidden md:flex items-center justify-center w-8 h-8 rounded-lg bg-zinc-800 text-zinc-400 hover:text-white hover:bg-orange-600 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 z-20 shadow-lg transform active:scale-95 border border-transparent hover:border-orange-400"

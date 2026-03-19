@@ -700,7 +700,7 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                         {t('dash.welcome')}, {currentUser.name.split(' ')[0]}
                     </h1>
                     <div className="flex items-center gap-3 mt-1">
-                        <span className="text-xs font-medium px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">{currentUser.branch}</span>
+                        <span className="text-xs font-medium px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">Havuz</span>
                         <span className="text-xs text-zinc-500">{formatDate(new Date().toISOString(), { weekday: 'long', day: 'numeric', month: 'long' })}</span>
                     </div>
                 </div>

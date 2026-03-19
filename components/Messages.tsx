@@ -481,7 +481,7 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
                                             <option value="" disabled>Seçiniz</option>
                                             <option value="ALL">📢 Tüm Personel (Duyuru)</option>
                                             {filteredRecipients.map(emp => (
-                                                <option key={emp.id} value={emp.id}>{emp.name} — {emp.branch}</option>
+                                                <option key={emp.id} value={emp.id}>{emp.name}</option>
                                             ))}
                                         </>
                                     )}

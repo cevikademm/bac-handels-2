@@ -48,7 +48,7 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
     const isMounted = useRef(true);
 
     // Filter States
-    const [selectedBranch, setSelectedBranch] = useState<string>(isAdmin ? 'ALL' : currentUser.branch);
+    const [selectedBranch, setSelectedBranch] = useState<string>('ALL');
     const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
     const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
 
@@ -162,7 +162,7 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
         try {
             const payload = { 
                 employee_id: currentUser.id, 
-                branch: currentUser.branch, 
+                branch: currentUser.branch || 'Bilinmiyor',
                 product_name: salesForm.product, 
                 quantity: salesForm.quantity, 
                 sale_date: salesForm.date, 
@@ -215,13 +215,12 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
             const matchesYear = date.getFullYear() === selectedYear;
             const matchesMonth = (date.getMonth() + 1) === selectedMonth;
             
-            // KRİTİK: Admin seçtiği şubeyi görür, Personel SADECE kendi şubesini görür.
-            const branchToMatch = isAdmin ? selectedBranch : currentUser.branch;
-            const matchesBranch = branchToMatch === 'ALL' || s.branch === branchToMatch;
+            // Personel artık havuzda - herkes tüm satışları görebilir, admin şube filtresi kullanabilir
+            const matchesBranch = selectedBranch === 'ALL' || s.branch === selectedBranch;
 
             return matchesYear && matchesMonth && matchesBranch;
         });
-    }, [salesData, selectedYear, selectedMonth, selectedBranch, isAdmin, currentUser.branch]);
+    }, [salesData, selectedYear, selectedMonth, selectedBranch]);
 
     // Leaderboard Data (With Masking Logic & GLOBAL SCOPE)
     const leaderboardData = useMemo(() => {
@@ -345,7 +344,7 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                                     <h2 className="text-2xl font-bold text-white tracking-tight">{staff.name}</h2>
                                     <div className="flex items-center gap-3 mt-1 text-sm text-zinc-400">
                                         <span className="flex items-center gap-1"><User size={14}/> {staff.role}</span>
-                                        <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-zinc-300"><MapPin size={12}/> {staff.branch}</span>
+                                        <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-zinc-300">Havuz</span>
                                     </div>
                                 </div>
                             </div>
@@ -514,9 +513,8 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                                 ))}
                             </>
                         ) : (
-                            <div className="px-4 py-1.5 bg-orange-600/20 text-orange-400 rounded-lg text-xs font-bold border border-orange-500/30 flex items-center gap-2">
-                                <MapPin size={12} />
-                                {currentUser.branch}
+                            <div className="px-4 py-1.5 bg-emerald-600/20 text-emerald-400 rounded-lg text-xs font-bold border border-emerald-500/30 flex items-center gap-2">
+                                Havuz
                             </div>
                         )}
                     </div>
@@ -587,7 +585,7 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                 <div className="bg-zinc-900/30 border border-zinc-800 rounded-3xl p-6 flex flex-col">
                     <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
                         <BarChart3 className="text-indigo-500" size={20}/>
-                        {isAdmin ? t('sales.chartTitle') : `${currentUser.branch} ${t('sales.chartTitleStaff')}`}
+                        {t('sales.chartTitle')}
                     </h3>
                     <div className="flex-1 min-h-[300px] w-full overflow-hidden">
                         <ResponsiveContainer width="100%" height="100%">

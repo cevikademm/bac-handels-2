@@ -322,54 +322,42 @@ INSERT INTO public.profiles (id, full_name, email, password, role, branch, hourl
 VALUES ('admin_1', 'Cevik Adem', 'cevikademm@gmail.com', crypt('Adem123', gen_salt('bf', 10)), 'Admin', 'Dom', 30.00, 'https://ui-avatars.com/api/?name=Cevik+Adem&background=6366f1&color=fff')
 ON CONFLICT (email) DO UPDATE SET password = crypt('Adem123', gen_salt('bf', 10));
 
--- Dom Branch Personelleri (Bcrypt hashlenmiş varsayılan şifre)
+-- HAVUZ SİSTEMİ: Tüm personel branch=NULL olarak eklenir. Admin vardiya planında şubelere atar.
+-- Personeller (Şubesiz - Havuzda)
 INSERT INTO public.profiles (full_name, email, password, role, branch, avatar_url) VALUES
-('Lada', 'lada.dom@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Dom', 'https://ui-avatars.com/api/?name=Lada&background=random'),
-('Mehmet', 'mehmet.dom@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Dom', 'https://ui-avatars.com/api/?name=Mehmet&background=random'),
-('Gülay', 'gulay.dom@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Dom', 'https://ui-avatars.com/api/?name=Gulay&background=random'),
-('Anil', 'anil.dom@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Dom', 'https://ui-avatars.com/api/?name=Anil&background=random')
+('Lada', 'lada.dom@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Lada&background=random'),
+('Mehmet', 'mehmet.dom@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Mehmet&background=random'),
+('Gülay', 'gulay.dom@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Gulay&background=random'),
+('Anil', 'anil.dom@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Anil&background=random'),
+('Fatma', 'fatma.back@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Fatma&background=random'),
+('Hazal', 'hazal.back@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Hazal&background=random'),
+('Nilofar', 'nilofar.back@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Nilofar&background=random'),
+('Muri', 'muri.back@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Muri&background=random'),
+('Malik', 'malik.ringe@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Malik&background=random'),
+('Züleyha', 'zuleyha.ringe@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Zuleyha&background=random'),
+('Ramazan', 'ramazan.ringe@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Ramazan&background=random'),
+('Ibrahim', 'ibrahim.ringe@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Ibrahim&background=random'),
+('Musti', 'musti.ringe@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Musti&background=random'),
+('Saniye', 'saniye.mul@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Saniye&background=random'),
+('Rima', 'rima.mul@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Rima&background=random'),
+('Samil', 'samil.mul@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Samil&background=random'),
+('Derya', 'derya.mul@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Derya&background=random'),
+('Yildiz', 'yildiz.mul@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Yildiz&background=random'),
+('Yeliz', 'yeliz.mul@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Yeliz&background=random'),
+('Alican', 'alican.mul@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Alican&background=random'),
+('Murat', 'murat.mul@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Murat&background=random'),
+('Abdel', 'abdel.mul@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Abdel&background=random'),
+('Ercan', 'ercan.mul@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Ercan&background=random'),
+('Ismail', 'ismail.mul@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Ismail&background=random'),
+('Kaan', 'kaan.mul@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Kaan&background=random'),
+('Apo', 'apo.tob@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Apo&background=random'),
+('Saime', 'saime.tob@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Saime&background=random'),
+('Engin', 'engin.tob@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Engin&background=random'),
+('Dilan', 'dilan.tob@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', NULL, 'https://ui-avatars.com/api/?name=Dilan&background=random')
 ON CONFLICT (email) DO NOTHING;
 
--- Backaffee Branch Personelleri
-INSERT INTO public.profiles (full_name, email, password, role, branch, avatar_url) VALUES
-('Fatma', 'fatma.back@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Backaffee', 'https://ui-avatars.com/api/?name=Fatma&background=random'),
-('Hazal', 'hazal.back@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Backaffee', 'https://ui-avatars.com/api/?name=Hazal&background=random'),
-('Nilofar', 'nilofar.back@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Backaffee', 'https://ui-avatars.com/api/?name=Nilofar&background=random'),
-('Muri', 'muri.back@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Backaffee', 'https://ui-avatars.com/api/?name=Muri&background=random')
-ON CONFLICT (email) DO NOTHING;
-
--- Ringe Branch Personelleri
-INSERT INTO public.profiles (full_name, email, password, role, branch, avatar_url) VALUES
-('Malik', 'malik.ringe@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Ringe', 'https://ui-avatars.com/api/?name=Malik&background=random'),
-('Züleyha', 'zuleyha.ringe@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Ringe', 'https://ui-avatars.com/api/?name=Zuleyha&background=random'),
-('Ramazan', 'ramazan.ringe@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Ringe', 'https://ui-avatars.com/api/?name=Ramazan&background=random'),
-('Ibrahim', 'ibrahim.ringe@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Ringe', 'https://ui-avatars.com/api/?name=Ibrahim&background=random'),
-('Musti', 'musti.ringe@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Ringe', 'https://ui-avatars.com/api/?name=Musti&background=random')
-ON CONFLICT (email) DO NOTHING;
-
--- Mülheim Branch Personelleri
-INSERT INTO public.profiles (full_name, email, password, role, branch, avatar_url) VALUES
-('Saniye', 'saniye.mul@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Mülheim', 'https://ui-avatars.com/api/?name=Saniye&background=random'),
-('Rima', 'rima.mul@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Mülheim', 'https://ui-avatars.com/api/?name=Rima&background=random'),
-('Samil', 'samil.mul@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Mülheim', 'https://ui-avatars.com/api/?name=Samil&background=random'),
-('Derya', 'derya.mul@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Mülheim', 'https://ui-avatars.com/api/?name=Derya&background=random'),
-('Yildiz', 'yildiz.mul@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Mülheim', 'https://ui-avatars.com/api/?name=Yildiz&background=random'),
-('Yeliz', 'yeliz.mul@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Mülheim', 'https://ui-avatars.com/api/?name=Yeliz&background=random'),
-('Alican', 'alican.mul@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Mülheim', 'https://ui-avatars.com/api/?name=Alican&background=random'),
-('Murat', 'murat.mul@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Mülheim', 'https://ui-avatars.com/api/?name=Murat&background=random'),
-('Abdel', 'abdel.mul@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Mülheim', 'https://ui-avatars.com/api/?name=Abdel&background=random'),
-('Ercan', 'ercan.mul@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Mülheim', 'https://ui-avatars.com/api/?name=Ercan&background=random'),
-('Ismail', 'ismail.mul@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Mülheim', 'https://ui-avatars.com/api/?name=Ismail&background=random'),
-('Kaan', 'kaan.mul@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Mülheim', 'https://ui-avatars.com/api/?name=Kaan&background=random')
-ON CONFLICT (email) DO NOTHING;
-
--- Tobacgo Branch Personelleri
-INSERT INTO public.profiles (full_name, email, password, role, branch, avatar_url) VALUES
-('Apo', 'apo.tob@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Tobacgo', 'https://ui-avatars.com/api/?name=Apo&background=random'),
-('Saime', 'saime.tob@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Tobacgo', 'https://ui-avatars.com/api/?name=Saime&background=random'),
-('Engin', 'engin.tob@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Tobacgo', 'https://ui-avatars.com/api/?name=Engin&background=random'),
-('Dilan', 'dilan.tob@bac.com', crypt('Bac2026!', gen_salt('bf', 10)), 'Personel', 'Tobacgo', 'https://ui-avatars.com/api/?name=Dilan&background=random')
-ON CONFLICT (email) DO NOTHING;
+-- MİGRASYON: Mevcut personellerin şube atamasını kaldır (havuz sistemine geçiş)
+UPDATE public.profiles SET branch = NULL WHERE role = 'Personel';
 
 INSERT INTO public.app_settings (setting_key, setting_value, description)
 VALUES ('company_logo', 'https://xbbzwitvlrdwnoushgpf.supabase.co/storage/v1/object/public/Bac_Logo/bac.jpeg', 'Ana Logo')

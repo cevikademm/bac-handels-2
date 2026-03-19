@@ -17,7 +17,7 @@ export interface Employee {
   name: string;
   email: string;
   role: Role;
-  branch: Branch;
+  branch?: Branch; // Artık sabit şube yok - havuzda tutulur, admin tarafından atanır
   hourlyRate: number;
   taxClass: number; // Vergi sınıfı
   avatarUrl: string;

@@ -526,7 +526,7 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                                     >
                                         <option value="">-- Personel Seçin --</option>
                                         {employees.map(emp => (
-                                            <option key={emp.id} value={emp.id}>{emp.name}{emp.branch ? ` (${emp.branch})` : ''}{emp.role ? ` - ${emp.role}` : ''}</option>
+                                            <option key={emp.id} value={emp.id}>{emp.name}{emp.role ? ` - ${emp.role}` : ''}</option>
                                         ))}
                                     </select>
                                 </div>

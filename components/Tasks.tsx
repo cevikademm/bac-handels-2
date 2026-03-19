@@ -304,8 +304,7 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
             checklist: task.checklist
         });
         
-        const assignees = employees.filter(e => task.assignedTo.includes(e.id));
-        const branches = Array.from(new Set(assignees.map(e => e.branch)));
+        const branches = Object.values(Branch);
         setSelectedBranches(branches);
         
         setShowAddModal(true);
@@ -686,11 +685,11 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
                                     {/* 2. Employee Select (Filtered) */}
                                     <div className="space-y-2">
                                         <label className="text-xs font-medium text-zinc-400 flex items-center gap-2"><Users size={14} className="text-indigo-400"/> {t('tasks.staffLabel')} <span className="text-red-500">*</span></label>
-                                        {selectedBranches.length === 0 ? (
+                                        {false ? (
                                             <div className="text-xs text-zinc-600 italic px-2 py-2 border border-dashed border-zinc-800 rounded-lg text-center">{t('tasks.warnBranch')}</div>
                                         ) : (
                                             <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
-                                                {employees.filter(e => selectedBranches.includes(e.branch)).map(emp => {
+                                                {employees.map(emp => {
                                                     const isSelected = newTaskForm.assignedTo?.includes(emp.id);
                                                     const isTransferred = transferredEmpIds.includes(emp.id);
 
@@ -705,12 +704,12 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
                                                                     {emp.name} 
                                                                     {isTransferred && <ArrowRightLeft size={10} className="text-orange-500"/>}
                                                                 </span>
-                                                                <span className="text-[10px] opacity-60 truncate">{emp.branch}</span>
+                                                                <span className="text-[10px] opacity-60 truncate">Havuz</span>
                                                             </div>
                                                         </div>
                                                     )
                                                 })}
-                                                {employees.filter(e => selectedBranches.includes(e.branch)).length === 0 && (
+                                                {employees.length === 0 && (
                                                      <div className="text-xs text-zinc-500 px-2">{t('tasks.noStaff')}</div>
                                                 )}
                                             </div>
