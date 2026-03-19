@@ -72,10 +72,10 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
           }
           const startStr = currentWeekStart.toISOString().split('T')[0];
           const endStr = currentWeekEnd.toISOString().split('T')[0];
-          const { data: transferData } = await supabase.from('calendar_events').select('attendees').eq('type', 'Şube Transferi').lte('date', endStr).gte('end_date', startStr);
+          const { data: transferData } = await supabase.from('personnel_transfers').select('employee_id').eq('status', 'active').lte('start_date', endStr).gte('end_date', startStr);
 
           if (!isMounted.current) return;
-          if (transferData) setTransferredEmpIds(transferData.flatMap((t: any) => t.attendees || []));
+          if (transferData) setTransferredEmpIds(transferData.map((t: any) => t.employee_id));
           setAvailableEmployees(currentEmployees);
       } catch (err) { console.error(err); }
   };

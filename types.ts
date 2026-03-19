@@ -24,13 +24,6 @@ export interface Employee {
   advances: number; // Toplam alınan avans
   phone?: string;
   bio?: string;
-  badges?: string[];
-  tags?: string[];
-  metrics?: {
-    speed: number;
-    satisfaction: number;
-    attendance: number;
-  };
 }
 
 export interface TimeLog {
@@ -104,6 +97,21 @@ export interface AppNotification {
     message: string;
     timestamp: string;
     recipientId?: string; // Sadece bu ID'ye sahip kullanıcı görür. Boş veya 'ALL' ise herkes görür.
+}
+
+export interface PersonnelTransfer {
+    id: string;
+    employeeId: string;
+    fromBranch: string;
+    toBranch: string;
+    startDate: string;
+    endDate: string;
+    startTime: string;
+    endTime: string;
+    status: 'active' | 'completed' | 'cancelled';
+    notes?: string;
+    createdBy?: string;
+    createdAt?: string;
 }
 
 export interface SalesLog {

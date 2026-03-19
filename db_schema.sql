@@ -95,6 +95,26 @@ CREATE TABLE IF NOT EXISTS public.shift_schedules (
 -- Performans İndeksi (Vardiya Planı İçin)
 CREATE INDEX IF NOT EXISTS idx_shift_week_branch ON public.shift_schedules (week_start_date, branch);
 
+-- Personel Transfer Havuzu (Bağımsız Transfer Kayıtları)
+CREATE TABLE IF NOT EXISTS public.personnel_transfers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    employee_id TEXT NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    from_branch TEXT NOT NULL,
+    to_branch TEXT NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    start_time TEXT DEFAULT '08:00',
+    end_time TEXT DEFAULT '18:00',
+    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'completed', 'cancelled')),
+    notes TEXT,
+    created_by TEXT REFERENCES public.profiles(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_transfers_employee ON public.personnel_transfers (employee_id);
+CREATE INDEX IF NOT EXISTS idx_transfers_dates ON public.personnel_transfers (start_date, end_date);
+CREATE INDEX IF NOT EXISTS idx_transfers_status ON public.personnel_transfers (status);
+
 -- Aktion (Satış) Kayıtları
 CREATE TABLE IF NOT EXISTS public.sales_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -168,6 +188,7 @@ ALTER TABLE public.calendar_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.shift_schedules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sales_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.personnel_transfers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- Mevcut politikaları temizle
@@ -205,6 +226,8 @@ BEGIN
     DROP POLICY IF EXISTS "settings_admin_all" ON public.app_settings;
     DROP POLICY IF EXISTS "audit_admin_only" ON public.audit_logs;
     DROP POLICY IF EXISTS "audit_insert_all" ON public.audit_logs;
+    DROP POLICY IF EXISTS "transfers_select_all" ON public.personnel_transfers;
+    DROP POLICY IF EXISTS "transfers_admin_all" ON public.personnel_transfers;
 END $$;
 
 -- PROFILES: Herkes okuyabilir, sadece kendi profilini güncelleyebilir, Admin tam yetki
@@ -268,6 +291,12 @@ CREATE POLICY "settings_admin_all" ON public.app_settings FOR ALL
   USING (current_setting('app.current_user_role', true) = 'Admin')
   WITH CHECK (current_setting('app.current_user_role', true) = 'Admin');
 
+-- PERSONNEL_TRANSFERS: Herkes okuyabilir, Admin tam yetki
+CREATE POLICY "transfers_select_all" ON public.personnel_transfers FOR SELECT USING (true);
+CREATE POLICY "transfers_admin_all" ON public.personnel_transfers FOR ALL
+  USING (current_setting('app.current_user_role', true) = 'Admin')
+  WITH CHECK (current_setting('app.current_user_role', true) = 'Admin');
+
 -- AUDIT_LOGS: Herkes yazabilir (log kaydı), sadece Admin okuyabilir
 CREATE POLICY "audit_insert_all" ON public.audit_logs FOR INSERT WITH CHECK (true);
 CREATE POLICY "audit_admin_only" ON public.audit_logs FOR SELECT
@@ -282,6 +311,7 @@ DO $$ BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.calendar_events
 DO $$ BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.shift_schedules; EXCEPTION WHEN OTHERS THEN NULL; END $$;
 DO $$ BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.sales_logs; EXCEPTION WHEN OTHERS THEN NULL; END $$;
 DO $$ BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.app_settings; EXCEPTION WHEN OTHERS THEN NULL; END $$;
+DO $$ BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.personnel_transfers; EXCEPTION WHEN OTHERS THEN NULL; END $$;
 
 -- ============================================================
 -- 5. Başlangıç Verileri (Seed) - ŞİFRELER BCRYPT İLE HASHLENMIŞ

@@ -126,9 +126,6 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                             advances: d.advances,
                             phone: d.phone,
                             bio: d.bio,
-                            badges: d.badges,
-                            tags: d.tags,
-                            metrics: d.metrics
                         }));
                         setEmployees(mapped);
                     }
@@ -181,6 +178,41 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
         }
     };
 
+    const handleResetAllPasswords = async () => {
+        if (!window.confirm("TÜM personellerin şifreleri 'Bac123+' olarak sıfırlanacak. Emin misiniz?")) {
+            return;
+        }
+        if (!window.confirm("Bu işlem geri alınamaz! Devam etmek istiyor musunuz?")) {
+            return;
+        }
+
+        setResetLoading(true);
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .update({ password: 'Bac123+', updated_at: new Date().toISOString() })
+                .neq('id', currentUser?.id || '');
+
+            if (error) throw error;
+
+            logAuditEvent({
+                userId: currentUser?.id || '',
+                userEmail: currentUser?.email || '',
+                action: 'ADMIN_PASSWORD_RESET',
+                targetTable: 'profiles',
+                targetId: 'ALL_USERS',
+                details: { reset_by: currentUser?.name, scope: 'all' },
+            });
+
+            alert("Tüm personellerin şifreleri başarıyla 'Bac123+' olarak sıfırlandı.");
+        } catch (err) {
+            console.error("Toplu şifre sıfırlama hatası:", err);
+            alert("Şifreler sıfırlanırken bir hata oluştu: " + (err as Error).message);
+        } finally {
+            setResetLoading(false);
+        }
+    };
+
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -206,11 +238,7 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                 
                 if (currentUser) {
                     try {
-                        const newMetrics = { 
-                            ...currentUser.metrics, 
-                            custom_sound_enabled: true 
-                        };
-                        await supabase.from('profiles').update({ metrics: newMetrics }).eq('id', currentUser.id);
+                        await supabase.from('profiles').update({ custom_sound_enabled: true }).eq('id', currentUser.id);
                     } catch (dbErr) {
                         console.warn("Supabase kayıt hatası (Kritik değil):", dbErr);
                     }
@@ -313,7 +341,7 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
     // UPDATE: Settings container now fills height and scrolls internally
     // Added pb-32 to prevent content being hidden behind mobile nav
     return (
-        <div className="h-full w-full overflow-y-auto custom-scrollbar p-8 pb-32">
+        <div className="h-full w-full overflow-y-auto custom-scrollbar p-4 md:p-8 pb-32">
             <div className="max-w-4xl mx-auto">
                 <h2 className="text-3xl font-bold text-white mb-8">{t('set.title')}</h2>
                 
@@ -502,9 +530,9 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                                         ))}
                                     </select>
                                 </div>
-                                <div className="pt-2">
-                                    <button 
-                                        type="submit" 
+                                <div className="pt-2 flex items-center gap-3">
+                                    <button
+                                        type="submit"
                                         disabled={resetLoading || !selectedEmployeeId}
                                         className="px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-red-900/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
@@ -512,6 +540,17 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                                     </button>
                                 </div>
                             </form>
+
+                            <div className="mt-6 pt-6 border-t border-zinc-800">
+                                <p className="text-xs text-zinc-500 mb-3">Admin haricindeki tüm personellerin şifrelerini toplu olarak sıfırlayın.</p>
+                                <button
+                                    onClick={handleResetAllPasswords}
+                                    disabled={resetLoading}
+                                    className="px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-orange-900/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {resetLoading ? <Loader2 size={16} className="animate-spin" /> : "Tüm Şifreleri Sıfırla"}
+                                </button>
+                            </div>
                         </div>
                     )}
 

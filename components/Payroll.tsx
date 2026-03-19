@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Employee, Branch, Role, TimeLog, AppNotification } from '../types';
-import { Search, Plus, Filter, Calculator, Save, Trash2, Star, Trophy, Phone, Mail, X, MapPin, Briefcase, Link as LinkIcon, ThumbsUp, ThumbsDown, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Wallet, Banknote, Map, Timer, Edit2, Loader2, ArrowRightLeft, Building2, CalendarRange, Lock, Rocket, PieChart, Upload, Shield } from 'lucide-react';
+import { Search, Plus, Filter, Calculator, Save, Trash2, Phone, Mail, X, MapPin, Briefcase, Link as LinkIcon, ThumbsUp, ThumbsDown, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Wallet, Banknote, Map, Timer, Edit2, Loader2, ArrowRightLeft, Building2, CalendarRange, Lock, Rocket, PieChart, Upload, Shield } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
 import { GlowingEffect } from './ui/glowing-effect';
@@ -44,8 +44,12 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
   // Transfer Date Range State
   const [transferDates, setTransferDates] = useState({
       startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date().toISOString().split('T')[0]
+      endDate: new Date().toISOString().split('T')[0],
+      startTime: '08:00',
+      endTime: '18:00'
   });
+  const [transferHistory, setTransferHistory] = useState<any[]>([]);
+  const [selectedTransferDay, setSelectedTransferDay] = useState<string | null>(null);
 
   const [showTimeModal, setShowTimeModal] = useState(false);
   const [timeForm, setTimeForm] = useState({
@@ -109,11 +113,8 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
             advances: 0, 
             phone: e.phone,
             bio: e.bio,
-            badges: e.badges || [],
-            tags: e.tags || [],
-            metrics: e.metrics || { speed: 50, satisfaction: 50, attendance: 50 }
         }));
-        
+
         // KURAL: Adminler personel listesinde gösterilmez (Çift kontrol).
         const visibleEmployees = formattedEmployees.filter(e => e.role !== Role.ADMIN);
         
@@ -141,9 +142,6 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                     advances: 0,
                     phone: e.phone,
                     bio: e.bio,
-                    badges: e.badges || [],
-                    tags: e.tags || [],
-                    metrics: e.metrics || { speed: 50, satisfaction: 50, attendance: 50 }
                 }));
                 setAdminEmployees(formattedAdmins);
             }
@@ -252,6 +250,20 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
     }
   }, [selectedEmployeeForDetail, isEditing, selectedEmployeeId]);
 
+  // Transfer geçmişini yükle
+  useEffect(() => {
+    if (!selectedEmployeeId || selectedEmployeeId === 'NEW') { setTransferHistory([]); return; }
+    const fetchTransferHistory = async () => {
+        const { data } = await supabase
+            .from('personnel_transfers')
+            .select('*')
+            .eq('employee_id', selectedEmployeeId)
+            .order('start_date', { ascending: false });
+        setTransferHistory(data || []);
+    };
+    fetchTransferHistory();
+  }, [selectedEmployeeId]);
+
   const handleSelectEmployee = (id: string) => {
     if(isEditing && selectedEmployeeId !== id) {
         if (!window.confirm("Kaydedilmemiş değişiklikler var. Devam et?")) return;
@@ -268,8 +280,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
       setEditForm({
           name: '', email: '', role: Role.STAFF, branch: Branch.DOM, hourlyRate: 15.0,
           avatarUrl: `https://ui-avatars.com/api/?name=Yeni+Personel&background=random`,
-          metrics: { speed: 50, satisfaction: 50, attendance: 50 },
-          bio: '', badges: [], tags: []
+          bio: ''
       });
   };
 
@@ -329,23 +340,30 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
           hourly_rate: editForm.hourlyRate,
           avatar_url: editForm.avatarUrl,
           phone: editForm.phone,
-          bio: editForm.bio,
-          badges: editForm.badges,
-          tags: editForm.tags,
-          metrics: editForm.metrics
+          bio: editForm.bio
       };
 
       try {
           if (selectedEmployeeId === 'NEW') {
-              // Supabase Insert Denemesi
-              const { data, error } = await supabase.from('profiles').insert([dbData]).select();
-              
+              // Supabase Insert Denemesi - varsayılan şifre ile
+              const defaultPassword = 'Bac123+';
+              const { data, error } = await supabase.from('profiles').insert([{ ...dbData, password: defaultPassword }]).select();
+
               if(error) throw error;
-              
+
               if(data) {
                   const newEmp = { ...editForm, id: data[0].id } as Employee;
                   setEmployees([...employees, newEmp]);
                   setSelectedEmployeeId(data[0].id);
+
+                  // Bildirim: Yeni personel eklendi ve şifre gösterildi
+                  onNotify({
+                      id: `notif_${Date.now()}`,
+                      type: 'INFO',
+                      title: 'Yeni Personel Eklendi',
+                      message: `${editForm.name} (${editForm.email}) başarıyla eklendi. Varsayılan şifre: ${defaultPassword}`,
+                      timestamp: new Date().toISOString(),
+                  });
               }
           } else {
               // Supabase Update Denemesi
@@ -368,9 +386,18 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
           // --- FALLBACK: YEREL KAYIT ---
           if (selectedEmployeeId === 'NEW') {
               const tempId = `local_${Date.now()}`;
+              const defaultPassword = 'Bac123+';
               const newEmp = { ...editForm, id: tempId } as Employee;
               setEmployees([...employees, newEmp]);
               setSelectedEmployeeId(tempId);
+
+              onNotify({
+                  id: `notif_${Date.now()}`,
+                  type: 'INFO',
+                  title: 'Yeni Personel Eklendi (Yerel)',
+                  message: `${editForm.name} (${editForm.email}) eklendi. Varsayılan şifre: ${defaultPassword}`,
+                  timestamp: new Date().toISOString(),
+              });
           } else {
               const isAdminEmployee = adminEmployees.some(a => a.id === selectedEmployeeId);
               if (isAdminEmployee) {
@@ -388,10 +415,6 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
 
   const handleTransfer = async () => {
       if(!selectedEmployeeForDetail) return;
-      if(targetBranch === selectedEmployeeForDetail.branch) {
-          alert("Personel zaten bu şubede.");
-          return;
-      }
       if(!transferDates.startDate || !transferDates.endDate) {
           alert("Lütfen tarih aralığı belirtiniz.");
           return;
@@ -403,40 +426,43 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
 
       setIsLoading(true);
       const oldBranch = selectedEmployeeForDetail.branch;
-      
-      try {
-          // 1. Update Profile Branch in DB
-          const { error: profileError } = await supabase.from('profiles').update({ branch: targetBranch }).eq('id', selectedEmployeeForDetail.id);
-          if (profileError) throw profileError;
 
-          // 2. Create Calendar Event for the Transfer Period
+      try {
+          // 1. personnel_transfers tablosuna bağımsız kayıt ekle (profiles.branch DEĞİŞMEZ!)
+          const { error: transferError } = await supabase.from('personnel_transfers').insert([{
+              employee_id: selectedEmployeeForDetail.id,
+              from_branch: oldBranch,
+              to_branch: targetBranch,
+              start_date: transferDates.startDate,
+              end_date: transferDates.endDate,
+              start_time: transferDates.startTime || '08:00',
+              end_time: transferDates.endTime || '18:00',
+              status: 'active',
+              created_by: currentUser.id
+          }]);
+          if (transferError) throw transferError;
+
+          // 2. Takvimde görünürlük için calendar_events kaydı oluştur
           const transferEvent = {
-              title: `${selectedEmployeeForDetail.name} - ${targetBranch} Transferi`,
+              title: `${selectedEmployeeForDetail.name} -> ${targetBranch}`,
               type: 'Şube Transferi',
               date: transferDates.startDate,
-              end_date: transferDates.endDate, // IMPORTANT: Ensure end_date is saved to DB column
-              start_time: '08:00',
-              end_time: '18:00', 
-              attendees: [selectedEmployeeForDetail.id, currentUser.id] // Admin and Staff see it
+              end_date: transferDates.endDate,
+              start_time: transferDates.startTime || '08:00',
+              end_time: transferDates.endTime || '18:00',
+              attendees: [selectedEmployeeForDetail.id],
+              description: `Transfer: ${oldBranch} -> ${targetBranch}`
           };
-          
-          // Insert Calendar Event
           await supabase.from('calendar_events').insert([transferEvent]);
 
-          // Update Local State for Employee
-          setEmployees(prev => prev.map(e => e.id === selectedEmployeeForDetail.id ? { ...e, branch: targetBranch } : e));
-          
-          // CRITICAL: Switch view to the TARGET branch so the user sees the employee immediately
-          setSelectedBranch(targetBranch);
-
-          // Trigger Notification - SADECE İLGİLİ PERSONELE (veya herkese açık değil)
+          // 3. Bildirim gönder
           onNotify({
               id: `notif_${Date.now()}`,
               type: 'TRANSFER',
               title: t('dash.transferAlert'),
-              message: `${oldBranch} -> ${targetBranch}.`,
+              message: `${selectedEmployeeForDetail.name}: ${oldBranch} -> ${targetBranch} (${transferDates.startDate} - ${transferDates.endDate})`,
               timestamp: new Date().toISOString(),
-              recipientId: selectedEmployeeForDetail.id // Sadece transfer edilen kişi görsün
+              recipientId: selectedEmployeeForDetail.id
           });
 
           setShowTransferModal(false);
@@ -444,17 +470,12 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
 
       } catch (err: any) {
           console.warn("Transfer hatası (Demo modunda devam):", err);
-           // Fallback Update Local State
-          setEmployees(prev => prev.map(e => e.id === selectedEmployeeForDetail.id ? { ...e, branch: targetBranch } : e));
-          // Switch view
-          setSelectedBranch(targetBranch);
-          
-           // Trigger Notification (Mock)
+          // Fallback bildirim
           onNotify({
               id: `notif_${Date.now()}`,
               type: 'TRANSFER',
               title: 'Personel Transferi (Demo)',
-              message: `${selectedEmployeeForDetail.name}, ${oldBranch} şubesinden ${targetBranch} şubesine transfer edildi. (Takvim kaydı demo modunda eklenemedi)`,
+              message: `${selectedEmployeeForDetail.name}, ${oldBranch} -> ${targetBranch} (Demo mod)`,
               timestamp: new Date().toISOString(),
               recipientId: selectedEmployeeForDetail.id
           });
@@ -615,27 +636,6 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
           branch: targetEmployee ? targetEmployee.branch : Branch.DOM
       });
       setShowTimeModal(true);
-  };
-
-  const handleAddItem = (e: React.KeyboardEvent, field: 'badges' | 'tags') => {
-      if (e.key === 'Enter') {
-          const val = (e.target as HTMLInputElement).value.trim();
-          if (val) {
-              const current = editForm[field] || [];
-              setEditForm({ ...editForm, [field]: [...current, val] });
-              (e.target as HTMLInputElement).value = '';
-          }
-      }
-  };
-  const handleRemoveItem = (idx: number, field: 'badges' | 'tags') => {
-      const current = editForm[field] || [];
-      setEditForm({ ...editForm, [field]: current.filter((_, i) => i !== idx) });
-  };
-  const handleMetricChange = (key: keyof NonNullable<Employee['metrics']>, val: number) => {
-      setEditForm({
-          ...editForm,
-          metrics: { ...(editForm.metrics || { speed: 0, satisfaction: 0, attendance: 0 }), [key]: val }
-      });
   };
 
   // --- RENDERERS ---
@@ -800,11 +800,11 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                             )}
                         </div>
                      </div>
-                     
+
                      {/* FULL WIDTH GRID LAYOUT */}
                      <div className="grid grid-cols-12 gap-6 w-full">
-                        {/* LEFT COLUMN: Contact & About (Visible to all, centered if no super admin) */}
-                        <div className={`col-span-12 space-y-6 ${isSuperAdmin ? 'xl:col-span-4' : 'xl:col-span-12 md:max-w-2xl md:mx-auto'}`}>
+                        {/* LEFT COLUMN: Contact & About */}
+                        <div className={`col-span-12 space-y-6 ${(isSuperAdmin || (currentUser.role === Role.ADMIN && transferHistory.length > 0)) ? 'xl:col-span-4' : 'xl:col-span-12 md:max-w-2xl md:mx-auto'}`}>
                             <div className="p-6 rounded-2xl bg-zinc-900/30 border border-zinc-800/50">
                                 <h3 className="text-sm font-semibold text-white mb-4 opacity-50">{t('pay.contact')}</h3>
                                 <div className="space-y-4">
@@ -822,35 +822,156 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                             </div>
                         </div>
                         
-                        {/* RIGHT COLUMN: ONLY VISIBLE TO SUPER ADMIN (Gamification/Metrics) */}
-                        {isSuperAdmin && (
+                        {/* RIGHT COLUMN: Transfer Geçmişi + Super Admin Panelleri */}
+                        {(isSuperAdmin || (currentUser.role === Role.ADMIN && transferHistory.length > 0)) && (
                             <div className="col-span-12 xl:col-span-8 space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="p-6 rounded-2xl bg-zinc-900/30 border border-zinc-800/50">
-                                        <h3 className="text-sm font-semibold text-white mb-4 opacity-50 flex gap-2"><Star size={14}/> {t('pay.badges')}</h3>
-                                        <div className="flex flex-wrap gap-2">
-                                            {(isEditing ? editForm.badges : selectedEmployeeForDetail.badges)?.map((b,i)=><span key={i} className="px-3 py-1 bg-amber-500/10 text-amber-300 text-xs rounded-full border border-amber-500/20">{b} {isEditing && <X size={12} className="inline ml-1 cursor-pointer" onClick={()=>handleRemoveItem(i, 'badges')}/>}</span>)}
-                                            {isEditing && <input className="px-3 py-1 bg-zinc-900 rounded-full text-xs text-white border border-zinc-800 w-24" placeholder="+ Ekle" onKeyDown={e=>handleAddItem(e,'badges')}/>}
+
+                                {/* TRANSFER GÜNLÜĞÜ - HAFTALIK PLAN + GÜNLÜK DETAY */}
+                                {currentUser.role === Role.ADMIN && transferHistory.length > 0 && (() => {
+                                    // Aktif transferlerin kapsadığı tüm günleri hesapla
+                                    const dayNames = ['Pz', 'Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct'];
+                                    const today = new Date();
+                                    // Haftanın başlangıcını bul (Pazartesi)
+                                    const weekStart = new Date(today);
+                                    const dayOfWeek = today.getDay();
+                                    weekStart.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+
+                                    // Haftalık 7 gün oluştur
+                                    const weekDays = Array.from({ length: 7 }, (_, i) => {
+                                        const d = new Date(weekStart);
+                                        d.setDate(weekStart.getDate() + i);
+                                        return d.toISOString().split('T')[0];
+                                    });
+
+                                    // Her gün için o günü kapsayan transferleri bul
+                                    const getTransfersForDay = (dateStr: string) => {
+                                        return transferHistory.filter((tr: any) =>
+                                            tr.status !== 'cancelled' && dateStr >= tr.start_date && dateStr <= tr.end_date
+                                        );
+                                    };
+
+                                    // Günlük gruplandırma: Tüm transferleri tarihe göre grupla
+                                    const allDates = new Set<string>();
+                                    transferHistory.forEach((tr: any) => {
+                                        const start = new Date(tr.start_date);
+                                        const end = new Date(tr.end_date);
+                                        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                                            allDates.add(d.toISOString().split('T')[0]);
+                                        }
+                                    });
+                                    const sortedDates = Array.from(allDates).sort((a, b) => b.localeCompare(a));
+
+                                    return (
+                                    <div className="p-5 rounded-2xl bg-zinc-900/30 border border-orange-800/30 animate-in fade-in">
+                                        <h3 className="text-xs font-semibold text-orange-400 mb-4 flex items-center gap-2 uppercase tracking-wider">
+                                            <ArrowRightLeft size={14} className="text-orange-500"/> Transfer Günlüğü ({transferHistory.length})
+                                        </h3>
+
+                                        {/* HAFTALIK PLAN ÜST BÖLÜM - TIKLANABILIR */}
+                                        <div className="mb-5 p-3 rounded-xl bg-zinc-950/50 border border-zinc-800/50">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-medium">Bu Hafta</span>
+                                                {selectedTransferDay && (
+                                                    <button onClick={() => setSelectedTransferDay(null)} className="text-[10px] text-orange-400 hover:text-orange-300 transition-colors">
+                                                        Tümünü Göster
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <div className="grid grid-cols-7 gap-1">
+                                                {weekDays.map((dateStr, i) => {
+                                                    const dayTransfers = getTransfersForDay(dateStr);
+                                                    const isToday = dateStr === today.toISOString().split('T')[0];
+                                                    const hasTransfer = dayTransfers.length > 0;
+                                                    const isSelected = selectedTransferDay === dateStr;
+                                                    const dayNum = new Date(dateStr).getDate();
+                                                    return (
+                                                        <button
+                                                            key={dateStr}
+                                                            onClick={() => hasTransfer ? setSelectedTransferDay(isSelected ? null : dateStr) : null}
+                                                            className={`flex flex-col items-center p-1.5 rounded-lg transition-all ${hasTransfer ? 'cursor-pointer hover:scale-105' : 'cursor-default'} ${isSelected ? 'ring-2 ring-orange-500 bg-orange-900/50 shadow-lg shadow-orange-900/30' : isToday ? 'ring-1 ring-orange-500/50' : ''} ${hasTransfer && !isSelected ? 'bg-orange-950/40 hover:bg-orange-950/60' : !hasTransfer ? 'bg-zinc-900/30' : ''}`}
+                                                        >
+                                                            <span className={`text-[9px] font-medium ${isSelected ? 'text-orange-300' : isToday ? 'text-orange-400' : 'text-zinc-500'}`}>{dayNames[(i + 1) % 7]}</span>
+                                                            <span className={`text-xs font-bold mt-0.5 ${isSelected ? 'text-white' : isToday ? 'text-white' : hasTransfer ? 'text-orange-300' : 'text-zinc-600'}`}>{dayNum}</span>
+                                                            {hasTransfer && (
+                                                                <div className="flex gap-0.5 mt-1">
+                                                                    {dayTransfers.slice(0, 3).map((tr: any) => (
+                                                                        <div key={tr.id} className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-orange-300' : 'bg-orange-500'}`} title={`${tr.from_branch} → ${tr.to_branch}`}></div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        {/* GÜNLÜK DETAY - Seçili güne göre filtrelenir */}
+                                        <div className="relative overflow-y-auto max-h-[350px] pr-1">
+                                            <div className="absolute left-3 top-0 bottom-0 w-px bg-orange-800/40"></div>
+                                            <div className="space-y-0">
+                                                {(selectedTransferDay ? [selectedTransferDay] : sortedDates).map(dateStr => {
+                                                    const dayTransfers = transferHistory.filter((tr: any) =>
+                                                        dateStr >= tr.start_date && dateStr <= tr.end_date
+                                                    );
+                                                    if (dayTransfers.length === 0) return null;
+                                                    const isToday = dateStr === today.toISOString().split('T')[0];
+                                                    const dateObj = new Date(dateStr);
+                                                    const dayLabel = dateObj.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+                                                    return (
+                                                        <div key={dateStr} className="relative pl-8 pb-3">
+                                                            {/* Timeline noktası */}
+                                                            <div className={`absolute left-1.5 top-1.5 w-3 h-3 rounded-full border-2 ${isToday ? 'bg-orange-500 border-orange-400 shadow-[0_0_8px_rgba(249,115,22,0.6)]' : 'bg-zinc-700 border-zinc-600'}`}></div>
+
+                                                            {/* Gün başlığı */}
+                                                            <div className={`text-[10px] font-bold mb-1.5 uppercase tracking-wider ${isToday ? 'text-orange-400' : 'text-zinc-500'}`}>
+                                                                {isToday ? '● Bugün — ' : ''}{dayLabel}
+                                                                <span className="text-zinc-600 normal-case ml-1">({dayTransfers.length} transfer)</span>
+                                                            </div>
+
+                                                            {/* O güne ait tüm transferler */}
+                                                            <div className="space-y-1.5">
+                                                                {dayTransfers.map((tr: any) => (
+                                                                    <div key={tr.id} className={`p-2.5 rounded-lg border ${tr.status === 'cancelled' ? 'bg-zinc-900/20 border-zinc-800/30 opacity-50' : tr.status === 'active' ? 'bg-orange-950/30 border-orange-700/40' : 'bg-zinc-900/30 border-zinc-800/50'}`}>
+                                                                        <div className="flex items-center justify-between">
+                                                                            <div className="flex items-center gap-1.5">
+                                                                                <span className="text-[11px] text-zinc-400 bg-zinc-800/50 px-1.5 py-0.5 rounded">{tr.from_branch}</span>
+                                                                                <ArrowRightLeft size={10} className="text-orange-500"/>
+                                                                                <span className="text-[11px] text-white font-semibold bg-orange-600/20 px-1.5 py-0.5 rounded border border-orange-500/20">{tr.to_branch}</span>
+                                                                            </div>
+                                                                            <div className="flex items-center gap-1">
+                                                                                <span className="text-[10px] text-zinc-500 flex items-center gap-0.5">
+                                                                                    <Clock size={9}/> {tr.start_time}-{tr.end_time}
+                                                                                </span>
+                                                                                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${tr.status === 'active' ? 'bg-orange-600/20 text-orange-400' : tr.status === 'cancelled' ? 'bg-red-600/20 text-red-400' : 'bg-zinc-700/30 text-zinc-400'}`}>
+                                                                                    {tr.status === 'active' ? 'Aktif' : tr.status === 'cancelled' ? 'İptal' : 'Bitti'}
+                                                                                </span>
+                                                                                {tr.status === 'active' && (
+                                                                                    <button
+                                                                                        onClick={async () => {
+                                                                                            if(!confirm('Bu transferi iptal etmek istediğinize emin misiniz?')) return;
+                                                                                            await supabase.from('personnel_transfers').update({ status: 'cancelled' }).eq('id', tr.id);
+                                                                                            setTransferHistory(prev => prev.map((t: any) => t.id === tr.id ? { ...t, status: 'cancelled' } : t));
+                                                                                        }}
+                                                                                        className="text-zinc-600 hover:text-red-400 transition-colors"
+                                                                                        title="İptal Et"
+                                                                                    >
+                                                                                        <X size={12}/>
+                                                                                    </button>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="p-6 rounded-2xl bg-zinc-900/30 border border-zinc-800/50">
-                                        <h3 className="text-sm font-semibold text-white mb-4 opacity-50">{t('pay.skills')}</h3>
-                                        <div className="flex flex-wrap gap-2">
-                                            {(isEditing ? editForm.tags : selectedEmployeeForDetail.tags)?.map((t,i)=><span key={i} className="px-3 py-1 bg-zinc-800 text-zinc-300 text-xs rounded border border-zinc-700">{t} {isEditing && <X size={12} className="inline ml-1 cursor-pointer" onClick={()=>handleRemoveItem(i, 'tags')}/>}</span>)}
-                                            {isEditing && <input className="px-3 py-1 bg-zinc-900 rounded text-xs text-white border border-zinc-800 w-24" placeholder="+ Ekle" onKeyDown={e=>handleAddItem(e,'tags')}/>}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="p-6 rounded-2xl bg-zinc-900/30 border border-zinc-800/50">
-                                    <h3 className="text-sm font-semibold text-white mb-4 opacity-50 flex gap-2"><Trophy size={14}/> {t('pay.metrics')}</h3>
-                                    {[{l:'Hız',k:'speed'},{l:'Memnuniyet',k:'satisfaction'},{l:'Devam',k:'attendance'}].map((m:any)=>(
-                                        <div key={m.k} className="mb-3">
-                                            <div className="flex justify-between text-xs mb-1"><span className="text-zinc-400">{m.l}</span><span className="text-white">{(isEditing?editForm.metrics:selectedEmployeeForDetail.metrics)?.[m.k]}%</span></div>
-                                            {isEditing ? <input type="range" className="w-full h-1 bg-zinc-800 rounded appearance-none" min="0" max="100" value={editForm.metrics?.[m.k]} onChange={e=>handleMetricChange(m.k, parseInt(e.target.value))}/> 
-                                            : <div className="w-full h-1.5 bg-zinc-800 rounded-full"><div className="h-full bg-indigo-500 rounded-full" style={{width: `${selectedEmployeeForDetail.metrics?.[m.k]}%`}}></div></div>}
-                                        </div>
-                                    ))}
-                                </div>
+                                    );
+                                })()}
                             </div>
                         )}
                      </div>
@@ -983,30 +1104,50 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                 <label className="text-xs font-medium text-zinc-400 flex items-center gap-2"><CalendarRange size={14}/> Transfer Süresi</label>
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
-                                        <span className="text-[10px] text-zinc-500 block mb-1">Başlangıç</span>
-                                        <input 
-                                            type="date" 
-                                            value={transferDates.startDate} 
+                                        <span className="text-[10px] text-zinc-500 block mb-1">Başlangıç Tarihi</span>
+                                        <input
+                                            type="date"
+                                            value={transferDates.startDate}
                                             onChange={(e) => setTransferDates({...transferDates, startDate: e.target.value})}
-                                            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1.5 text-xs text-white" 
+                                            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1.5 text-xs text-white"
                                         />
                                     </div>
                                     <div>
-                                        <span className="text-[10px] text-zinc-500 block mb-1">Bitiş</span>
-                                        <input 
-                                            type="date" 
-                                            value={transferDates.endDate} 
+                                        <span className="text-[10px] text-zinc-500 block mb-1">Bitiş Tarihi</span>
+                                        <input
+                                            type="date"
+                                            value={transferDates.endDate}
                                             onChange={(e) => setTransferDates({...transferDates, endDate: e.target.value})}
-                                            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1.5 text-xs text-white" 
+                                            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1.5 text-xs text-white"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 mt-2">
+                                    <div>
+                                        <span className="text-[10px] text-zinc-500 block mb-1">Başlangıç Saati</span>
+                                        <input
+                                            type="time"
+                                            value={transferDates.startTime}
+                                            onChange={(e) => setTransferDates({...transferDates, startTime: e.target.value})}
+                                            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1.5 text-xs text-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] text-zinc-500 block mb-1">Bitiş Saati</span>
+                                        <input
+                                            type="time"
+                                            value={transferDates.endTime}
+                                            onChange={(e) => setTransferDates({...transferDates, endTime: e.target.value})}
+                                            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1.5 text-xs text-white"
                                         />
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        
-                        <button 
+
+                        <button
                             onClick={handleTransfer}
-                            disabled={isLoading || targetBranch === selectedEmployeeForDetail.branch}
+                            disabled={isLoading}
                             className="w-full py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-all shadow-lg flex items-center justify-center gap-2"
                         >
                             {isLoading ? <Loader2 className="animate-spin" size={18}/> : t('cal.confirmTransfer')}
@@ -1086,12 +1227,12 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${showAdminList ? 'bg-red-900/20 text-red-400 border-red-900/40' : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-red-400 hover:border-red-900/30'}`}
                                      >
                                          <Shield size={14} />
-                                         <span className="hidden md:inline">Admin</span>
+                                         <span>Admin</span>
                                          <span className="text-[10px] bg-red-900/30 text-red-400 px-1.5 py-0.5 rounded-full">{adminEmployees.length}</span>
                                          <ChevronRight size={12} className={`transition-transform duration-200 ${showAdminList ? 'rotate-90' : ''}`} />
                                      </button>
                                      {showAdminList && (
-                                         <div className="absolute right-0 top-full mt-2 w-64 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl z-50 overflow-hidden">
+                                         <div className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] md:w-64 max-w-64 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl z-50 overflow-hidden">
                                              <div className="p-3 border-b border-zinc-800 flex items-center gap-2">
                                                  <Shield size={14} className="text-red-500" />
                                                  <span className="text-xs font-bold text-white">Admin Listesi</span>

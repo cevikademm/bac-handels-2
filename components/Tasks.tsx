@@ -176,16 +176,16 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
             // Sadece veritabanı kayıtlarını set et (Mock yok)
             setTasks(dbTasks);
 
-            // 3. Fetch Active Transfers
+            // 3. Fetch Active Transfers from personnel_transfers
             const today = new Date().toISOString().split('T')[0];
-            const { data: transferData } = await supabase.from('calendar_events')
-                .select('attendees')
-                .eq('type', 'Şube Transferi')
-                .lte('date', today)
+            const { data: transferData } = await supabase.from('personnel_transfers')
+                .select('employee_id')
+                .eq('status', 'active')
+                .lte('start_date', today)
                 .gte('end_date', today);
-            
+
             if (transferData) {
-                const activeIds = transferData.flatMap((t: any) => t.attendees || []);
+                const activeIds = transferData.map((t: any) => t.employee_id);
                 setTransferredEmpIds(activeIds);
             } else {
                 setTransferredEmpIds([]);

@@ -230,8 +230,23 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
           const { data, error } = await supabase.from('calendar_events').insert([dbPayload]).select();
           if (error) throw error;
           
-          if(isTransfer && currentUser.role === Role.ADMIN) {
-               await supabase.from('profiles').update({ branch: targetBranch }).in('id', newEventForm.attendees || []);
+          // Transfer kayıtlarını personnel_transfers tablosuna ekle (profiles.branch DEĞİŞMEZ!)
+          if(isTransfer && currentUser.role === Role.ADMIN && (newEventForm.attendees || []).length > 0) {
+               const transferRecords = (newEventForm.attendees || []).map(empId => {
+                   const emp = employees.find(e => e.id === empId);
+                   return {
+                       employee_id: empId,
+                       from_branch: emp?.branch || '',
+                       to_branch: targetBranch,
+                       start_date: newEventForm.date,
+                       end_date: newEventForm.endDate || newEventForm.date,
+                       start_time: newEventForm.startTime || '08:00',
+                       end_time: newEventForm.endTime || '18:00',
+                       status: 'active',
+                       created_by: currentUser.id
+                   };
+               });
+               await supabase.from('personnel_transfers').insert(transferRecords);
           }
 
           if (data && data[0]) {

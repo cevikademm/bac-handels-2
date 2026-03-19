@@ -152,7 +152,14 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
     }, [activeChatPartnerId]);
 
     const fetchPotentialRecipients = async () => {
-        const { data } = await supabase.from('profiles').select('*');
+        let query = supabase.from('profiles').select('id, full_name, email, role, branch, avatar_url');
+
+        // Personel sadece Admin profillerini ve kendi profilini görebilir
+        if (currentUser.role !== Role.ADMIN) {
+            query = query.or(`role.eq.Admin,id.eq.${currentUser.id}`);
+        }
+
+        const { data } = await query;
         if (data) {
             const formattedEmps: Employee[] = data.map((e: any) => ({
                 id: e.id,
@@ -160,15 +167,10 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
                 email: e.email,
                 role: e.role as Role,
                 branch: e.branch,
-                hourlyRate: e.hourly_rate,
-                taxClass: e.tax_class,
+                hourlyRate: 0,
+                taxClass: 0,
                 avatarUrl: e.avatar_url || `https://ui-avatars.com/api/?name=${e.full_name}`,
                 advances: 0,
-                phone: e.phone,
-                bio: e.bio,
-                badges: [],
-                tags: [],
-                metrics: e.metrics
             }));
             setRecipientList(formattedEmps);
         }
@@ -191,7 +193,7 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
             const { data, error } = await query;
             if (error) throw error;
 
-            const formattedMessages: Message[] = (data || []).map((m: any) => ({
+            let formattedMessages: Message[] = (data || []).map((m: any) => ({
                 id: m.id,
                 senderId: m.sender_id,
                 receiverId: m.receiver_id,
@@ -200,6 +202,15 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
                 timestamp: m.timestamp,
                 read: m.read
             }));
+
+            // GÜVENLİK: Personel için ek filtreleme - sadece kendine ait mesajlar
+            if (currentUser.role !== Role.ADMIN) {
+                formattedMessages = formattedMessages.filter(m =>
+                    m.senderId === currentUser.id ||
+                    m.receiverId === currentUser.id ||
+                    m.receiverId === 'ALL'
+                );
+            }
 
             // --- GRUPLAMA MANTIĞI ---
             const uniqueChats: Message[] = [];
@@ -270,7 +281,12 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
                 // 1. BENİM ADMIN_BOARD'a attıklarım
                 // 2. HERHANGİ BİR ADMININ BANA attıkları (receiver_id = ME)
                 if (partnerId === ADMIN_BOARD_ID) {
-                     query = query.or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${ADMIN_BOARD_ID}),receiver_id.eq.${currentUser.id}`);
+                     query = query.or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${ADMIN_BOARD_ID}),and(receiver_id.eq.${currentUser.id},sender_id.neq.${currentUser.id})`);
+                } else {
+                     // Güvenlik: Personel için beklenmeyen partnerId - boş döndür
+                     setConversation([]);
+                     setLoadingConversation(false);
+                     return;
                 }
             }
 
@@ -288,9 +304,17 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
             }));
 
             // Sadece ADMIN_BOARD dışı mesajları filtrele (Personel için ALL karışmasın)
-            const cleanConv = partnerId === 'ALL' 
-                ? formattedConv 
+            let cleanConv = partnerId === 'ALL'
+                ? formattedConv
                 : formattedConv.filter(m => m.receiverId !== 'ALL');
+
+            // GÜVENLİK: Personel için ek filtreleme - sadece kendi mesajları ve admin'den gelen mesajlar
+            if (currentUser.role !== Role.ADMIN && partnerId === ADMIN_BOARD_ID) {
+                const adminIds = new Set(recipientList.filter(u => u.role === Role.ADMIN).map(u => u.id));
+                cleanConv = cleanConv.filter(m =>
+                    m.senderId === currentUser.id || adminIds.has(m.senderId)
+                );
+            }
 
             setConversation(cleanConv);
 

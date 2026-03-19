@@ -212,9 +212,6 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
               advances: 0,
               phone: e.phone,
               bio: e.bio,
-              badges: e.badges || [],
-              tags: e.tags || [],
-              metrics: e.metrics
           }));
           // KURAL: Adminleri dashboard listelerinden ve grafiklerinden çıkar
           const staffOnly = allEmployees.filter(e => e.role !== Role.ADMIN);
@@ -225,36 +222,36 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
       
       checkTransfers();
 
-      // 3. Fetch Recent Transfers (ONLY ACTIVE/FUTURE)
+      // 3. Fetch Recent Transfers from personnel_transfers (ONLY ACTIVE/FUTURE)
       const today = new Date().toISOString().split('T')[0];
-      
-      // GÜVENLİK: Sorguyu dinamik oluştur
+
       let transferQuery = supabase
-          .from('calendar_events')
+          .from('personnel_transfers')
           .select('*')
-          .eq('type', 'Şube Transferi')
-          .gte('end_date', today) // Sadece bitiş tarihi bugün veya ileride olanları çek
-          .order('date', { ascending: true }) // En yakını önce göster
+          .eq('status', 'active')
+          .gte('end_date', today)
+          .order('start_date', { ascending: true })
           .limit(5);
 
-      // KURAL: Eğer Admin değilse, sadece katılımcısı olduğu (kendi) transferleri görsün.
+      // KURAL: Eğer Admin değilse, sadece kendi transferlerini görsün.
       if (currentUser.role !== Role.ADMIN) {
-          transferQuery = transferQuery.contains('attendees', [currentUser.id]);
+          transferQuery = transferQuery.eq('employee_id', currentUser.id);
       }
-      
+
       const { data: transferData } = await transferQuery;
-      
+
       if(transferData) {
-          const formattedTransfers: CalendarEvent[] = transferData.map((e: any) => ({
-              id: e.id,
-              title: e.title,
-              type: e.type,
-              date: e.date,
-              endDate: e.end_date,
-              startTime: e.start_time,
-              endTime: e.end_time,
-              attendees: e.attendees || [],
-              description: e.description
+          // CalendarEvent formatına dönüştür (mevcut UI uyumluluğu için)
+          const formattedTransfers: CalendarEvent[] = transferData.map((t: any) => ({
+              id: t.id,
+              title: `${t.from_branch} -> ${t.to_branch}`,
+              type: 'Şube Transferi' as const,
+              date: t.start_date,
+              endDate: t.end_date,
+              startTime: t.start_time || '08:00',
+              endTime: t.end_time || '18:00',
+              attendees: [t.employee_id],
+              description: `Transfer: ${t.from_branch} -> ${t.to_branch}`
           }));
           setRecentTransfers(formattedTransfers);
       } else {
@@ -297,29 +294,30 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
   const checkTransfers = async () => {
     try {
         const today = new Date().toISOString().split('T')[0];
-        const { data, error } = await supabase.from('calendar_events').select('*');
-        if (!error && data) {
-            const transfer = data.find((e: any) => 
-                e.type === 'Şube Transferi' && 
-                e.attendees && e.attendees.includes(currentUser.id) &&
-                today >= e.date && today <= (e.end_date || e.date)
-            );
-            
-            if (transfer) {
-                setActiveTransferEvent({
-                    id: transfer.id,
-                    title: transfer.title,
-                    type: transfer.type,
-                    date: transfer.date,
-                    endDate: transfer.end_date,
-                    startTime: transfer.start_time,
-                    endTime: transfer.end_time,
-                    attendees: transfer.attendees,
-                    description: transfer.description
-                });
-            } else {
-                setActiveTransferEvent(null);
-            }
+        const { data, error } = await supabase
+            .from('personnel_transfers')
+            .select('*')
+            .eq('employee_id', currentUser.id)
+            .eq('status', 'active')
+            .lte('start_date', today)
+            .gte('end_date', today)
+            .limit(1);
+
+        if (!error && data && data.length > 0) {
+            const t = data[0];
+            setActiveTransferEvent({
+                id: t.id,
+                title: `${t.from_branch} -> ${t.to_branch}`,
+                type: 'Şube Transferi',
+                date: t.start_date,
+                endDate: t.end_date,
+                startTime: t.start_time || '08:00',
+                endTime: t.end_time || '18:00',
+                attendees: [t.employee_id],
+                description: `Transfer: ${t.from_branch} -> ${t.to_branch}`
+            });
+        } else {
+            setActiveTransferEvent(null);
         }
     } catch (e) {
         console.log("Error checking transfers:", e);
@@ -661,7 +659,13 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                             {language === 'de' ? 'Ihr Arbeitsort wurde durch die Verwaltung geändert.' : 'Yönetim kararı ile görev yeriniz değiştirilmiştir.'}
                         </p>
                         <p className="text-zinc-300">
-                            {language === 'de' ? 'Bitte melden Sie sich zwischen' : 'Lütfen'} <span className="text-orange-300 font-bold underline decoration-orange-500/50">{formatDate(activeTransferEvent.date)} - {activeTransferEvent.endDate ? formatDate(activeTransferEvent.endDate) : '...'}</span> {language === 'de' ? 'in der Filiale' : 'tarihleri arasında'} <span className="bg-orange-500/20 text-orange-200 px-2 py-0.5 rounded border border-orange-500/30 font-bold uppercase">{currentUser.branch}</span> {language === 'de' ? '.' : 'şubesinde görev alınız.'}
+                            <span className="bg-orange-500/20 text-orange-200 px-2 py-0.5 rounded border border-orange-500/30 font-bold">{activeTransferEvent.title}</span>
+                        </p>
+                        <p className="text-zinc-300">
+                            {language === 'de' ? 'Datum' : 'Tarih'}: <span className="text-orange-300 font-bold">{formatDate(activeTransferEvent.date)} - {activeTransferEvent.endDate ? formatDate(activeTransferEvent.endDate) : '...'}</span>
+                        </p>
+                        <p className="text-zinc-300">
+                            {language === 'de' ? 'Uhrzeit' : 'Saat'}: <span className="text-orange-300 font-bold">{activeTransferEvent.startTime} - {activeTransferEvent.endTime}</span>
                         </p>
                    </div>
                </div>

@@ -79,9 +79,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     advances: dbUser.advances || 0,
                     phone: dbUser.phone || '',
                     bio: dbUser.bio || '',
-                    badges: dbUser.badges || [],
-                    tags: dbUser.tags || [],
-                    metrics: dbUser.metrics || { speed: 50, satisfaction: 50, attendance: 50 }
                 };
                 
                 // Başarılı girişte Beni Hatırla mantığı (güvenli localStorage)
