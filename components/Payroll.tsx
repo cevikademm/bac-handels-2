@@ -461,6 +461,15 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
           });
 
           setShowTransferModal(false);
+
+          // Transfer geçmişini yeniden yükle
+          const { data: updatedHistory } = await supabase
+              .from('personnel_transfers')
+              .select('*')
+              .eq('employee_id', selectedEmployeeForDetail.id)
+              .order('start_date', { ascending: false });
+          setTransferHistory(updatedHistory || []);
+
           alert(t('common.success'));
 
       } catch (err: any) {
