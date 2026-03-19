@@ -211,7 +211,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   }, [currentWeekStart]);
 
   // --- SHIFT GRID (for Working Hours tab) ---
-  const shiftGrid = useMemo(() => {
+  const shiftGrid = useMemo((): { employee: Employee; days: Map<number, string[]> }[] => {
       const weekStartStr = currentWeekStart.toISOString().split('T')[0];
 
       // employeeId -> { dayIndex -> timeSlot[] }
@@ -235,18 +235,14 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
           });
       });
 
-      // Group by branch
-      const branchGroups = new Map<string, { employee: Employee; days: Map<number, string[]> }[]>();
-
+      const result: { employee: Employee; days: Map<number, string[]> }[] = [];
       employeeShiftMap.forEach((dayMap, empId) => {
           const emp = employees.find(e => e.id === empId);
           if (!emp) return;
-          const branch = emp.branch || 'Havuz';
-          if (!branchGroups.has(branch)) branchGroups.set(branch, []);
-          branchGroups.get(branch)!.push({ employee: emp, days: dayMap });
+          result.push({ employee: emp, days: dayMap });
       });
 
-      return branchGroups;
+      return result;
   }, [shifts, employees, currentWeekStart, currentUser]);
 
   const changeWeek = (direction: 'prev' | 'next') => {
@@ -629,69 +625,62 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                 ) : (
                     /* --- SHIFTS TAB (Çalışma Saatleri grid) --- */
                     <div>
-                        {shiftGrid.size === 0 ? (
+                        {shiftGrid.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
                                 <Clock size={48} className="mb-4 opacity-30" />
                                 <p className="text-sm">{t('cal.noShifts')}</p>
                             </div>
                         ) : (
-                            <div className="space-y-8">
-                                {Array.from(shiftGrid.entries()).map(([branch, empList]) => (
-                                    <div key={branch} className="bg-zinc-900/30 rounded-xl border border-zinc-800 overflow-hidden">
-                                        {/* Branch Header */}
-                                        <div className="px-4 py-3 bg-zinc-900/50 border-b border-zinc-800 flex items-center gap-2">
-                                            <Building2 size={16} className="text-indigo-400" />
-                                            <span className="text-sm font-bold text-white">{branch}</span>
-                                            <span className="text-xs text-zinc-500 ml-auto">{empList.length} {t('cal.personnel')}</span>
-                                        </div>
-
-                                        {/* Grid Table */}
-                                        <div className="overflow-x-auto custom-scrollbar">
-                                            <table className="w-full min-w-[640px]">
-                                                <thead>
-                                                    <tr className="border-b border-zinc-800/50">
-                                                        <th className="text-left px-4 py-2.5 text-xs text-zinc-500 font-medium w-44">{t('cal.personnel')}</th>
-                                                        {weekDays.map((day, i) => (
-                                                            <th key={i} className={`text-center px-2 py-2.5 text-xs font-medium ${isToday(day) ? 'text-indigo-400' : 'text-zinc-500'}`}>
-                                                                <div>{formatDate(day, {weekday: 'short'})}</div>
-                                                                <div className={`text-[10px] mt-0.5 ${isToday(day) ? 'text-indigo-300' : 'text-zinc-600'}`}>{day.getDate()}</div>
-                                                            </th>
-                                                        ))}
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {empList.map(({ employee, days }) => (
-                                                        <tr key={employee.id} className="border-b border-zinc-800/30 hover:bg-zinc-900/40 transition-colors">
-                                                            <td className="px-4 py-3">
-                                                                <div className="flex items-center gap-2.5">
-                                                                    <img src={employee.avatarUrl} className="w-7 h-7 rounded-full border border-zinc-700" referrerPolicy="no-referrer" />
-                                                                    <span className="text-sm text-zinc-200 font-medium truncate max-w-[120px]">{employee.name}</span>
-                                                                </div>
+                            <div className="bg-zinc-900/30 rounded-xl border border-zinc-800 overflow-hidden">
+                                <div className="px-4 py-3 bg-zinc-900/50 border-b border-zinc-800 flex items-center gap-2">
+                                    <Clock size={16} className="text-indigo-400" />
+                                    <span className="text-sm font-bold text-white">{t('cal.tabShifts')}</span>
+                                    <span className="text-xs text-zinc-500 ml-auto">{shiftGrid.length} {t('cal.personnel')}</span>
+                                </div>
+                                <div className="overflow-x-auto custom-scrollbar">
+                                    <table className="w-full min-w-[640px]">
+                                        <thead>
+                                            <tr className="border-b border-zinc-800/50">
+                                                <th className="text-left px-4 py-2.5 text-xs text-zinc-500 font-medium w-44">{t('cal.personnel')}</th>
+                                                {weekDays.map((day, i) => (
+                                                    <th key={i} className={`text-center px-2 py-2.5 text-xs font-medium ${isToday(day) ? 'text-indigo-400' : 'text-zinc-500'}`}>
+                                                        <div>{formatDate(day, {weekday: 'short'})}</div>
+                                                        <div className={`text-[10px] mt-0.5 ${isToday(day) ? 'text-indigo-300' : 'text-zinc-600'}`}>{day.getDate()}</div>
+                                                    </th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {shiftGrid.map(({ employee, days }) => (
+                                                <tr key={employee.id} className="border-b border-zinc-800/30 hover:bg-zinc-900/40 transition-colors">
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-2.5">
+                                                            <img src={employee.avatarUrl} className="w-7 h-7 rounded-full border border-zinc-700" referrerPolicy="no-referrer" />
+                                                            <span className="text-sm text-zinc-200 font-medium truncate max-w-[120px]">{employee.name}</span>
+                                                        </div>
+                                                    </td>
+                                                    {weekDays.map((day, dayIndex) => {
+                                                        const slots = days.get(dayIndex);
+                                                        const isCurrent = isToday(day);
+                                                        return (
+                                                            <td key={dayIndex} className={`text-center px-2 py-3 ${isCurrent ? 'bg-indigo-950/20' : ''}`}>
+                                                                {slots ? (
+                                                                    slots.map((slot, si) => (
+                                                                        <div key={si} className="text-[11px] bg-indigo-500/15 text-indigo-300 rounded-md px-2 py-1 mb-0.5 font-mono whitespace-nowrap">
+                                                                            {slot}
+                                                                        </div>
+                                                                    ))
+                                                                ) : (
+                                                                    <span className="text-zinc-700 text-xs">--</span>
+                                                                )}
                                                             </td>
-                                                            {weekDays.map((day, dayIndex) => {
-                                                                const slots = days.get(dayIndex);
-                                                                const isCurrent = isToday(day);
-                                                                return (
-                                                                    <td key={dayIndex} className={`text-center px-2 py-3 ${isCurrent ? 'bg-indigo-950/20' : ''}`}>
-                                                                        {slots ? (
-                                                                            slots.map((slot, si) => (
-                                                                                <div key={si} className="text-[11px] bg-indigo-500/15 text-indigo-300 rounded-md px-2 py-1 mb-0.5 font-mono whitespace-nowrap">
-                                                                                    {slot}
-                                                                                </div>
-                                                                            ))
-                                                                        ) : (
-                                                                            <span className="text-zinc-700 text-xs">--</span>
-                                                                        )}
-                                                                    </td>
-                                                                );
-                                                            })}
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                ))}
+                                                        );
+                                                    })}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         )}
                         <div className="h-20"></div>

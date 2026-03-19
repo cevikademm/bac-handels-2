@@ -23,8 +23,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
   
   const { t, formatDate, language } = useLanguage();
 
-  // SUPER ADMIN CHECK
-  const isSuperAdmin = currentUser.email === 'cevikademm@gmail.com';
+  // Tüm adminler aynı paneli görür
 
   // Şube Seçimi kaldırıldı - tüm personel havuzda
   const selectedBranch: 'ALL' = 'ALL';
@@ -808,7 +807,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                      {/* FULL WIDTH GRID LAYOUT */}
                      <div className="grid grid-cols-12 gap-6 w-full">
                         {/* LEFT COLUMN: Contact & About */}
-                        <div className={`col-span-12 space-y-6 ${(isSuperAdmin || (currentUser.role === Role.ADMIN && transferHistory.length > 0)) ? 'xl:col-span-4' : 'xl:col-span-12 md:max-w-2xl md:mx-auto'}`}>
+                        <div className={`col-span-12 space-y-6 ${(currentUser.role === Role.ADMIN) ? 'xl:col-span-4' : 'xl:col-span-12 md:max-w-2xl md:mx-auto'}`}>
                             <div className="p-6 rounded-2xl bg-zinc-900/30 border border-zinc-800/50">
                                 <h3 className="text-sm font-semibold text-white mb-4 opacity-50">{t('pay.contact')}</h3>
                                 <div className="space-y-4">
@@ -827,7 +826,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                         </div>
                         
                         {/* RIGHT COLUMN: Transfer Geçmişi + Super Admin Panelleri */}
-                        {(isSuperAdmin || (currentUser.role === Role.ADMIN && transferHistory.length > 0)) && (
+                        {currentUser.role === Role.ADMIN && (
                             <div className="col-span-12 xl:col-span-8 space-y-6">
 
                                 {/* TRANSFER GÜNLÜĞÜ - HAFTALIK PLAN + GÜNLÜK DETAY */}

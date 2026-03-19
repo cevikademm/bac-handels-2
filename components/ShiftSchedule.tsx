@@ -78,6 +78,18 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
       fetchOtherBranchData();
   }, [activeBranch, weekKey]);
 
+  // Mobil: uygulama/sekme odağa gelince veriyi yenile
+  useEffect(() => {
+      const handleVisibility = () => {
+          if (document.visibilityState === 'visible') {
+              fetchWeekData();
+              fetchOtherBranchData();
+          }
+      };
+      document.addEventListener('visibilitychange', handleVisibility);
+      return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [activeBranch, weekKey]);
+
   const fetchEmployees = async () => {
       try {
           const { data: empData } = await supabase.from('profiles').select('*').neq('role', 'Admin');
@@ -99,7 +111,8 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
       try {
           const { data, error } = await supabase.from('shift_schedules').select('*').eq('week_start_date', weekKey).eq('branch', activeBranch).order('created_at', { ascending: true });
           if (!isMounted.current) return;
-          if (data) setRosterData(data.map((r: any) => ({ id: r.id, timeLabel: r.time_slot || '', assignments: r.days || Array(7).fill('') })));
+          if (error) { console.error('fetchWeekData error:', error); }
+          if (data) setRosterData(data.map((r: any) => ({ id: r.id, timeLabel: r.time_slot || '', assignments: Array.isArray(r.days) ? r.days : Array(7).fill('') })));
       } catch (err: any) { console.error(err); } finally { if (isMounted.current) setIsLoading(false); }
   };
 
@@ -280,6 +293,10 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
       </div>
 
       <div className="flex-1 overflow-auto custom-scrollbar bg-zinc-950 p-4">
+            {/* Mobil yatay kaydırma ipucu */}
+            <div className="md:hidden text-[10px] text-center text-zinc-600 py-1.5 italic select-none">
+                ← Sağa kaydırarak diğer günleri görün →
+            </div>
             <div className="min-w-[1200px] h-full pb-20">
                 <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 overflow-hidden shadow-2xl relative">
 <GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} />

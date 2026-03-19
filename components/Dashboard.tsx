@@ -111,8 +111,7 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
   
   const { t, formatDate, language } = useLanguage();
 
-  // SUPER ADMIN CHECK
-  const isSuperAdmin = currentUser.email === 'cevikademm@gmail.com';
+  // Tüm adminler aynı paneli görür
 
   // DATA FILTERING
   // Aktif Görevler (Tamamlanmamışlar)
@@ -528,8 +527,8 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
               </div>
           </div>
 
-          {/* MIDDLE SECTION: CHARTS - ONLY VISIBLE TO SUPER ADMIN (cevikademm@gmail.com) */}
-          {isSuperAdmin && (
+          {/* MIDDLE SECTION: CHARTS - TÜM ADMİNLER GÖREBİLİR */}
+          {currentUser.role === Role.ADMIN && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                   {/* Branch Performance Chart */}
                   <div className="lg:col-span-2 rounded-3xl border border-zinc-800 bg-zinc-900/30 p-6 flex flex-col relative">
