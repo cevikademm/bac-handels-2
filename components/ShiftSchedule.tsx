@@ -291,7 +291,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
       {/* HEADER */}
       <div className="p-2 xl:p-4 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-30 shrink-0">
           <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 xl:gap-6">
-              <div className="grid grid-cols-3 xl:flex xl:flex-row xl:items-center gap-2 xl:gap-4 overflow-x-hidden xl:overflow-x-auto w-full max-w-full pb-1 xl:pb-2 pt-1 xl:pt-3 px-1 xl:px-2 custom-scrollbar">
+              <div className="grid grid-cols-3 grid-rows-2 xl:flex xl:flex-row xl:items-center gap-2 xl:gap-4 w-full max-w-full pb-2 pt-2 px-1 xl:px-2">
                   {/* Şube sekmeleri korundu - personel kaldırıldı, şubeler duruyor */}
                   {Object.values(Branch).map(b => {
                       const count = branchShiftCounts.get(b) || 0;
