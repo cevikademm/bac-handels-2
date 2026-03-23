@@ -261,31 +261,81 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
   const filteredEmployees = availableEmployees;
   const displayedRows = isAdmin ? rosterData : rosterData.filter(row => row.assignments.includes(currentUser.id));
 
+  // --- Şube başına kullanıcının haftalık vardiya sayısı (badge için) ---
+  const [allWeekSchedules, setAllWeekSchedules] = useState<any[]>([]);
+
+  useEffect(() => {
+      const fetchAllWeekSchedules = async () => {
+          const { data } = await supabase.from('shift_schedules').select('*').eq('week_start_date', weekKey);
+          if (data && isMounted.current) setAllWeekSchedules(data);
+      };
+      fetchAllWeekSchedules();
+  }, [weekKey]);
+
+  const branchShiftCounts = useMemo((): Map<string, number> => {
+      const counts = new Map<string, number>();
+      allWeekSchedules.forEach((schedule: any) => {
+          const branch = schedule.branch;
+          const days: string[] = schedule.days || [];
+          const userDays = days.filter((empId: string) => empId === currentUser.id).length;
+          if (userDays > 0) {
+              counts.set(branch, (counts.get(branch) || 0) + userDays);
+          }
+      });
+      return counts;
+  }, [allWeekSchedules, currentUser]);
+
   return (
     <div className="h-full w-full flex flex-col bg-[#09090b] relative overflow-hidden">
 
       {/* HEADER */}
-      <div className="p-4 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-30 shrink-0">
-          <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6">
-              <div className="flex items-center gap-2 overflow-x-auto max-w-full pb-1 xl:pb-0">
+      <div className="p-2 xl:p-4 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-30 shrink-0">
+          <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 xl:gap-6">
+              <div className="grid grid-cols-3 xl:flex xl:flex-row xl:items-center gap-2 xl:gap-4 overflow-x-hidden xl:overflow-x-auto w-full max-w-full pb-1 xl:pb-2 pt-1 xl:pt-3 px-1 xl:px-2 custom-scrollbar">
                   {/* Şube sekmeleri korundu - personel kaldırıldı, şubeler duruyor */}
-                  {Object.values(Branch).map(b => (
-                      <button key={b} onClick={() => setActiveBranch(b)} className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all border whitespace-nowrap ${activeBranch === b ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-zinc-900 text-zinc-500 border-zinc-800'}`}>{b}</button>
-                  ))}
+                  {Object.values(Branch).map(b => {
+                      const count = branchShiftCounts.get(b) || 0;
+                      return (
+                          <button key={b} onClick={() => setActiveBranch(b)} className={`relative px-1 xl:px-5 py-2.5 rounded-xl text-[10px] sm:text-[11px] xl:text-sm font-bold transition-all border flex items-center justify-center break-words text-center min-h-[44px] ${activeBranch === b ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-zinc-900 text-zinc-500 border-zinc-800'}`}>
+                              <span className="truncate w-full line-clamp-1">{b}</span>
+                              {count > 0 && (
+                                  <span className={`absolute -top-2 -right-2 min-w-[20px] h-5 flex items-center justify-center rounded-full text-[10px] font-black px-1.5 shadow-lg ring-2 ring-zinc-950 ${
+                                      activeBranch === b
+                                          ? 'bg-white text-indigo-600'
+                                          : 'bg-emerald-500 text-white shadow-emerald-500/30'
+                                  }`}>
+                                      {count}
+                                  </span>
+                              )}
+                          </button>
+                      );
+                  })}
+                  
+                  {/* MOBİL GÖRÜNÜM İÇİN TAKVİM (Sadece Mobilde Gridin 6. elemanı) */}
+                  <div className="flex xl:hidden items-center justify-between bg-zinc-900 rounded-xl border border-zinc-800 p-0.5 sm:p-1 col-span-1 min-h-[44px]">
+                        <button onClick={() => handleWeekChange('prev')} className="p-1 text-zinc-400 hover:text-white shrink-0"><ChevronLeft size={16}/></button>
+                        <div className="text-[9px] sm:text-[10px] font-bold text-white text-center flex-1 flex flex-col justify-center leading-tight truncate px-0.5">
+                             <span className="truncate">{formatDate(currentWeekStart, { day: 'numeric', month: 'short' })}</span>
+                             <span className="text-zinc-500 leading-none pb-[1px]">-</span>
+                             <span className="truncate">{formatDate(currentWeekEnd, { day: 'numeric', month: 'short' })}</span>
+                        </div>
+                        <button onClick={() => handleWeekChange('next')} className="p-1 text-zinc-400 hover:text-white shrink-0"><ChevronRight size={16}/></button>
+                  </div>
               </div>
 
-              <div className="flex flex-col md:flex-row items-center gap-4 w-full xl:w-auto">
-                  <div className="flex items-center bg-zinc-900 rounded-xl border border-zinc-800 p-1">
+              <div className="flex flex-row items-center justify-between w-full xl:w-auto gap-2 px-1 xl:px-0">
+                  {/* MASAÜSTÜ GÖRÜNÜM İÇİN TAKVİM */}
+                  <div className="hidden xl:flex items-center bg-zinc-900 rounded-xl border border-zinc-800 p-1">
                         <button onClick={() => handleWeekChange('prev')} className="p-2 text-zinc-400 hover:text-white"><ChevronLeft size={20}/></button>
                         <div className="px-4 text-center min-w-[140px] text-sm font-bold text-white">{formatDate(currentWeekStart, { day: 'numeric', month: 'short' })} - {formatDate(currentWeekEnd, { day: 'numeric', month: 'short' })}</div>
                         <button onClick={() => handleWeekChange('next')} className="p-2 text-zinc-400 hover:text-white"><ChevronRight size={20}/></button>
                   </div>
 
                   {isAdmin && (
-                      <div className="flex items-center gap-2">
-                            <button onClick={handleCopyNextWeek} className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-400 hover:text-white"><Copy size={18} /></button>
-                            <button onClick={addNewRow} className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg"><Plus size={18} /></button>
-                            <button onClick={handleManualSave} className="px-6 py-3 bg-green-600 text-white rounded-xl font-bold shadow-lg">{isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}</button>
+                      <div className="flex items-center justify-between xl:justify-start gap-2 w-full xl:w-auto mt-2 xl:mt-0">
+                            <button onClick={handleCopyNextWeek} className="flex-1 xl:flex-none p-3 xl:p-3 flex items-center justify-center bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-400 hover:text-white min-h-[44px]" title="Kopyala"><Copy size={18} /></button>
+                            <button onClick={addNewRow} className="flex-1 xl:flex-none px-4 xl:px-6 py-2 xl:py-3 flex justify-center items-center bg-indigo-600 text-white rounded-xl font-bold shadow-lg min-h-[44px]" title="Yeni Satır"><Plus size={18} /></button>
+                            <button onClick={handleManualSave} className="flex-1 xl:flex-none px-4 xl:px-6 py-2 xl:py-3 flex justify-center items-center bg-green-600 text-white rounded-xl font-bold shadow-lg min-h-[44px]" title="Kaydet">{isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}</button>
                       </div>
                   )}
               </div>

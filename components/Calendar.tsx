@@ -13,8 +13,18 @@ interface CalendarProps {
 interface DisplayEvent extends CalendarEvent {
     isTask?: boolean;
     isShift?: boolean;
+    shiftBranch?: string;
     status?: string;
 }
+
+const branchNeonColors: Record<string, { bg: string; border: string; text: string; glow: string; accent: string }> = {
+    'Dom':       { bg: 'bg-cyan-500/10',    border: 'border-cyan-500/40',    text: 'text-cyan-300',    glow: 'shadow-cyan-500/25',    accent: 'bg-cyan-400' },
+    'Backaffee': { bg: 'bg-fuchsia-500/10',  border: 'border-fuchsia-500/40',  text: 'text-fuchsia-300',  glow: 'shadow-fuchsia-500/25',  accent: 'bg-fuchsia-400' },
+    'Ringe':     { bg: 'bg-amber-500/10',    border: 'border-amber-500/40',    text: 'text-amber-300',    glow: 'shadow-amber-500/25',    accent: 'bg-amber-400' },
+    'Mülheim':   { bg: 'bg-emerald-500/10',  border: 'border-emerald-500/40',  text: 'text-emerald-300',  glow: 'shadow-emerald-500/25',  accent: 'bg-emerald-400' },
+    'Tobacgo':   { bg: 'bg-rose-500/10',     border: 'border-rose-500/40',     text: 'text-rose-300',     glow: 'shadow-rose-500/25',     accent: 'bg-rose-400' },
+};
+const getbranchColors = (branch: string) => branchNeonColors[branch] || { bg: 'bg-zinc-500/10', border: 'border-zinc-500/40', text: 'text-zinc-300', glow: 'shadow-zinc-500/25', accent: 'bg-zinc-400' };
 
 type CalendarTab = 'EVENTS' | 'SHIFTS';
 
@@ -182,7 +192,8 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                   endTime: eTime,
                   attendees: [currentUser.id],
                   description: `Şube: ${schedule.branch}`,
-                  isShift: true
+                  isShift: true,
+                  shiftBranch: schedule.branch
               } as DisplayEvent;
           }).filter(Boolean) as DisplayEvent[];
       });
@@ -209,6 +220,23 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       }
       return days;
   }, [currentWeekStart]);
+
+  // --- CURRENT USER'S SHIFTS PER DAY (for notification badges) ---
+  const myShiftsPerDay = useMemo((): Map<number, { slot: string; branch: string }[]> => {
+      const weekStartStr = currentWeekStart.toISOString().split('T')[0];
+      const dayMap = new Map<number, { slot: string; branch: string }[]>();
+
+      shifts.forEach((schedule: any) => {
+          if (schedule.week_start_date !== weekStartStr) return;
+          schedule.days.forEach((empId: string, dayIndex: number) => {
+              if (!empId || empId !== currentUser.id) return;
+              if (!dayMap.has(dayIndex)) dayMap.set(dayIndex, []);
+              dayMap.get(dayIndex)!.push({ slot: schedule.time_slot || '09:00-17:00', branch: schedule.branch || '' });
+          });
+      });
+
+      return dayMap;
+  }, [shifts, currentWeekStart, currentUser]);
 
   // --- SHIFT GRID (for Working Hours tab) ---
   const shiftGrid = useMemo((): { employee: Employee; days: Map<number, string[]> }[] => {
@@ -565,7 +593,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
 
                             return (
                                 <div key={dateStr} className={`flex flex-col md:flex-row gap-4 md:gap-8 group ${dayEvents.length === 0 ? 'opacity-50 hover:opacity-80 transition-opacity' : ''}`}>
-                                    <div className="md:w-32 flex-shrink-0 pt-2 flex md:flex-col items-center md:items-start gap-2 md:gap-0">
+                                    <div className="md:w-32 flex-shrink-0 pt-2 flex md:flex-col items-center md:items-start gap-2 md:gap-0 relative">
                                         <span className={`text-xs font-bold uppercase tracking-wider ${isCurrentDay ? 'text-indigo-400' : 'text-zinc-500'}`}>
                                             {formatDate(day, {weekday: 'long'})}
                                         </span>
@@ -573,6 +601,29 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                                             {day.getDate()}
                                         </div>
                                         {isCurrentDay && <div className="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded mt-1 hidden md:block">{t('cal.today')}</div>}
+                                        {/* Shift notification badge with branch color */}
+                                        {(() => {
+                                            const dayIndex = (day.getDay() + 6) % 7;
+                                            const entries = myShiftsPerDay.get(dayIndex);
+                                            if (!entries || entries.length === 0) return null;
+                                            return (
+                                                <div className="absolute -top-1 -right-1 md:top-0 md:-right-2 flex flex-col items-end gap-0.5">
+                                                    {entries.map((entry, si) => {
+                                                        const bc = getbranchColors(entry.branch);
+                                                        return (
+                                                            <div
+                                                                key={si}
+                                                                className={`flex items-center gap-1 ${bc.bg} border ${bc.border} backdrop-blur-sm rounded-lg px-2 py-0.5 shadow-lg ${bc.glow} animate-in fade-in slide-in-from-top-1 duration-300`}
+                                                                style={{ animationDelay: `${si * 80}ms` }}
+                                                            >
+                                                                <div className={`w-1.5 h-1.5 rounded-full ${bc.accent} animate-pulse`}></div>
+                                                                <span className={`text-[10px] font-mono font-bold ${bc.text} whitespace-nowrap`}>{entry.branch}</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
 
                                     <div className="flex-1 space-y-3 pb-6 border-b border-zinc-800/50 group-last:border-none">
@@ -587,7 +638,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                                                 >
                                                     <div className={`absolute top-0 bottom-0 left-0 w-1 ${
                                                         evt.isTask ? 'bg-blue-500' :
-                                                        evt.isShift ? 'bg-zinc-500' :
+                                                        evt.isShift && evt.shiftBranch ? getbranchColors(evt.shiftBranch).accent :
                                                         evt.type === 'Şube Transferi' ? 'bg-orange-500' :
                                                         evt.type === 'Toplantı' ? 'bg-indigo-500' : 'bg-zinc-500'
                                                     }`}></div>
@@ -602,7 +653,19 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                                                                 {evt.isShift && <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 rounded font-bold">VARDİYA</span>}
                                                             </div>
                                                             <h4 className="text-base font-bold text-zinc-200 group-hover/card:text-white transition-colors">{getText(evt.title)}</h4>
-                                                            {evt.description && <p className="text-xs text-zinc-500 mt-1 line-clamp-1">{getText(evt.description)}</p>}
+
+                                                            {/* Neon Branch Card for Shift Events */}
+                                                            {evt.isShift && evt.shiftBranch ? (() => {
+                                                                const bc = getbranchColors(evt.shiftBranch);
+                                                                return (
+                                                                    <div className={`inline-flex items-center gap-2 mt-2 px-3 py-1.5 rounded-lg border ${bc.bg} ${bc.border} shadow-lg ${bc.glow} backdrop-blur-sm`}>
+                                                                        <Building2 size={14} className={bc.text} />
+                                                                        <span className={`text-sm font-bold tracking-wide ${bc.text}`}>{evt.shiftBranch}</span>
+                                                                    </div>
+                                                                );
+                                                            })() : evt.description ? (
+                                                                <p className="text-xs text-zinc-500 mt-1 line-clamp-1">{getText(evt.description)}</p>
+                                                            ) : null}
                                                         </div>
 
                                                         <div className="flex -space-x-2 pl-2">
@@ -610,7 +673,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                                                                 const emp = employees.find(e => e.id === id);
                                                                 return emp ? <img key={id} src={emp.avatarUrl} className="w-8 h-8 rounded-full border-2 border-zinc-900 bg-zinc-800" title={emp.name} referrerPolicy="no-referrer" /> : null;
                                                             })}
-                                                            {evt.attendees.length > 3 && <div className="w-8 h-8 rounded-full bg-zinc-800 border-2 border-zinc-900 flex items-center justify-center text-[10px] text-zinc-400">+{evt.attendees.length-3}</div>}
+                                                            {evt.attendees.length > 3 && <div className="w-8 h-8 rounded-full bg-zinc-800 border-2 border-zinc-900 flex items-center justify-center text-[10px] text-zinc-400">{`+${evt.attendees.length - 3}`}</div>}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -717,10 +780,26 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                             </div>
                         </div>
                         
-                        <div className="p-4 bg-zinc-900/50 rounded-xl border border-zinc-800">
-                            <h4 className="text-xs font-bold text-zinc-500 uppercase mb-2">Açıklama</h4>
-                            <p className="text-sm text-zinc-300 leading-relaxed">{getText(selectedEvent.description) || 'Açıklama yok.'}</p>
-                        </div>
+                        {/* Neon Branch Card in Detail Panel */}
+                        {selectedEvent.isShift && selectedEvent.shiftBranch ? (() => {
+                            const bc = getbranchColors(selectedEvent.shiftBranch!);
+                            return (
+                                <div className={`p-4 rounded-xl border ${bc.bg} ${bc.border} shadow-lg ${bc.glow}`}>
+                                    <h4 className="text-xs font-bold text-zinc-500 uppercase mb-3">Şube</h4>
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-10 h-10 rounded-lg ${bc.bg} border ${bc.border} flex items-center justify-center`}>
+                                            <Building2 size={20} className={bc.text} />
+                                        </div>
+                                        <span className={`text-lg font-bold tracking-wide ${bc.text}`}>{selectedEvent.shiftBranch}</span>
+                                    </div>
+                                </div>
+                            );
+                        })() : (
+                            <div className="p-4 bg-zinc-900/50 rounded-xl border border-zinc-800">
+                                <h4 className="text-xs font-bold text-zinc-500 uppercase mb-2">Açıklama</h4>
+                                <p className="text-sm text-zinc-300 leading-relaxed">{getText(selectedEvent.description) || 'Açıklama yok.'}</p>
+                            </div>
+                        )}
 
                         <div>
                             <h4 className="text-xs font-bold text-zinc-500 uppercase mb-3">Katılımcılar ({selectedEvent.attendees.length})</h4>
