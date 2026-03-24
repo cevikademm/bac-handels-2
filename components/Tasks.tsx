@@ -210,7 +210,7 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
         const targetItem = taskToUpdate.checklist.find(c => c.id === itemId);
         if (targetItem?.completed) {
             if (targetItem.completedBy !== currentUser.id && currentUser.role !== Role.ADMIN) {
-                alert("Bu maddeyi sadece işaretleyen kişi geri alabilir.");
+                alert(t('tasks.checklistOnlyOwner'));
                 return;
             }
         }
@@ -279,7 +279,7 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
     };
     
     const handleDeleteTask = async (taskId: string) => {
-        if (!confirm("Bu görevi iptal etmek/silmek istediğinize emin misiniz?")) return;
+        if (!confirm(t('tasks.confirmDelete'))) return;
         try {
             const { error } = await supabase.from('tasks').delete().eq('id', taskId);
             if(error) throw error;
@@ -288,7 +288,7 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
             setTasks(prev => prev.filter(t => t.id !== taskId));
         } catch(err: any) {
             console.warn("Delete error:", err);
-            alert("Silme işlemi başarısız oldu.");
+            alert(t('tasks.deleteFailed'));
         }
     };
     
@@ -387,7 +387,7 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
             
         } catch (err: any) {
              console.warn("DB Save error:", err);
-             alert("Kayıt sırasında bir hata oluştu.");
+             alert(t('tasks.saveError'));
         } finally {
             setIsLoading(false);
         }
@@ -543,11 +543,11 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
                                 const isLocked = item.completed && item.completedBy !== currentUser.id && currentUser.role !== Role.ADMIN;
 
                                 return (
-                                    <div 
-                                        key={item.id} 
-                                        onClick={() => toggleChecklistItem(task.id, item.id)} 
+                                    <div
+                                        key={item.id}
+                                        onClick={() => toggleChecklistItem(task.id, item.id)}
                                         className={`flex items-center justify-between p-1.5 rounded-lg transition-colors group/item ${isLocked ? 'cursor-not-allowed opacity-60 hover:bg-red-900/10' : 'cursor-pointer hover:bg-white/5'}`}
-                                        title={isLocked ? 'Sadece işaretleyen kişi geri alabilir' : ''}
+                                        title={isLocked ? t('tasks.checklistOnlyOwner') : ''}
                                     >
                                          <div className="flex items-center gap-3 overflow-hidden">
                                              <div className={`w-4 h-4 rounded flex-shrink-0 flex items-center justify-center border transition-all ${item.completed ? (isLocked ? 'bg-zinc-700 border-zinc-600' : 'bg-green-500/20 border-green-500/50') : 'border-zinc-600 group-hover/item:border-zinc-400'}`}>

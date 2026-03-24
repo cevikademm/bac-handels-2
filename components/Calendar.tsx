@@ -351,7 +351,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
 
   const handleDeleteEvent = async () => {
       if (!selectedEvent || selectedEvent.isTask || selectedEvent.isShift) return;
-      if (confirm('Silmek istediğinize emin misiniz?')) {
+      if (confirm(t('cal.deleteConfirm'))) {
           const { error } = await supabase.from('calendar_events').delete().eq('id', selectedEvent.id);
           if (!error) {
               setEvents(events.filter(e => e.id !== selectedEvent.id));
@@ -649,7 +649,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                                                                 <span className="text-xs font-mono text-zinc-500 flex items-center gap-1">
                                                                     <Clock size={12}/> {evt.startTime} - {evt.endTime}
                                                                 </span>
-                                                                {evt.type === 'Şube Transferi' && <span className="text-[10px] bg-orange-500/20 text-orange-400 px-1.5 rounded font-bold">TRANSFER</span>}
+                                                                {evt.type === 'Şube Transferi' && <span className="text-[10px] bg-orange-500/20 text-orange-400 px-1.5 rounded font-bold">{t('cal.transfer_label')}</span>}
                                                                 {evt.isShift && <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 rounded font-bold">VARDİYA</span>}
                                                             </div>
                                                             <h4 className="text-base font-bold text-zinc-200 group-hover/card:text-white transition-colors">{getText(evt.title)}</h4>

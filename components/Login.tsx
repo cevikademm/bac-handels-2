@@ -51,7 +51,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 }
             } catch (dbErr) {
                 // Veritabanı bağlantı hatası - güvenli hata mesajı
-                alert("Sunucuya bağlanılamadı. Lütfen daha sonra tekrar deneyin.");
+                alert(t('login.connectionError'));
                 setLoading(false);
                 return;
             }
@@ -97,10 +97,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                      action: 'LOGIN_FAILED',
                      details: { reason: 'invalid_credentials' },
                  });
-                 alert("Hatalı e-posta veya şifre.");
+                 alert(t('login.invalidCredentials'));
             }
         } catch (err) {
-            alert("Bir hata oluştu. Lütfen tekrar deneyin.");
+            alert(t('login.genericError'));
         } finally {
             setLoading(false);
         }
@@ -167,7 +167,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                                         {rememberMe && <Check size={14} className="text-white" />}
                                     </div>
                                     <span className={`text-sm select-none transition-colors ${rememberMe ? 'text-indigo-400' : 'text-zinc-500 group-hover:text-zinc-400'}`}>
-                                        Beni Hatırla
+                                        {t('layout.rememberMe')}
                                     </span>
                                 </div>
 

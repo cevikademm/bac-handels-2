@@ -263,7 +263,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
 
   const handleSelectEmployee = (id: string) => {
     if(isEditing && selectedEmployeeId !== id) {
-        if (!window.confirm("Kaydedilmemiş değişiklikler var. Devam et?")) return;
+        if (!window.confirm(t('pay.unsavedChanges'))) return;
     }
     setIsEditing(false);
     setEditForm({});
@@ -316,7 +316,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
           setEditForm({ ...editForm, avatarUrl: data.publicUrl });
       } catch (error: any) {
           console.error('Error uploading avatar:', error);
-          alert('Resim yüklenirken bir hata oluştu: ' + error.message);
+          alert(t('pay.imageError') + ': ' + error.message);
       } finally {
           setIsLoading(false);
       }
@@ -324,7 +324,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
 
   const handleSave = async () => {
       if (!editForm.name?.trim() || !editForm.email?.trim()) {
-          alert("Lütfen isim ve e-posta alanlarını doldurun.");
+          alert(t('pay.nameEmailRequired'));
           return;
       }
 
@@ -402,7 +402,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                   setEmployees(employees.map(e => e.id === selectedEmployeeId ? { ...e, ...editForm } as Employee : e));
               }
           }
-          alert("Veritabanı bağlantısı yok. Değişiklikler demo modunda yerel olarak kaydedildi.");
+          alert(t('pay.dbOfflineSave'));
       } finally {
           setIsEditing(false);
           setIsLoading(false);
@@ -412,11 +412,11 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
   const handleTransfer = async () => {
       if(!selectedEmployeeForDetail) return;
       if(!transferDates.startDate || !transferDates.endDate) {
-          alert("Lütfen tarih aralığı belirtiniz.");
+          alert(t('pay.dateRangeRequired'));
           return;
       }
       if(transferDates.endDate < transferDates.startDate) {
-          alert("Bitiş tarihi başlangıç tarihinden önce olamaz.");
+          alert(t('pay.endBeforeStart'));
           return;
       }
 
@@ -490,7 +490,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
   };
 
   const handleDelete = async () => {
-      if(!confirm("Bu personeli silmek istediğinize emin misiniz?")) return;
+      if(!confirm(t('pay.deleteConfirm'))) return;
       setIsLoading(true);
       try {
           const { error } = await supabase.from('profiles').delete().eq('id', selectedEmployeeId);
@@ -517,8 +517,8 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
           }
           setSelectedEmployeeId(null);
           setIsEditing(false);
-          
-          alert("Veritabanı bağlantısı yok. Kayıt yerel olarak silindi.");
+
+          alert(t('pay.dbOfflineDelete'));
       } finally {
           setIsLoading(false);
       }
@@ -589,9 +589,9 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
            
            // Özel Hata Mesajı: Foreign Key Violation
            if (err.code === '23503') {
-               alert("Uyarı: Seçilen personel veritabanında bulunamadığı için kayıt sadece yerel önbelleğe eklendi. (Demo Modu)");
+               alert(t('pay.demoWarning'));
            } else {
-               alert("Veritabanı hatası. Kayıt yerel olarak eklendi.");
+               alert(t('pay.dbErrorLocal'));
            }
       } finally {
           setIsLoading(false);
@@ -629,7 +629,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
   
   const handleOpenTimeModal = () => {
       if (!targetEmployee && currentUser.role === Role.ADMIN) {
-          alert("Lütfen önce listeden bir personel seçiniz.");
+          alert(t('pay.selectStaffFirst'));
           return;
       }
       setTimeForm({
@@ -950,7 +950,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                                                                 </span>
                                                                                 <button
                                                                                     onClick={async () => {
-                                                                                        if(!confirm('Bu transfer kalıcı olarak silinecek. Emin misiniz?')) return;
+                                                                                        if(!confirm(t('pay.deleteTransferConfirm'))) return;
                                                                                         await supabase.from('personnel_transfers').delete().eq('id', tr.id);
                                                                                         // Takvimden de ilgili etkinliği sil
                                                                                         await supabase.from('calendar_events').delete()
@@ -1292,7 +1292,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                             {isLoading ? <Loader2 className="animate-spin" size={18}/> : (
                                 <>
                                     {hasAnyConflict ? <AlertTriangle size={16}/> : <Rocket size={16}/>}
-                                    {hasAnyConflict ? 'Çakışmaya Rağmen Onayla' : t('cal.confirmTransfer')}
+                                    {hasAnyConflict ? t('pay.approveConflict') : t('cal.confirmTransfer')}
                                 </>
                             )}
                         </button>

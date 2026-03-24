@@ -201,7 +201,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
               const conflict = getConflict(employeeId, dayIndex, currentRow.timeLabel);
               if (conflict) {
                   const empName = availableEmployees.find(e => e.id === employeeId)?.name || '';
-                  if (!confirm(`UYARI: ${empName} bu gün zaten ${conflict} şubesinde atanmış ve saat çakışması var!\n\nYine de atamak istiyor musunuz?`)) {
+                  if (!confirm(t('shift.conflictWarn').replace('{name}', empName).replace('{conflict}', conflict))) {
                       return;
                   }
               }
@@ -232,7 +232,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
 
   const deleteRow = async (rowId: string) => {
       if (!isAdmin) return;
-      if(!confirm("Silmek istediğinize emin misiniz?")) return;
+      if(!confirm(t('shift.deleteConfirm'))) return;
       setRosterData(prev => prev.filter(r => r.id !== rowId));
       if (rowId && !rowId.startsWith('temp_')) await supabase.from('shift_schedules').delete().eq('id', rowId);
   };
@@ -246,7 +246,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
       if (!isAdmin) return;
       const nextWeekDate = new Date(currentWeekStart); nextWeekDate.setDate(nextWeekDate.getDate() + 7);
       const nextWeekKey = `${nextWeekDate.getFullYear()}-${String(nextWeekDate.getMonth() + 1).padStart(2, '0')}-${String(nextWeekDate.getDate()).padStart(2, '0')}`;
-      if (confirm(`${formatDate(nextWeekDate)} haftasına kopyalamak istiyor musunuz?`)) {
+      if (confirm(t('shift.copyConfirm').replace('{date}', formatDate(nextWeekDate)))) {
           setIsLoading(true);
           try {
               await supabase.from('shift_schedules').delete().eq('week_start_date', nextWeekKey).eq('branch', String(activeBranch));
@@ -376,7 +376,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                     <table className="w-full border-collapse min-w-[800px]">
                         <thead>
                             <tr className="bg-zinc-950 border-b border-zinc-800">
-                                <th className="p-4 w-32 border-r border-zinc-800 sticky left-0 z-20 bg-zinc-950 text-indigo-400 text-xs uppercase font-black after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-zinc-800">Uhrzeit</th>
+                                <th className="p-4 w-32 border-r border-zinc-800 sticky left-0 z-20 bg-zinc-950 text-indigo-400 text-xs uppercase font-black after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-zinc-800">{t('common.timeLabel')}</th>
                                 {DAYS.map((day, idx) => {
                                     const d = new Date(currentWeekStart); d.setDate(d.getDate() + idx);
                                     const isToday = new Date().toDateString() === d.toDateString();
@@ -387,7 +387,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                         </thead>
                         <tbody className="divide-y divide-zinc-800/50">
                             {displayedRows.length === 0 ? (
-                                <tr><td colSpan={9} className="p-20 text-center text-zinc-600 italic">Kayıt bulunamadı.</td></tr>
+                                <tr><td colSpan={9} className="p-20 text-center text-zinc-600 italic">{t('common.noRecord')}</td></tr>
                             ) : (
                                 displayedRows.map((row) => (
                                     <tr key={row.id} className="group hover:bg-zinc-800/20">

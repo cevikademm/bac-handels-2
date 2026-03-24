@@ -104,10 +104,10 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
 
       {/* --- DESKTOP SIDEBAR (Hidden on mobile) --- */}
       <div className="hidden md:flex z-40 h-full w-64 bg-zinc-950 border-r border-zinc-800 flex-col transition-all duration-300">
-        <div 
+        <div
             className="p-6 border-b border-zinc-900/50 cursor-pointer group flex items-center gap-3"
             onClick={() => setActiveTab('dashboard')}
-            title="Ana Sayfaya Dön"
+            title={t('layout.backToHome')}
         >
           <div className="w-12 h-12 rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 flex items-center justify-center shadow-lg shadow-red-900/20 group-hover:scale-105 transition-transform">
              <img src={BAC_LOGO_URL} alt="BAC Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
@@ -116,7 +116,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
             <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-600 bg-clip-text text-transparent group-hover:opacity-80 transition-opacity">
                 BAC Handels
             </h1>
-            <p className="text-[10px] text-zinc-500 mt-0.5">Kurumsal Yönetim</p>
+            <p className="text-[10px] text-zinc-500 mt-0.5">{t('layout.subtitle')}</p>
           </div>
         </div>
 
@@ -194,10 +194,10 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
         <nav className="w-full h-16 bg-zinc-900/90 backdrop-blur-xl border border-zinc-800/60 rounded-2xl flex justify-around items-center px-2 ml-0 -mb-6 shadow-[0_8px_30px_rgba(0,0,0,0.6)] pointer-events-auto">
             <MobileNavItem icon={LayoutDashboard} label={t('nav.dashboard')} id="dashboard" active={activeTab === 'dashboard'} onClick={setActiveTab} />
             <MobileNavItem icon={CalendarIcon} label={t('nav.calendar')} id="calendar" active={activeTab === 'calendar'} onClick={setActiveTab} />
-            <MobileNavItem icon={ShoppingBag} label="Satış" id="sales" active={activeTab === 'sales'} onClick={setActiveTab} />
-            <MobileNavItem icon={Table} label="Vardiya" id="shifts" active={activeTab === 'shifts'} onClick={setActiveTab} />
-            <MobileNavItem icon={CheckSquare} label="Görev" id="tasks" active={activeTab === 'tasks'} onClick={setActiveTab} />
-            <MobileNavItem icon={Users} label="Personel" id="payroll" active={activeTab === 'payroll'} onClick={setActiveTab} />
+            <MobileNavItem icon={ShoppingBag} label={t('nav.sales')} id="sales" active={activeTab === 'sales'} onClick={setActiveTab} />
+            <MobileNavItem icon={Table} label={t('nav.shifts')} id="shifts" active={activeTab === 'shifts'} onClick={setActiveTab} />
+            <MobileNavItem icon={CheckSquare} label={t('nav.tasks')} id="tasks" active={activeTab === 'tasks'} onClick={setActiveTab} />
+            <MobileNavItem icon={Users} label={t('nav.payroll')} id="payroll" active={activeTab === 'payroll'} onClick={setActiveTab} />
         </nav>
       </div>
 

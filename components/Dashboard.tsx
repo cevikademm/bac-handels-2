@@ -100,10 +100,10 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
           if (onUpdateUser) {
               onUpdateUser({ ...currentUser, avatarUrl: newAvatarUrl });
           }
-          alert('Profil fotoğrafı başarıyla güncellendi.');
+          alert(t('dash.avatarSuccess'));
       } catch (error) {
           console.error('Error uploading avatar:', error);
-          alert('Fotoğraf yüklenirken bir hata oluştu.');
+          alert(t('dash.avatarError'));
       } finally {
           setIsUploadingAvatar(false);
       }
@@ -664,7 +664,7 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                             {language === 'de' ? 'Datum' : 'Tarih'}: <span className="text-orange-300 font-bold">{formatDate(activeTransferEvent.date)} - {activeTransferEvent.endDate ? formatDate(activeTransferEvent.endDate) : '...'}</span>
                         </p>
                         <p className="text-zinc-300">
-                            {language === 'de' ? 'Uhrzeit' : 'Saat'}: <span className="text-orange-300 font-bold">{activeTransferEvent.startTime} - {activeTransferEvent.endTime}</span>
+                            {t('common.timeLabel')}: <span className="text-orange-300 font-bold">{activeTransferEvent.startTime} - {activeTransferEvent.endTime}</span>
                         </p>
                    </div>
                </div>

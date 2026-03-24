@@ -142,7 +142,7 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
     };
 
     const handleDeleteProduct = async (id: string) => {
-        if (!confirm('Bu ürünü silmek istediğinize emin misiniz? Geçmiş satış kayıtları etkilenmez ancak listeden tamamen kalkar.')) return;
+        if (!confirm(t('sales.deleteProductConfirm'))) return;
         const { error } = await supabase.from('action_products').delete().eq('id', id);
         if (!error) {
             setActionProducts(actionProducts.filter(p => p.id !== id));

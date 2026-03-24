@@ -250,6 +250,95 @@ const translations: Record<Language, Record<string, string>> = {
     'common.loading': 'Yükleniyor...',
     'common.error': 'Hata',
     'common.success': 'Başarılı',
+    'common.delete': 'Sil',
+    'common.save': 'Kaydet',
+    'common.cancel': 'İptal',
+    'common.confirm': 'Onayla',
+    'common.yes': 'Evet',
+    'common.no': 'Hayır',
+    'common.close': 'Kapat',
+    'common.noRecord': 'Kayıt bulunamadı.',
+    'common.hour': 'Saat',
+    'common.timeLabel': 'Uhrzeit',
+
+    // Error Boundary
+    'error.title': 'Bir Sorun Oluştu',
+    'error.desc': 'Sistem beklenmeyen bir veri durumuyla karşılaştı. Bu genellikle veritabanı bağlantısı veya eksik veriden kaynaklanır.',
+    'error.refresh': 'Sistemi Yenile',
+
+    // Layout
+    'layout.backToHome': 'Ana Sayfaya Dön',
+    'layout.subtitle': 'Kurumsal Yönetim',
+    'layout.rememberMe': 'Beni Hatırla',
+
+    // Login
+    'login.connectionError': 'Sunucuya bağlanılamadı. Lütfen daha sonra tekrar deneyin.',
+    'login.invalidCredentials': 'Hatalı e-posta veya şifre.',
+    'login.genericError': 'Bir hata oluştu. Lütfen tekrar deneyin.',
+
+    // Messages
+    'msg.me': 'Ben',
+    'msg.allStaff': 'Tüm Personel',
+    'msg.adminTeam': 'Yönetim Ekibi',
+    'msg.unknownUser': 'Bilinmeyen Kullanıcı',
+    'msg.deleteConfirm': 'Bu mesajı silmek istediğinize emin misiniz?',
+    'msg.deleteError': 'Silme hatası',
+    'msg.chatSubject': 'Sohbet Mesajı',
+    'msg.sendError': 'Gönderilemedi',
+    'msg.recipientRequired': 'Alıcı ve mesaj içeriği zorunludur.',
+    'msg.sent': 'Mesaj gönderildi.',
+    'msg.error': 'Hata',
+    'msg.adminBoard': 'Yönetim Ekibi (Admin)',
+    'msg.allStaffAnnounce': 'Tüm Personel (Duyuru)',
+    'msg.you': 'Siz',
+    'msg.generalChannel': 'Genel Duyuru Kanalı',
+    'msg.adminDept': 'Yönetim Departmanı',
+    'msg.staff': 'Personel',
+    'msg.adminOnlyPlaceholder': 'Sadece yöneticiler duyuru yapabilir.',
+
+    // Tasks extra
+    'tasks.confirmDelete': 'Bu görevi iptal etmek/silmek istediğinize emin misiniz?',
+    'tasks.deleteFailed': 'Silme işlemi başarısız oldu.',
+    'tasks.saveError': 'Kayıt sırasında bir hata oluştu.',
+    'tasks.checklistOnlyOwner': 'Bu maddeyi sadece işaretleyen kişi geri alabilir.',
+
+    // Sales extra
+    'sales.deleteProductConfirm': 'Bu ürünü silmek istediğinize emin misiniz? Geçmiş satış kayıtları etkilenmez ancak listeden tamamen kalkar.',
+
+    // Dashboard extra
+    'dash.avatarSuccess': 'Profil fotoğrafı başarıyla güncellendi.',
+    'dash.avatarError': 'Fotoğraf yüklenirken bir hata oluştu.',
+
+    // Payroll extra
+    'pay.unsavedChanges': 'Kaydedilmemiş değişiklikler var. Devam et?',
+    'pay.imageError': 'Resim yüklenirken bir hata oluştu',
+    'pay.nameEmailRequired': 'Lütfen isim ve e-posta alanlarını doldurun.',
+    'pay.dbOfflineSave': 'Veritabanı bağlantısı yok. Değişiklikler demo modunda yerel olarak kaydedildi.',
+    'pay.dateRangeRequired': 'Lütfen tarih aralığı belirtiniz.',
+    'pay.endBeforeStart': 'Bitiş tarihi başlangıç tarihinden önce olamaz.',
+    'pay.deleteConfirm': 'Bu personeli silmek istediğinize emin misiniz?',
+    'pay.dbOfflineDelete': 'Veritabanı bağlantısı yok. Kayıt yerel olarak silindi.',
+    'pay.demoWarning': 'Uyarı: Seçilen personel veritabanında bulunamadığı için kayıt sadece yerel önbelleğe eklendi. (Demo Modu)',
+    'pay.dbErrorLocal': 'Veritabanı hatası. Kayıt yerel olarak eklendi.',
+    'pay.selectStaffFirst': 'Lütfen önce listeden bir personel seçiniz.',
+    'pay.deleteTransferConfirm': 'Bu transfer kalıcı olarak silinecek. Emin misiniz?',
+    'pay.approveConflict': 'Çakışmaya Rağmen Onayla',
+
+    // Calendar extra
+    'cal.defaultType': 'Toplantı',
+    'cal.deleteConfirm': 'Silmek istediğinize emin misiniz?',
+    'cal.typeMeeting': 'Toplantı',
+    'cal.typeAssembly': 'Montaj',
+    'cal.typeDeadline': 'Teslim Tarihi',
+    'cal.typeTransfer': 'Şube Transferi',
+    'cal.typeOther': 'Diğer',
+    'cal.transfer_label': 'TRANSFER',
+
+    // Shift extra
+    'shift.conflictWarn': 'UYARI: {name} bu gün zaten {conflict} şubesinde atanmış ve saat çakışması var!\n\nYine de atamak istiyor musunuz?',
+    'shift.deleteConfirm': 'Silmek istediğinize emin misiniz?',
+    'shift.copyConfirm': '{date} haftasına kopyalamak istiyor musunuz?',
+    'shift.selectEmployee': '— Personel Seç —',
 
     // --- MOCK TASKS TRANSLATIONS ---
     'task.mock.1.title': 'Yazarkasa Günsonu Raporu',
@@ -516,6 +605,95 @@ const translations: Record<Language, Record<string, string>> = {
     'common.loading': 'Lädt...',
     'common.error': 'Fehler',
     'common.success': 'Erfolgreich',
+    'common.delete': 'Löschen',
+    'common.save': 'Speichern',
+    'common.cancel': 'Abbrechen',
+    'common.confirm': 'Bestätigen',
+    'common.yes': 'Ja',
+    'common.no': 'Nein',
+    'common.close': 'Schließen',
+    'common.noRecord': 'Kein Eintrag gefunden.',
+    'common.hour': 'Uhr',
+    'common.timeLabel': 'Uhrzeit',
+
+    // Error Boundary
+    'error.title': 'Ein Problem ist aufgetreten',
+    'error.desc': 'Das System hat einen unerwarteten Datenstatus festgestellt. Dies liegt normalerweise an der Datenbankverbindung oder fehlenden Daten.',
+    'error.refresh': 'System neu laden',
+
+    // Layout
+    'layout.backToHome': 'Zurück zur Startseite',
+    'layout.subtitle': 'Unternehmensmanagement',
+    'layout.rememberMe': 'Angemeldet bleiben',
+
+    // Login
+    'login.connectionError': 'Verbindung zum Server fehlgeschlagen. Bitte versuchen Sie es später erneut.',
+    'login.invalidCredentials': 'Ungültige E-Mail oder Passwort.',
+    'login.genericError': 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.',
+
+    // Messages
+    'msg.me': 'Ich',
+    'msg.allStaff': 'Alle Mitarbeiter',
+    'msg.adminTeam': 'Management-Team',
+    'msg.unknownUser': 'Unbekannter Benutzer',
+    'msg.deleteConfirm': 'Sind Sie sicher, dass Sie diese Nachricht löschen möchten?',
+    'msg.deleteError': 'Löschfehler',
+    'msg.chatSubject': 'Chat-Nachricht',
+    'msg.sendError': 'Senden fehlgeschlagen',
+    'msg.recipientRequired': 'Empfänger und Nachrichteninhalt sind erforderlich.',
+    'msg.sent': 'Nachricht gesendet.',
+    'msg.error': 'Fehler',
+    'msg.adminBoard': 'Management-Team (Admin)',
+    'msg.allStaffAnnounce': 'Alle Mitarbeiter (Ankündigung)',
+    'msg.you': 'Sie',
+    'msg.generalChannel': 'Allgemeiner Ankündigungskanal',
+    'msg.adminDept': 'Management-Abteilung',
+    'msg.staff': 'Personal',
+    'msg.adminOnlyPlaceholder': 'Nur Administratoren können Ankündigungen machen.',
+
+    // Tasks extra
+    'tasks.confirmDelete': 'Sind Sie sicher, dass Sie diese Aufgabe abbrechen/löschen möchten?',
+    'tasks.deleteFailed': 'Löschen fehlgeschlagen.',
+    'tasks.saveError': 'Fehler beim Speichern.',
+    'tasks.checklistOnlyOwner': 'Nur die Person, die diesen Punkt markiert hat, kann dies rückgängig machen.',
+
+    // Sales extra
+    'sales.deleteProductConfirm': 'Sind Sie sicher, dass Sie dieses Produkt löschen möchten? Bisherige Verkaufseinträge bleiben erhalten, aber es wird vollständig aus der Liste entfernt.',
+
+    // Dashboard extra
+    'dash.avatarSuccess': 'Profilbild erfolgreich aktualisiert.',
+    'dash.avatarError': 'Fehler beim Hochladen des Fotos.',
+
+    // Payroll extra
+    'pay.unsavedChanges': 'Es gibt ungespeicherte Änderungen. Fortfahren?',
+    'pay.imageError': 'Fehler beim Hochladen des Bildes',
+    'pay.nameEmailRequired': 'Bitte füllen Sie Name und E-Mail aus.',
+    'pay.dbOfflineSave': 'Keine Datenbankverbindung. Änderungen wurden lokal im Demo-Modus gespeichert.',
+    'pay.dateRangeRequired': 'Bitte geben Sie einen Datumsbereich an.',
+    'pay.endBeforeStart': 'Das Enddatum darf nicht vor dem Startdatum liegen.',
+    'pay.deleteConfirm': 'Sind Sie sicher, dass Sie diesen Mitarbeiter löschen möchten?',
+    'pay.dbOfflineDelete': 'Keine Datenbankverbindung. Eintrag wurde lokal gelöscht.',
+    'pay.demoWarning': 'Hinweis: Der ausgewählte Mitarbeiter wurde nicht in der Datenbank gefunden, der Eintrag wurde nur im lokalen Cache gespeichert. (Demo-Modus)',
+    'pay.dbErrorLocal': 'Datenbankfehler. Eintrag wurde lokal gespeichert.',
+    'pay.selectStaffFirst': 'Bitte wählen Sie zuerst einen Mitarbeiter aus der Liste.',
+    'pay.deleteTransferConfirm': 'Dieser Transfer wird dauerhaft gelöscht. Sind Sie sicher?',
+    'pay.approveConflict': 'Trotz Konflikt genehmigen',
+
+    // Calendar extra
+    'cal.defaultType': 'Besprechung',
+    'cal.deleteConfirm': 'Sind Sie sicher, dass Sie dies löschen möchten?',
+    'cal.typeMeeting': 'Besprechung',
+    'cal.typeAssembly': 'Montage',
+    'cal.typeDeadline': 'Frist',
+    'cal.typeTransfer': 'Filialtransfer',
+    'cal.typeOther': 'Andere',
+    'cal.transfer_label': 'TRANSFER',
+
+    // Shift extra
+    'shift.conflictWarn': 'ACHTUNG: {name} ist an diesem Tag bereits in der Filiale {conflict} eingeteilt und es gibt eine Zeitüberschneidung!\n\nTrotzdem zuweisen?',
+    'shift.deleteConfirm': 'Sind Sie sicher, dass Sie dies löschen möchten?',
+    'shift.copyConfirm': 'Möchten Sie in die Woche {date} kopieren?',
+    'shift.selectEmployee': '— Mitarbeiter wählen —',
 
     // --- MOCK TASKS TRANSLATIONS (DE) ---
     'task.mock.1.title': 'Kassenabschlussbericht',

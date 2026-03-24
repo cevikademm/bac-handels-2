@@ -42,11 +42,11 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
 
     // Helper: ID'den İsim Bulma
     const getName = (id: string) => {
-        if (id === currentUser.id) return 'Ben';
-        if (id === 'ALL') return '📢 Tüm Personel';
-        if (id === ADMIN_BOARD_ID) return '🏢 Yönetim Ekibi';
+        if (id === currentUser.id) return t('msg.me');
+        if (id === 'ALL') return '📢 ' + t('msg.allStaff');
+        if (id === ADMIN_BOARD_ID) return '🏢 ' + t('msg.adminTeam');
         const user = recipientList.find(e => e.id === id);
-        return user ? user.name : 'Bilinmeyen Kullanıcı';
+        return user ? user.name : t('msg.unknownUser');
     };
 
     // Helper: ID'den Profil Resmi Bulma
@@ -352,14 +352,14 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
     };
 
     const handleDeleteMessage = async (msgId: string) => {
-        if (!confirm('Bu mesajı silmek istediğinize emin misiniz?')) return;
+        if (!confirm(t('msg.deleteConfirm'))) return;
         try {
             const { error } = await supabase.from('messages').delete().eq('id', msgId);
             if (error) throw error;
             // Local update (Realtime will also handle this but this makes it snappier)
             setConversation(prev => prev.filter(m => m.id !== msgId));
         } catch (err: any) {
-            alert('Silme hatası: ' + err.message);
+            alert(t('msg.deleteError') + ': ' + err.message);
         }
     };
 
@@ -378,7 +378,7 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
             const newMessage = {
                 sender_id: currentUser.id,
                 receiver_id: receiver,
-                subject: 'Sohbet Mesajı',
+                subject: t('msg.chatSubject'),
                 content: replyText,
                 read: false
             };
@@ -387,9 +387,9 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
             if (error) throw error;
 
             setReplyText('');
-            
+
         } catch (err: any) {
-            alert("Gönderilemedi: " + err.message);
+            alert(t('msg.sendError') + ': ' + err.message);
         } finally {
             setIsSending(false);
         }
@@ -398,7 +398,7 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
     const handleComposeSend = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!composeForm.receiverId || !composeForm.content) {
-            alert("Alıcı ve mesaj içeriği zorunludur.");
+            alert(t('msg.recipientRequired'));
             return;
         }
 
@@ -417,8 +417,8 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
 
             setShowCompose(false);
             setComposeForm({ receiverId: '', subject: '', content: '' });
-            alert("Mesaj gönderildi.");
-            
+            alert(t('msg.sent'));
+
             // Sohbete geçiş yap
             let nextPartner = composeForm.receiverId;
             // Personel Yönetime attıysa, sohbet ID'si ADMIN_BOARD_ID olur
@@ -428,7 +428,7 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
             setActiveChatPartnerId(nextPartner);
 
         } catch (err: any) {
-            alert("Hata: " + err.message);
+            alert(t('msg.error') + ': ' + err.message);
         } finally {
             setIsSending(false);
         }
@@ -472,14 +472,14 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
                                 >
                                     {/* Personel için tek seçenek */}
                                     {currentUser.role !== Role.ADMIN && (
-                                        <option value={ADMIN_BOARD_ID}>🏢 Yönetim Ekibi (Admin)</option>
+                                        <option value={ADMIN_BOARD_ID}>{'🏢 ' + t('msg.adminBoard')}</option>
                                     )}
                                     
                                     {/* Admin için seçenekler */}
                                     {currentUser.role === Role.ADMIN && (
                                         <>
                                             <option value="" disabled>Seçiniz</option>
-                                            <option value="ALL">📢 Tüm Personel (Duyuru)</option>
+                                            <option value="ALL">{'📢 ' + t('msg.allStaffAnnounce')}</option>
                                             {filteredRecipients.map(emp => (
                                                 <option key={emp.id} value={emp.id}>{emp.name}</option>
                                             ))}
@@ -576,7 +576,7 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
                                         </span>
                                     </div>
                                     <p className="text-xs text-zinc-500 truncate">
-                                        {isMe && <span className="text-zinc-600">Siz: </span>}{msg.content}
+                                        {isMe && <span className="text-zinc-600">{t('msg.you') + ': '}</span>}{msg.content}
                                     </p>
                                 </div>
                             )
@@ -605,8 +605,8 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
                             <div>
                                 <h2 className="text-base font-bold text-white">{getName(activeChatPartnerId)}</h2>
                                 <p className="text-xs text-zinc-500">
-                                    {activeChatPartnerId === 'ALL' ? 'Genel Duyuru Kanalı' : 
-                                     activeChatPartnerId === ADMIN_BOARD_ID ? 'Yönetim Departmanı' : 'Personel'}
+                                    {activeChatPartnerId === 'ALL' ? t('msg.generalChannel') :
+                                     activeChatPartnerId === ADMIN_BOARD_ID ? t('msg.adminDept') : t('msg.staff')}
                                 </p>
                             </div>
                         </div>
@@ -657,11 +657,11 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
 
                         <div className="p-4 border-t border-zinc-800 bg-zinc-900/30 pb-safe">
                             <div className="flex gap-2 items-end bg-zinc-900 border border-zinc-800 rounded-2xl p-2">
-                                <textarea 
+                                <textarea
                                     value={replyText}
                                     onChange={(e) => setReplyText(e.target.value)}
                                     className="flex-1 bg-transparent border-none text-sm focus:ring-0 outline-none resize-none max-h-32 min-h-[44px] py-3 px-2 text-white placeholder:text-zinc-600"
-                                    placeholder={activeChatPartnerId === 'ALL' && currentUser.role !== Role.ADMIN ? 'Sadece yöneticiler duyuru yapabilir.' : t('msg.write')}
+                                    placeholder={activeChatPartnerId === 'ALL' && currentUser.role !== Role.ADMIN ? t('msg.adminOnlyPlaceholder') : t('msg.write')}
                                     readOnly={activeChatPartnerId === 'ALL' && currentUser.role !== Role.ADMIN}
                                     rows={1}
                                 />
