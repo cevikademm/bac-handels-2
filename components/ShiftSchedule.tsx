@@ -290,68 +290,90 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
 
       {/* HEADER */}
       <div className="p-2 xl:p-4 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-30 shrink-0">
-          <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 xl:gap-6">
-              <div className="grid grid-cols-3 grid-rows-2 xl:flex xl:flex-row xl:items-center gap-2 xl:gap-4 w-full max-w-full pb-2 pt-2 px-1 xl:px-2">
-                  {/* Şube sekmeleri korundu - personel kaldırıldı, şubeler duruyor */}
+
+          {/* ── MOBİL HEADER ── */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '8px 4px' }} className="xl:hidden">
+              {/* 3x2 Grid: 5 şube + 1 tarih — tüm hücreler eşit */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
                   {Object.values(Branch).map(b => {
                       const count = branchShiftCounts.get(b) || 0;
                       return (
-                          <button key={b} onClick={() => setActiveBranch(b)} className={`relative px-1 xl:px-5 py-2.5 rounded-xl text-[10px] sm:text-[11px] xl:text-sm font-bold transition-all border flex items-center justify-center break-words text-center min-h-[44px] ${activeBranch === b ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-zinc-900 text-zinc-500 border-zinc-800'}`}>
-                              <span className="truncate w-full line-clamp-1">{b}</span>
+                          <button key={b} onClick={() => setActiveBranch(b)} style={{ position: 'relative', minHeight: '48px', borderRadius: '12px', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', border: '1px solid', transition: 'all 0.2s', borderColor: activeBranch === b ? '#6366f1' : '#27272a', backgroundColor: activeBranch === b ? '#4f46e5' : '#18181b', color: activeBranch === b ? '#fff' : '#71717a' }}>
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '0 4px' }}>{b}</span>
                               {count > 0 && (
-                                  <span className={`absolute -top-2 -right-2 min-w-[20px] h-5 flex items-center justify-center rounded-full text-[10px] font-black px-1.5 shadow-lg ring-2 ring-zinc-950 ${
-                                      activeBranch === b
-                                          ? 'bg-white text-indigo-600'
-                                          : 'bg-emerald-500 text-white shadow-emerald-500/30'
-                                  }`}>
+                                  <span style={{ position: 'absolute', top: '-8px', right: '-8px', minWidth: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '9999px', fontSize: '10px', fontWeight: 900, padding: '0 6px', boxShadow: '0 0 0 2px #09090b', backgroundColor: activeBranch === b ? '#fff' : '#10b981', color: activeBranch === b ? '#4f46e5' : '#fff' }}>
                                       {count}
                                   </span>
                               )}
                           </button>
                       );
                   })}
-                  
-                  {/* MOBİL GÖRÜNÜM İÇİN TAKVİM (Sadece Mobilde Gridin 6. elemanı) */}
-                  <div className="flex xl:hidden items-center justify-between bg-zinc-900 rounded-xl border border-zinc-800 p-0.5 sm:p-1 col-span-1 min-h-[44px]">
-                        <button onClick={() => handleWeekChange('prev')} className="p-1 text-zinc-400 hover:text-white shrink-0"><ChevronLeft size={16}/></button>
-                        <div className="text-[9px] sm:text-[10px] font-bold text-white text-center flex-1 flex flex-col justify-center leading-tight truncate px-0.5">
-                             <span className="truncate">{formatDate(currentWeekStart, { day: 'numeric', month: 'short' })}</span>
-                             <span className="text-zinc-500 leading-none pb-[1px]">-</span>
-                             <span className="truncate">{formatDate(currentWeekEnd, { day: 'numeric', month: 'short' })}</span>
-                        </div>
-                        <button onClick={() => handleWeekChange('next')} className="p-1 text-zinc-400 hover:text-white shrink-0"><ChevronRight size={16}/></button>
+                  {/* Tarih sekmesi — 6. hücre, şubelerle aynı boyut */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#18181b', borderRadius: '12px', border: '1px solid #27272a', minHeight: '48px' }}>
+                      <button onClick={() => handleWeekChange('prev')} style={{ padding: '6px', color: '#a1a1aa', flexShrink: 0 }}><ChevronLeft size={16}/></button>
+                      <div style={{ fontSize: '10px', fontWeight: 700, color: '#fff', textAlign: 'center', flex: 1, lineHeight: 1.3 }}>
+                          <span>{formatDate(currentWeekStart, { day: 'numeric', month: 'short' })}</span>
+                          <span style={{ color: '#71717a', margin: '0 2px' }}>-</span>
+                          <span>{formatDate(currentWeekEnd, { day: 'numeric', month: 'short' })}</span>
+                      </div>
+                      <button onClick={() => handleWeekChange('next')} style={{ padding: '6px', color: '#a1a1aa', flexShrink: 0 }}><ChevronRight size={16}/></button>
                   </div>
               </div>
 
-              <div className="flex flex-row items-center justify-between w-full xl:w-auto gap-2 px-1 xl:px-0">
-                  {/* MASAÜSTÜ GÖRÜNÜM İÇİN TAKVİM */}
-                  <div className="hidden xl:flex items-center bg-zinc-900 rounded-xl border border-zinc-800 p-1">
-                        <button onClick={() => handleWeekChange('prev')} className="p-2 text-zinc-400 hover:text-white"><ChevronLeft size={20}/></button>
-                        <div className="px-4 text-center min-w-[140px] text-sm font-bold text-white">{formatDate(currentWeekStart, { day: 'numeric', month: 'short' })} - {formatDate(currentWeekEnd, { day: 'numeric', month: 'short' })}</div>
-                        <button onClick={() => handleWeekChange('next')} className="p-2 text-zinc-400 hover:text-white"><ChevronRight size={20}/></button>
+              {/* Admin butonları */}
+              {isAdmin && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                      <button onClick={handleCopyNextWeek} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '12px', color: '#a1a1aa', minHeight: '44px' }} title="Kopyala"><Copy size={18} /></button>
+                      <button onClick={addNewRow} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#4f46e5', border: 'none', borderRadius: '12px', color: '#fff', fontWeight: 700, minHeight: '44px' }} title="Yeni Satır"><Plus size={18} /></button>
+                      <button onClick={handleManualSave} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#16a34a', border: 'none', borderRadius: '12px', color: '#fff', fontWeight: 700, minHeight: '44px' }} title="Kaydet">{isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}</button>
                   </div>
+              )}
+          </div>
 
+          {/* ── MASAÜSTÜ HEADER ── */}
+          <div className="hidden xl:flex justify-between items-center gap-6">
+              <div className="flex items-center gap-4">
+                  {Object.values(Branch).map(b => {
+                      const count = branchShiftCounts.get(b) || 0;
+                      return (
+                          <button key={b} onClick={() => setActiveBranch(b)} className={`relative px-5 py-2.5 rounded-xl text-sm font-bold transition-all border flex items-center justify-center min-h-[44px] ${activeBranch === b ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-zinc-900 text-zinc-500 border-zinc-800'}`}>
+                              <span>{b}</span>
+                              {count > 0 && (
+                                  <span className={`absolute -top-2 -right-2 min-w-[20px] h-5 flex items-center justify-center rounded-full text-[10px] font-black px-1.5 shadow-lg ring-2 ring-zinc-950 ${activeBranch === b ? 'bg-white text-indigo-600' : 'bg-emerald-500 text-white shadow-emerald-500/30'}`}>
+                                      {count}
+                                  </span>
+                              )}
+                          </button>
+                      );
+                  })}
+              </div>
+              <div className="flex items-center gap-2">
+                  <div className="flex items-center bg-zinc-900 rounded-xl border border-zinc-800 p-1">
+                      <button onClick={() => handleWeekChange('prev')} className="p-2 text-zinc-400 hover:text-white"><ChevronLeft size={20}/></button>
+                      <div className="px-4 text-center min-w-[140px] text-sm font-bold text-white">{formatDate(currentWeekStart, { day: 'numeric', month: 'short' })} - {formatDate(currentWeekEnd, { day: 'numeric', month: 'short' })}</div>
+                      <button onClick={() => handleWeekChange('next')} className="p-2 text-zinc-400 hover:text-white"><ChevronRight size={20}/></button>
+                  </div>
                   {isAdmin && (
-                      <div className="flex items-center justify-between xl:justify-start gap-2 w-full xl:w-auto mt-2 xl:mt-0">
-                            <button onClick={handleCopyNextWeek} className="flex-1 xl:flex-none p-3 xl:p-3 flex items-center justify-center bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-400 hover:text-white min-h-[44px]" title="Kopyala"><Copy size={18} /></button>
-                            <button onClick={addNewRow} className="flex-1 xl:flex-none px-4 xl:px-6 py-2 xl:py-3 flex justify-center items-center bg-indigo-600 text-white rounded-xl font-bold shadow-lg min-h-[44px]" title="Yeni Satır"><Plus size={18} /></button>
-                            <button onClick={handleManualSave} className="flex-1 xl:flex-none px-4 xl:px-6 py-2 xl:py-3 flex justify-center items-center bg-green-600 text-white rounded-xl font-bold shadow-lg min-h-[44px]" title="Kaydet">{isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}</button>
+                      <div className="flex items-center gap-2">
+                          <button onClick={handleCopyNextWeek} className="p-3 flex items-center justify-center bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-400 hover:text-white min-h-[44px]" title="Kopyala"><Copy size={18} /></button>
+                          <button onClick={addNewRow} className="px-6 py-3 flex items-center justify-center bg-indigo-600 text-white rounded-xl font-bold shadow-lg min-h-[44px]" title="Yeni Satır"><Plus size={18} /></button>
+                          <button onClick={handleManualSave} className="px-6 py-3 flex items-center justify-center bg-green-600 text-white rounded-xl font-bold shadow-lg min-h-[44px]" title="Kaydet">{isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}</button>
                       </div>
                   )}
               </div>
           </div>
       </div>
 
-      <div className="flex-1 overflow-auto custom-scrollbar bg-zinc-950 p-4">
-            {/* Mobil yatay kaydırma ipucu */}
-            <div className="md:hidden text-[10px] text-center text-zinc-600 py-1.5 italic select-none">
-                ← Sağa kaydırarak diğer günleri görün →
-            </div>
-            <div className="min-w-[1200px] h-full pb-20">
+      <div className="flex-1 overflow-auto custom-scrollbar bg-zinc-950 p-2 xl:p-4">
+
+            {/* ══════════════════════════════════════════════════
+                TABLO GÖRÜNÜMÜ — Yatay kaydırmalı (mobil + masaüstü)
+               ══════════════════════════════════════════════════ */}
+            <div className="h-full pb-20 overflow-x-auto">
                 <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 overflow-hidden shadow-2xl relative">
 <GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} />
                     {isLoading && (<div className="absolute inset-0 z-50 bg-zinc-950/80 backdrop-blur-sm flex items-center justify-center"><Loader2 size={40} className="text-blue-500 animate-spin" /></div>)}
-                    <table className="w-full border-collapse">
+                    <table className="w-full border-collapse min-w-[800px]">
                         <thead>
                             <tr className="bg-zinc-950 border-b border-zinc-800">
                                 <th className="p-4 w-32 border-r border-zinc-800 sticky left-0 z-20 bg-zinc-950 text-indigo-400 text-xs uppercase font-black">Uhrzeit</th>
