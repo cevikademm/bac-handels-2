@@ -364,19 +364,19 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
           </div>
       </div>
 
-      <div className="flex-1 overflow-auto custom-scrollbar bg-zinc-950 p-2 xl:p-4">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar bg-zinc-950 p-2 xl:p-4">
 
             {/* ══════════════════════════════════════════════════
                 TABLO GÖRÜNÜMÜ — Yatay kaydırmalı (mobil + masaüstü)
                ══════════════════════════════════════════════════ */}
-            <div className="h-full pb-20 overflow-x-auto">
-                <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 overflow-hidden shadow-2xl relative">
+            <div className="h-full pb-20">
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 overflow-x-auto shadow-2xl relative" style={{ WebkitOverflowScrolling: 'touch' }}>
 <GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} />
                     {isLoading && (<div className="absolute inset-0 z-50 bg-zinc-950/80 backdrop-blur-sm flex items-center justify-center"><Loader2 size={40} className="text-blue-500 animate-spin" /></div>)}
                     <table className="w-full border-collapse min-w-[800px]">
                         <thead>
                             <tr className="bg-zinc-950 border-b border-zinc-800">
-                                <th className="p-4 w-32 border-r border-zinc-800 sticky left-0 z-20 bg-zinc-950 text-indigo-400 text-xs uppercase font-black">Uhrzeit</th>
+                                <th className="p-4 w-32 border-r border-zinc-800 sticky left-0 z-20 bg-zinc-950 text-indigo-400 text-xs uppercase font-black after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-zinc-800">Uhrzeit</th>
                                 {DAYS.map((day, idx) => {
                                     const d = new Date(currentWeekStart); d.setDate(d.getDate() + idx);
                                     const isToday = new Date().toDateString() === d.toDateString();
@@ -391,7 +391,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                             ) : (
                                 displayedRows.map((row) => (
                                     <tr key={row.id} className="group hover:bg-zinc-800/20">
-                                        <td className="p-2 border-r border-zinc-800 sticky left-0 z-10 bg-zinc-950">
+                                        <td className="p-2 border-r border-zinc-800 sticky left-0 z-10 bg-zinc-950 shadow-[2px_0_8px_rgba(0,0,0,0.5)]">
                                             {isAdmin ? (<input type="text" value={row.timeLabel} onChange={(e) => handleTimeLabelChange(row.id, e.target.value)} onBlur={() => { saveRowToDb(row); fetchOtherBranchData(); }} className="w-full bg-transparent text-center font-bold text-zinc-200 outline-none" placeholder="00:00-00:00"/>) : (<div className="text-center font-bold text-white">{row.timeLabel}</div>)}
                                         </td>
                                         {row.assignments.map((empId, dayIdx) => {
