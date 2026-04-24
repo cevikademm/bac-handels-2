@@ -88,7 +88,12 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                 }
             }
 
-            const { data: sales } = await supabase.from('sales_logs').select('*').order('sale_date', { ascending: false });
+            // Admin dışında herkes sadece kendi satışlarını görür.
+            let salesQuery = supabase.from('sales_logs').select('*').order('sale_date', { ascending: false });
+            if (!isAdmin) {
+                salesQuery = salesQuery.eq('employee_id', currentUser.id);
+            }
+            const { data: sales } = await salesQuery;
             if (sales && isMounted.current) {
                 const formattedSales = sales.map((l: any) => ({
                     id: l.id,
