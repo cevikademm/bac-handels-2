@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, BarChart, Bar, Legend, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
 import { Bell, TrendingUp, Users, Clock, AlertCircle, Sparkles, CheckCircle2, Zap, Target, ArrowUpRight, Activity, ArrowRightLeft, Briefcase, CalendarCheck, Medal, AlertTriangle, DollarSign, MapPin, Coffee, Wallet, Timer, Filter, BarChart3, ListTodo, CheckSquare, PlusCircle, MessageSquare, ChevronRight, User, ShoppingBag, AlertOctagon, Tag, Trophy, Award, Upload, Loader2 } from 'lucide-react';
 import { AppNotification, Employee, Role, CalendarEvent, Branch, Task, Message, SalesLog } from '../types';
+import { isDualRoleAdmin } from '../constants';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
 import { GlowingEffect } from './ui/glowing-effect';
@@ -213,7 +214,8 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
               bio: e.bio,
           }));
           // KURAL: Adminleri dashboard listelerinden ve grafiklerinden çıkar
-          const staffOnly = allEmployees.filter(e => e.role !== Role.ADMIN);
+          // İstisna: Çift rollü adminler (Apo, Malik) personel listesinde kalır.
+          const staffOnly = allEmployees.filter(e => e.role !== Role.ADMIN || isDualRoleAdmin(e));
           setDashboardEmployees(staffOnly);
       } else {
           setDashboardEmployees([]);
@@ -641,7 +643,8 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
        )}
 
        {/* 2. HIGH PRIORITY TRANSFER ALERT BANNER */}
-       {activeTransferEvent && (
+       {/* Transfer alert hidden - feature disabled */}
+       {false && activeTransferEvent && (
            <div className="mb-8 bg-gradient-to-r from-orange-950/90 to-red-950/90 border border-orange-500/50 rounded-2xl p-6 flex flex-col md:flex-row items-center gap-6 animate-in slide-in-from-top-4 shadow-[0_0_40px_rgba(234,88,12,0.3)] relative overflow-hidden ring-1 ring-orange-500/30">
                <div className="absolute top-0 left-0 w-2 h-full bg-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.8)]"></div>
                
@@ -817,7 +820,8 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
           </div>
 
           {/* KART 2: PERSONEL TRANSFERLERİ - SADECE AKTİF TRANSFER VARSA GÖSTER */}
-          {recentTransfers.length > 0 && (
+          {/* Transfer card hidden - feature disabled */}
+          {false && recentTransfers.length > 0 && (
               <div className="rounded-3xl border border-zinc-800 bg-zinc-900/30 p-6 flex flex-col h-full min-h-[300px] relative">
 <GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} />
                   <div className="flex justify-between items-center mb-6">

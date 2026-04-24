@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Branch, Employee, Role, CalendarEvent, Task } from '../types';
 import { Plus, X, Calendar as CalendarIcon, Clock, MapPin, Users, Save, Building2, CheckCircle2, AlignLeft, Trash2, ChevronLeft, ChevronRight, AlertTriangle, CheckSquare, Loader2, Rocket, ArrowRightLeft, CalendarRange, MoreHorizontal, Filter, List } from 'lucide-react';
+import { includeAsPersonnel } from '../constants';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
 import { GlowingEffect } from './ui/glowing-effect';
@@ -117,10 +118,10 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                 setShifts(shiftData);
             }
 
-            // 4. Employees (For Attendees Selector) - EXCLUDE ADMINS
-            const { data: empData } = await supabase.from('profiles').select('*').neq('role', 'Admin');
+            // 4. Employees (For Attendees Selector) - çift rollü adminler (Apo, Malik) dahil
+            const { data: empData } = await supabase.from('profiles').select('*');
             if (empData) {
-                const fetchedEmployees: Employee[] = empData.map((e: any) => ({
+                const fetchedEmployees: Employee[] = empData.filter(includeAsPersonnel).map((e: any) => ({
                     id: e.id,
                     name: e.full_name,
                     email: e.email,
@@ -273,6 +274,20 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       return result;
   }, [shifts, employees, currentWeekStart, currentUser]);
 
+  // Bu hafta hiç vardiyası olmayan personeller
+  const unassignedEmployees = useMemo(() => {
+      if (currentUser.role !== Role.ADMIN) return [];
+      const weekStartStr = currentWeekStart.toISOString().split('T')[0];
+      const assignedIds = new Set<string>();
+      shifts.forEach((schedule: any) => {
+          if (schedule.week_start_date !== weekStartStr) return;
+          schedule.days.forEach((empId: string) => {
+              if (empId) assignedIds.add(empId);
+          });
+      });
+      return employees.filter(emp => !assignedIds.has(emp.id));
+  }, [shifts, employees, currentWeekStart, currentUser]);
+
   const changeWeek = (direction: 'prev' | 'next') => {
       const newDate = new Date(viewDate);
       newDate.setDate(newDate.getDate() + (direction === 'next' ? 7 : -7));
@@ -406,7 +421,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                             <div>
                                 <label className="text-xs text-zinc-400 block mb-1.5">{t('cal.type')}</label>
                                 <div className="flex gap-2 overflow-x-auto pb-1">
-                                    {['Toplantı', 'Montaj', 'Teslim Tarihi', 'Şube Transferi', 'Diğer'].map(type => (
+                                    {['Toplantı', 'Montaj', 'Teslim Tarihi', 'Diğer'].map(type => (
                                         <button key={type} type="button" onClick={() => setNewEventForm({...newEventForm, type: type as any})}
                                             className={`px-3 py-1.5 rounded-lg text-xs font-medium border whitespace-nowrap transition-all ${newEventForm.type === type ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-zinc-900 text-zinc-400 border-zinc-800'}`}>
                                             {type === 'Şube Transferi' ? t('cal.type.transfer') : type}
@@ -495,10 +510,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                             <span className="text-2xl font-bold text-indigo-400 block">{weekStats.meetings}</span>
                             <span className="text-[10px] text-indigo-300/70">{t('cal.type.meeting')}</span>
                         </div>
-                        <div className="p-3 bg-orange-950/30 rounded-lg border border-orange-500/20">
-                            <span className="text-2xl font-bold text-orange-400 block">{weekStats.transfers}</span>
-                            <span className="text-[10px] text-orange-300/70">Transfer</span>
-                        </div>
+                        {/* Transfer stat hidden - feature disabled */}
                         <div className="p-3 bg-blue-950/30 rounded-lg border border-blue-500/20">
                             <span className="text-2xl font-bold text-blue-400 block">{weekStats.tasks}</span>
                             <span className="text-[10px] text-blue-300/70">Görev</span>
@@ -578,7 +590,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
             </div>
 
             {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-4 md:p-8 w-full max-w-[100vw]">
                 {activeTab === 'EVENTS' ? (
                     /* --- EVENTS TAB (mevcut haftalık ajanda) --- */
                     <div className="space-y-6">
@@ -700,7 +712,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                                     <span className="text-sm font-bold text-white">{t('cal.tabShifts')}</span>
                                     <span className="text-xs text-zinc-500 ml-auto">{shiftGrid.length} {t('cal.personnel')}</span>
                                 </div>
-                                <div className="overflow-x-auto custom-scrollbar">
+                                <div className="overflow-x-auto custom-scrollbar w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
                                     <table className="w-full min-w-[640px]">
                                         <thead>
                                             <tr className="border-b border-zinc-800/50">
@@ -746,6 +758,27 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                                 </div>
                             </div>
                         )}
+
+                        {/* Atanmamış Personeller */}
+                        {currentUser.role === Role.ADMIN && unassignedEmployees.length > 0 && (
+                            <div className="mt-6 rounded-xl border border-amber-500/20 bg-amber-950/10 p-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <AlertTriangle size={14} className="text-amber-500" />
+                                    <span className="text-xs font-black uppercase text-amber-500 tracking-wider">
+                                        {t('shift.unassigned') || 'Nicht zugewiesen'} ({unassignedEmployees.length})
+                                    </span>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {unassignedEmployees.map(emp => (
+                                        <div key={emp.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-900/80 border border-zinc-800 hover:border-amber-500/30 transition-colors">
+                                            <img src={emp.avatarUrl} className="w-6 h-6 rounded-full border border-zinc-700" referrerPolicy="no-referrer" />
+                                            <span className="text-xs font-bold text-zinc-400">{emp.name}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         <div className="h-20"></div>
                     </div>
                 )}

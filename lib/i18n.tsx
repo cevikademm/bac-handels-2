@@ -339,6 +339,7 @@ const translations: Record<Language, Record<string, string>> = {
     'shift.deleteConfirm': 'Silmek istediğinize emin misiniz?',
     'shift.copyConfirm': '{date} haftasına kopyalamak istiyor musunuz?',
     'shift.selectEmployee': '— Personel Seç —',
+    'shift.unassigned': 'Bu hafta atanmamış personeller',
 
     // --- MOCK TASKS TRANSLATIONS ---
     'task.mock.1.title': 'Yazarkasa Günsonu Raporu',
@@ -694,6 +695,7 @@ const translations: Record<Language, Record<string, string>> = {
     'shift.deleteConfirm': 'Sind Sie sicher, dass Sie dies löschen möchten?',
     'shift.copyConfirm': 'Möchten Sie in die Woche {date} kopieren?',
     'shift.selectEmployee': '— Mitarbeiter wählen —',
+    'shift.unassigned': 'Diese Woche nicht zugewiesen',
 
     // --- MOCK TASKS TRANSLATIONS (DE) ---
     'task.mock.1.title': 'Kassenabschlussbericht',

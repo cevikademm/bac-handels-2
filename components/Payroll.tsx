@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Employee, Branch, Role, TimeLog, AppNotification } from '../types';
 import { Search, Plus, Filter, Calculator, Save, Trash2, Phone, Mail, X, MapPin, Briefcase, Link as LinkIcon, ThumbsUp, ThumbsDown, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Wallet, Banknote, Map, Timer, Edit2, Loader2, ArrowRightLeft, Building2, CalendarRange, Lock, Rocket, PieChart, Upload, Shield, AlertTriangle } from 'lucide-react';
+import { includeAsPersonnel, isDualRoleAdmin } from '../constants';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
 import { GlowingEffect } from './ui/glowing-effect';
@@ -89,16 +90,16 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
     setIsLoading(true);
     try {
         // 1. Personelleri Çek
-        // GÜVENLİK GÜNCELLEMESİ: Adminler listelenmemeli. .neq('role', 'Admin') ile filtrelendi.
-        let empQuery = supabase.from('profiles').select('*').neq('role', 'Admin').limit(1000);
-        
+        // Çift rollü adminler (Apo, Malik) personel listesinde de görünür; diğer adminler filtrelenir.
+        let empQuery = supabase.from('profiles').select('*').limit(1000);
+
         // Veritabanı bağlantısı yoksa veya hata olursa mock veriye düşülecek
         const { data: empData, error: empError } = await empQuery;
-        
+
         if (empError) throw empError;
 
         // DB verisini Frontend formatına çevir (snake_case -> camelCase)
-        const formattedEmployees: Employee[] = (empData || []).map((e: any) => ({
+        const formattedEmployees: Employee[] = (empData || []).filter(includeAsPersonnel).map((e: any) => ({
             id: e.id,
             name: e.full_name,
             email: e.email,
@@ -107,13 +108,13 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
             hourlyRate: e.hourly_rate,
             taxClass: e.tax_class,
             avatarUrl: e.avatar_url || `https://ui-avatars.com/api/?name=${e.full_name}`,
-            advances: 0, 
+            advances: 0,
             phone: e.phone,
             bio: e.bio,
         }));
 
-        // KURAL: Adminler personel listesinde gösterilmez (Çift kontrol).
-        const visibleEmployees = formattedEmployees.filter(e => e.role !== Role.ADMIN);
+        // KURAL: Adminler personel listesinde gösterilmez. İstisna: Çift rollü adminler (Apo, Malik).
+        const visibleEmployees = formattedEmployees.filter(e => e.role !== Role.ADMIN || isDualRoleAdmin(e));
         
         // Eğer DB boşsa Mock veriyi kullan, yoksa DB'yi kullan
         if(visibleEmployees.length > 0) {
@@ -209,7 +210,15 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
   }, [employees, currentUser, searchQuery]);
 
   // Tüm çalışanlar (personel + admin) birleşik listesi - detay görüntüleme için
-  const allEmployees = useMemo(() => [...employees, ...adminEmployees], [employees, adminEmployees]);
+  // Çift rollü adminler (Apo, Malik) her iki listeye de girebildiği için id bazlı dedupe yapılır.
+  const allEmployees = useMemo(() => {
+      const seen = new Set<string>();
+      return [...employees, ...adminEmployees].filter(e => {
+          if (seen.has(e.id)) return false;
+          seen.add(e.id);
+          return true;
+      });
+  }, [employees, adminEmployees]);
 
   const targetEmployeeId = selectedEmployeeId || (currentUser.role === Role.ADMIN ? null : currentUser.id);
   const targetEmployee = allEmployees.find(e => e.id === targetEmployeeId);

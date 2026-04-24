@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useLanguage } from '../lib/i18n';
 import { Branch, Employee, Role } from '../types';
 import { Save, ChevronLeft, ChevronRight, Copy, Plus, Trash2, Loader2, AlertTriangle } from 'lucide-react';
+import { includeAsPersonnel } from '../constants';
 import { supabase } from '../lib/supabase';
 import { GlowingEffect } from './ui/glowing-effect';
 
@@ -92,12 +93,13 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
 
   const fetchEmployees = async () => {
       try {
-          const { data: empData } = await supabase.from('profiles').select('*').neq('role', 'Admin');
+          // Çift rollü adminler (Apo, Malik) vardiya listesinde kalır, diğer adminler filtrelenir.
+          const { data: empData } = await supabase.from('profiles').select('*');
           if (!isMounted.current) return;
 
           let currentEmployees: Employee[] = [];
           if (empData) {
-              currentEmployees = empData.map((e: any) => ({
+              currentEmployees = empData.filter(includeAsPersonnel).map((e: any) => ({
                   id: e.id, name: e.full_name, email: e.email, role: e.role, branch: e.branch,
                   hourlyRate: e.hourly_rate, taxClass: e.tax_class, avatarUrl: e.avatar_url, advances: 0, metrics: e.metrics
               }));
@@ -260,6 +262,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
   // Tüm personel havuzdan gösterilir - şube filtresi yok
   const filteredEmployees = availableEmployees;
   const displayedRows = isAdmin ? rosterData : rosterData.filter(row => row.assignments.includes(currentUser.id));
+
 
   // --- Şube başına kullanıcının haftalık vardiya sayısı (badge için) ---
   const [allWeekSchedules, setAllWeekSchedules] = useState<any[]>([]);
@@ -427,6 +430,8 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                         </tbody>
                     </table>
                 </div>
+
+
             </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Task, Employee, Role, Branch } from '../types';
 import { Calendar, CheckCircle2, MoreVertical, Plus, Edit2, Trash2, CheckSquare, X, Save, User, ListPlus, Users, Archive, Layout, Building2, Undo2, LayoutGrid, ListTodo, AlertCircle, Clock, CheckCircle, Zap, Loader2, ArrowRightLeft, Lock } from 'lucide-react';
+import { includeAsPersonnel } from '../constants';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
 import { translateContent } from '../services/geminiService';
@@ -120,12 +121,12 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
         setIsLoading(true);
         try {
             // 1. Fetch Employees (Realtime Profile Data)
-            // Filtre: Admin rolündeki kullanıcıları görev atamaları için gizle
-            const { data: empData } = await supabase.from('profiles').select('*').neq('role', 'Admin');
+            // Çift rollü adminler (Apo, Malik) personel listesinde kalır, diğer adminler filtrelenir.
+            const { data: empData } = await supabase.from('profiles').select('*');
             let liveEmployees: Employee[] = [];
-            
+
             if (empData) {
-                liveEmployees = empData.map((e: any) => ({
+                liveEmployees = empData.filter(includeAsPersonnel).map((e: any) => ({
                     id: e.id,
                     name: e.full_name,
                     email: e.email,
@@ -691,7 +692,7 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
                                             <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
                                                 {employees.map(emp => {
                                                     const isSelected = newTaskForm.assignedTo?.includes(emp.id);
-                                                    const isTransferred = transferredEmpIds.includes(emp.id);
+                                                    const isTransferred = false; // Transfer feature disabled
 
                                                     return (
                                                         <div key={emp.id} onClick={() => toggleAssignee(emp.id)} className={`cursor-pointer flex items-center gap-3 px-3 py-2 rounded-xl border transition-all min-w-[160px] flex-shrink-0 ${isSelected ? 'bg-indigo-500/10 border-indigo-500 text-white' : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700 text-zinc-400'}`}>

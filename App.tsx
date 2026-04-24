@@ -8,7 +8,7 @@ import ShiftSchedule from './components/ShiftSchedule';
 import Payroll from './components/Payroll';
 import Login from './components/Login';
 import SalesDashboard from './components/SalesDashboard'; // Import new component
-import { Settings as SettingsIcon, Shield, Volume2, Upload, RefreshCw, Play, Loader2, KeyRound, Globe } from 'lucide-react';
+import { Settings as SettingsIcon, Shield, Volume2, Upload, RefreshCw, Play, Loader2, KeyRound, Globe, Lock, Server, CheckCircle } from 'lucide-react';
 import { MOCK_EMPLOYEES, NOTIFICATION_SOUND } from './constants';
 import { Employee, Role, AppNotification } from './types';
 import { supabase } from './lib/supabase';
@@ -554,19 +554,63 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                         </div>
                     )}
 
+                    {/* SECURITY & CERTIFICATES */}
                     <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
                         <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
                             <Shield size={20} className="text-emerald-500"/>
-                            {t('set.security')}
+                            {t('set.security') || 'Güvenlik ve Sertifikalar'}
                         </h3>
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between p-3 bg-zinc-900 rounded-lg border border-zinc-800/50">
-                                <span className="text-zinc-300 text-sm">RLS (Row Level Security)</span>
-                                <span className="px-2 py-1 bg-emerald-900/20 text-emerald-400 text-xs rounded border border-emerald-900/30">Aktif</span>
+                        <p className="text-sm text-zinc-400 mb-6 font-medium">
+                            Kullanıcı verileriniz uluslararası güvenlik standartlarında korunmakta ve yüksek güvenlikli altyapılarda saklanmaktadır.
+                        </p>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* RLS */}
+                            <div className="flex flex-col p-4 bg-zinc-900/80 rounded-xl border border-zinc-800/50 gap-2">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-zinc-200 text-sm font-semibold flex items-center gap-2">
+                                        <Lock size={16} className="text-indigo-400" />
+                                        RLS (Row Level Security)
+                                    </span>
+                                    <span className="px-2 py-1 bg-emerald-900/20 text-emerald-400 text-xs rounded border border-emerald-900/30 font-medium">Aktif</span>
+                                </div>
+                                <span className="text-xs text-zinc-500">Satır bazlı veri güvenliği politikası uygulanmaktadır. Yetkisiz erişimler engellenir.</span>
                             </div>
-                            <div className="flex items-center justify-between p-3 bg-zinc-900 rounded-lg border border-zinc-800/50">
-                                <span className="text-zinc-300 text-sm">{t('set.dbEnc')}</span>
-                                <span className="px-2 py-1 bg-emerald-900/20 text-emerald-400 text-xs rounded border border-emerald-900/30">AES-256</span>
+                            
+                            {/* Database Encryption */}
+                            <div className="flex flex-col p-4 bg-zinc-900/80 rounded-xl border border-zinc-800/50 gap-2">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-zinc-200 text-sm font-semibold flex items-center gap-2">
+                                        <Server size={16} className="text-blue-400" />
+                                        {t('set.dbEnc') || 'Veritabanı Şifreleme'}
+                                    </span>
+                                    <span className="px-2 py-1 bg-emerald-900/20 text-emerald-400 text-xs rounded border border-emerald-900/30 font-medium">AES-256</span>
+                                </div>
+                                <span className="text-xs text-zinc-500">Tüm kullanıcı verileri ve şifreler AES-256 standardı ile şifrelenerek depolanmaktadır.</span>
+                            </div>
+
+                            {/* SSL Certificate */}
+                            <div className="flex flex-col p-4 bg-zinc-900/80 rounded-xl border border-zinc-800/50 gap-2">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-zinc-200 text-sm font-semibold flex items-center gap-2">
+                                        <Globe size={16} className="text-emerald-400" />
+                                        SSL/TLS Sertifikası
+                                    </span>
+                                    <span className="px-2 py-1 bg-emerald-900/20 text-emerald-400 text-xs rounded border border-emerald-900/30 font-medium">Geçerli</span>
+                                </div>
+                                <span className="text-xs text-zinc-500">Uygulama ile sunucu arasındaki tüm iletişim 256-bit SSL şifreleme üzerinden gerçekleştirilir.</span>
+                            </div>
+
+                            {/* GDPR / KVKK Compliance */}
+                            <div className="flex flex-col p-4 bg-zinc-900/80 rounded-xl border border-zinc-800/50 gap-2">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-zinc-200 text-sm font-semibold flex items-center gap-2">
+                                        <CheckCircle size={16} className="text-purple-400" />
+                                        Veri Uyumluluğu
+                                    </span>
+                                    <span className="px-2 py-1 bg-emerald-900/20 text-emerald-400 text-xs rounded border border-emerald-900/30 font-medium">GDPR / KVKK</span>
+                                </div>
+                                <span className="text-xs text-zinc-500">Kişisel verileriniz global veri koruma standartlarına tam uyum içerisinde işlenmektedir.</span>
                             </div>
                         </div>
                     </div>
