@@ -467,3 +467,123 @@ BEGIN
     RETURN TRUE;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================================
+-- QR ile Mesai Giriş/Çıkış Sistemi
+-- ============================================================
+
+-- 9. Şube Konumları (QR Mesai için)
+CREATE TABLE IF NOT EXISTS public.branch_locations (
+  branch      TEXT PRIMARY KEY,   -- Branch enum: 'Dom','Backaffee','Ringe','Mülheim','Tobacgo'
+  latitude    DOUBLE PRECISION NOT NULL,
+  longitude   DOUBLE PRECISION NOT NULL,
+  radius_m    INTEGER NOT NULL DEFAULT 150,
+  qr_token    TEXT NOT NULL UNIQUE DEFAULT uuid_generate_v4()::text,
+  is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 10. time_logs ek alanları (legacy kolonlar korunur)
+ALTER TABLE public.time_logs ADD COLUMN IF NOT EXISTS check_in_at   TIMESTAMPTZ;
+ALTER TABLE public.time_logs ADD COLUMN IF NOT EXISTS check_out_at  TIMESTAMPTZ;
+ALTER TABLE public.time_logs ADD COLUMN IF NOT EXISTS check_in_lat  NUMERIC(9,6);
+ALTER TABLE public.time_logs ADD COLUMN IF NOT EXISTS check_in_lng  NUMERIC(9,6);
+ALTER TABLE public.time_logs ADD COLUMN IF NOT EXISTS check_out_lat NUMERIC(9,6);
+ALTER TABLE public.time_logs ADD COLUMN IF NOT EXISTS check_out_lng NUMERIC(9,6);
+ALTER TABLE public.time_logs ADD COLUMN IF NOT EXISTS entry_method  TEXT NOT NULL DEFAULT 'manual';
+
+CREATE INDEX IF NOT EXISTS idx_time_logs_open_qr
+  ON public.time_logs (employee_id, branch, date)
+  WHERE check_out_at IS NULL AND entry_method = 'qr';
+
+-- 11. QR Giriş/Çıkış RPC
+CREATE OR REPLACE FUNCTION public.qr_check_in_out(
+    p_employee_id TEXT,
+    p_qr_token    TEXT,
+    p_lat         NUMERIC DEFAULT NULL,
+    p_lng         NUMERIC DEFAULT NULL
+) RETURNS JSONB AS $$
+DECLARE
+    v_loc    public.branch_locations;
+    v_today  DATE := (NOW() AT TIME ZONE 'Europe/Berlin')::date;
+    v_now    TIMESTAMPTZ := NOW();
+    v_open   public.time_logs;
+    v_dist   NUMERIC;
+    v_in_rng BOOLEAN := TRUE;
+    v_status TEXT;
+    v_hours  NUMERIC;
+BEGIN
+    SELECT * INTO v_loc FROM public.branch_locations
+     WHERE qr_token = p_qr_token AND is_active = TRUE;
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('ok', false, 'error', 'invalid_qr');
+    END IF;
+
+    IF p_lat IS NULL OR p_lng IS NULL THEN
+        v_in_rng := FALSE;
+    ELSE
+        v_dist := 6371000 * 2 * asin(sqrt(
+            power(sin(radians((p_lat - v_loc.latitude)/2)), 2)
+          + cos(radians(v_loc.latitude)) * cos(radians(p_lat))
+          * power(sin(radians((p_lng - v_loc.longitude)/2)), 2)));
+        v_in_rng := v_dist <= v_loc.radius_m;
+    END IF;
+    v_status := CASE WHEN v_in_rng THEN 'Onaylandı' ELSE 'Bekliyor' END;
+
+    SELECT * INTO v_open FROM public.time_logs
+     WHERE employee_id = p_employee_id
+       AND branch      = v_loc.branch
+       AND date        = v_today
+       AND entry_method = 'qr'
+       AND check_out_at IS NULL
+     ORDER BY check_in_at DESC LIMIT 1;
+
+    IF NOT FOUND THEN
+        INSERT INTO public.time_logs(
+          employee_id, date, start_time, end_time, break_duration,
+          total_hours, status, branch, entry_method,
+          check_in_at, check_in_lat, check_in_lng)
+        VALUES (
+          p_employee_id, v_today,
+          to_char(v_now AT TIME ZONE 'Europe/Berlin', 'HH24:MI'), '',
+          0, 0, v_status, v_loc.branch, 'qr',
+          v_now, p_lat, p_lng)
+        RETURNING * INTO v_open;
+
+        RETURN jsonb_build_object('ok', true, 'action', 'in', 'status', v_status,
+          'branch', v_loc.branch, 'start_time', v_open.start_time,
+          'in_range', v_in_rng, 'log_id', v_open.id);
+    ELSE
+        v_hours := ROUND(EXTRACT(EPOCH FROM (v_now - v_open.check_in_at))/3600.0, 2);
+        UPDATE public.time_logs
+           SET check_out_at  = v_now,
+               check_out_lat = p_lat,
+               check_out_lng = p_lng,
+               end_time      = to_char(v_now AT TIME ZONE 'Europe/Berlin', 'HH24:MI'),
+               total_hours   = v_hours,
+               status        = v_status
+         WHERE id = v_open.id
+         RETURNING * INTO v_open;
+
+        RETURN jsonb_build_object('ok', true, 'action', 'out', 'status', v_status,
+          'branch', v_loc.branch, 'start_time', v_open.start_time,
+          'end_time', v_open.end_time, 'total_hours', v_hours,
+          'in_range', v_in_rng, 'log_id', v_open.id);
+    END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION public.qr_check_in_out(TEXT, TEXT, NUMERIC, NUMERIC) TO anon, authenticated;
+
+-- 12. Şube seed — gerçek koordinatlar
+INSERT INTO public.branch_locations (branch, latitude, longitude) VALUES
+  ('Dom',       50.94033516713386,  6.939726768801454),
+  ('Backaffee', 50.9403056233978,   6.939539275732692),
+  ('Ringe',     50.93968838730243,  6.9400543539197255),
+  ('Mülheim',   50.96208006232153,  7.0054699260591295),
+  ('Tobacgo',   50.960852824404654, 7.006675154685023)
+  -- Ana şube "Bac Handels" (50.904551923902986, 7.07635935246087) yedekte:
+  -- Şu an QR mesai kullanılmıyor, enum'a eklenmeyecek. İlerde aktif edilmek
+  -- istenirse: types.ts Branch enum'una BAC_HANDELS ekle, bir satır daha aç.
+ON CONFLICT (branch) DO NOTHING;

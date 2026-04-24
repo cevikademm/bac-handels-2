@@ -1,15 +1,16 @@
 import React from 'react';
-import { 
-  LayoutDashboard, 
-  MessageSquare, 
-  Calendar as CalendarIcon, 
-  CheckSquare, 
-  Users, 
+import {
+  LayoutDashboard,
+  MessageSquare,
+  Calendar as CalendarIcon,
+  CheckSquare,
+  Users,
   Settings as SettingsIcon,
   LogOut,
   User,
   Table,
-  ShoppingBag
+  ShoppingBag,
+  QrCode
 } from 'lucide-react';
 import { useLanguage } from '../lib/i18n';
 import { Role } from '../types';
@@ -128,6 +129,9 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
           <SidebarItem icon={CheckSquare} label={t('nav.tasks')} id="tasks" active={activeTab === 'tasks'} onClick={setActiveTab} />
           <SidebarItem icon={ShoppingBag} label={t('nav.sales')} id="sales" active={activeTab === 'sales'} onClick={setActiveTab} />
           <SidebarItem icon={Users} label={t('nav.payroll')} id="payroll" active={activeTab === 'payroll'} onClick={setActiveTab} />
+          {!isAdmin && (
+            <SidebarItem icon={QrCode} label={t('nav.qr')} id="qr" active={activeTab === 'qr'} onClick={setActiveTab} />
+          )}
           <div className="pt-4 mt-4 border-t border-zinc-900">
              <SidebarItem icon={SettingsIcon} label={t('nav.settings')} id="settings" active={activeTab === 'settings'} onClick={setActiveTab} />
           </div>
@@ -191,9 +195,12 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
         className="md:hidden absolute bottom-0 left-0 right-0 z-50 px-4 pointer-events-none"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 5px)' }}
       >
-        <nav className="w-full h-16 bg-zinc-900/90 backdrop-blur-xl border border-zinc-800/60 rounded-2xl flex justify-around items-center px-2 ml-0 -mb-6 shadow-[0_8px_30px_rgba(0,0,0,0.6)] pointer-events-auto">
+        <nav className="w-full h-16 bg-zinc-900/90 backdrop-blur-xl border border-zinc-800/60 rounded-2xl flex justify-around items-center px-1 ml-0 -mb-6 shadow-[0_8px_30px_rgba(0,0,0,0.6)] pointer-events-auto">
             <MobileNavItem icon={LayoutDashboard} label={t('nav.dashboard')} id="dashboard" active={activeTab === 'dashboard'} onClick={setActiveTab} />
             <MobileNavItem icon={CalendarIcon} label={t('nav.calendar')} id="calendar" active={activeTab === 'calendar'} onClick={setActiveTab} />
+            {!isAdmin && (
+              <MobileNavItem icon={QrCode} label={t('nav.qr')} id="qr" active={activeTab === 'qr'} onClick={setActiveTab} />
+            )}
             <MobileNavItem icon={ShoppingBag} label={t('nav.sales')} id="sales" active={activeTab === 'sales'} onClick={setActiveTab} />
             <MobileNavItem icon={Table} label={t('nav.shifts')} id="shifts" active={activeTab === 'shifts'} onClick={setActiveTab} />
             <MobileNavItem icon={CheckSquare} label={t('nav.tasks')} id="tasks" active={activeTab === 'tasks'} onClick={setActiveTab} />

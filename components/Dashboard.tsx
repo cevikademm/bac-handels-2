@@ -216,7 +216,17 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
           // KURAL: Adminleri dashboard listelerinden ve grafiklerinden çıkar
           // İstisna: Çift rollü adminler (Apo, Malik) personel listesinde kalır.
           const staffOnly = allEmployees.filter(e => e.role !== Role.ADMIN || isDualRoleAdmin(e));
-          setDashboardEmployees(staffOnly);
+          // Çift kayıtları tek say: email varsa email'e, yoksa normalize edilmiş isme göre dedupe et.
+          const seen = new Set<string>();
+          const deduped = staffOnly.filter(e => {
+              const key = (e.email?.trim().toLowerCase())
+                  || (e.name?.trim().toLowerCase().replace(/\s+/g, ' '))
+                  || e.id;
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+          });
+          setDashboardEmployees(deduped);
       } else {
           setDashboardEmployees([]);
       }
@@ -477,7 +487,6 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                       <span className="text-xs font-bold bg-blue-500/10 text-blue-300 px-2.5 py-1 rounded-full border border-blue-500/20">+12%</span>
                   </div>
                   <div className="mt-6">
-                      {/* Sadece Personel Sayısı */}
                       <div className="text-4xl font-bold text-white tracking-tight">{dashboardEmployees.length}</div>
                       <div className="text-sm text-zinc-500 font-medium">{t('dash.activeStaff')}</div>
                   </div>

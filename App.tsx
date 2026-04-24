@@ -8,6 +8,7 @@ import ShiftSchedule from './components/ShiftSchedule';
 import Payroll from './components/Payroll';
 import Login from './components/Login';
 import SalesDashboard from './components/SalesDashboard'; // Import new component
+import QrCheckIn from './components/QrCheckIn';
 import { Settings as SettingsIcon, Shield, Volume2, Upload, RefreshCw, Play, Loader2, KeyRound, Globe, Lock, Server, CheckCircle } from 'lucide-react';
 import { MOCK_EMPLOYEES, NOTIFICATION_SOUND } from './constants';
 import { Employee, Role, AppNotification } from './types';
@@ -734,6 +735,8 @@ const AppContent: React.FC = () => {
         return <ShiftSchedule currentUser={currentUser || MOCK_EMPLOYEES[0]} />;
       case 'payroll':
         return <Payroll currentUser={currentUser || MOCK_EMPLOYEES[0]} onNotify={addNotification} />;
+      case 'qr':
+        return <QrCheckIn currentUser={currentUser || MOCK_EMPLOYEES[0]} />;
       // NEW ROUTE
       case 'sales':
         return <SalesDashboard currentUser={currentUser || MOCK_EMPLOYEES[0]} />;

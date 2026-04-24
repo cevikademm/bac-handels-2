@@ -36,6 +36,14 @@ export interface TimeLog {
   totalHours: number;
   branch?: string; // Çalışılan şube
   status: 'Bekliyor' | 'Onaylandı' | 'Reddedildi';
+  // QR mesai alanları (optional — manuel kayıtlarda boş)
+  method?: 'manual' | 'qr';
+  checkInAt?: string;
+  checkOutAt?: string;
+  checkInLat?: number;
+  checkInLng?: number;
+  checkOutLat?: number;
+  checkOutLng?: number;
 }
 
 export interface Task {

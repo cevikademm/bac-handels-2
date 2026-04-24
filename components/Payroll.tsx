@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Employee, Branch, Role, TimeLog, AppNotification } from '../types';
-import { Search, Plus, Filter, Calculator, Save, Trash2, Phone, Mail, X, MapPin, Briefcase, Link as LinkIcon, ThumbsUp, ThumbsDown, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Wallet, Banknote, Map, Timer, Edit2, Loader2, ArrowRightLeft, Building2, CalendarRange, Lock, Rocket, PieChart, Upload, Shield, AlertTriangle } from 'lucide-react';
+import { Search, Plus, Filter, Calculator, Save, Trash2, Phone, Mail, X, MapPin, Briefcase, Link as LinkIcon, ThumbsUp, ThumbsDown, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Wallet, Banknote, Map, Timer, Edit2, Loader2, ArrowRightLeft, Building2, CalendarRange, Lock, Rocket, PieChart, Upload, Shield, AlertTriangle, QrCode } from 'lucide-react';
 import { includeAsPersonnel, isDualRoleAdmin } from '../constants';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
 import { GlowingEffect } from './ui/glowing-effect';
+import QrCheckIn from './QrCheckIn';
 
 
 // Yeni sekme yapısı: FINANCIAL eklendi
@@ -50,6 +51,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
   const [selectedTransferDay, setSelectedTransferDay] = useState<string | null>(null);
 
   const [showTimeModal, setShowTimeModal] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
   const [timeForm, setTimeForm] = useState({
       date: new Date().toISOString().split('T')[0],
       startTime: '09:00',
@@ -178,12 +180,19 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                 id: l.id,
                 employeeId: l.employee_id,
                 date: l.date,
-                startTime: l.start_time.slice(0, 5),
-                endTime: l.end_time.slice(0, 5),
+                startTime: (l.start_time || '').slice(0, 5),
+                endTime: (l.end_time || '').slice(0, 5),
                 breakDuration: l.break_duration,
                 totalHours: displayHours,
                 branch: l.branch || 'Bilinmiyor', // Şube verisi
-                status: l.status
+                status: l.status,
+                method: l.entry_method === 'qr' ? 'qr' : 'manual',
+                checkInAt: l.check_in_at || undefined,
+                checkOutAt: l.check_out_at || undefined,
+                checkInLat: l.check_in_lat != null ? Number(l.check_in_lat) : undefined,
+                checkInLng: l.check_in_lng != null ? Number(l.check_in_lng) : undefined,
+                checkOutLat: l.check_out_lat != null ? Number(l.check_out_lat) : undefined,
+                checkOutLng: l.check_out_lng != null ? Number(l.check_out_lng) : undefined,
             };
         });
         
@@ -1031,7 +1040,10 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                     {/* Mobile Only Name Display */}
                     <div className="md:hidden text-right ml-2"><h2 className="text-sm font-bold text-white">{targetEmployee.name.split(' ')[0]}</h2></div>
                 </div>
-                <button onClick={handleOpenTimeModal} className="w-full md:w-auto flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs md:text-sm font-medium rounded-lg"><Plus size={16} /> <span className="inline">{t('pay.addHours')}</span></button>
+                <div className="flex gap-2 w-full md:w-auto">
+                    <button onClick={() => setShowQrModal(true)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs md:text-sm font-medium rounded-lg"><QrCode size={16} /> <span className="inline">{t('qr.scanBtn')}</span></button>
+                    <button onClick={handleOpenTimeModal} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs md:text-sm font-medium rounded-lg"><Plus size={16} /> <span className="inline">{t('pay.addHours')}</span></button>
+                </div>
             </div>
             <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
                 <div className="flex-1 w-full overflow-y-auto p-4 md:p-6">
@@ -1056,6 +1068,20 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                                     <div className="flex items-center gap-2 text-[10px] text-zinc-500">
                                                         <MapPin size={10} />
                                                         <span>{log.branch}</span>
+                                                        {log.method === 'qr' && (
+                                                            <span className="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-emerald-900/40 text-emerald-300 border border-emerald-800/60">QR</span>
+                                                        )}
+                                                        {log.checkInLat != null && log.checkInLng != null && (
+                                                            <a
+                                                                href={`https://maps.google.com/?q=${log.checkInLat},${log.checkInLng}`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="inline-flex items-center text-emerald-400 hover:text-emerald-300"
+                                                                title={`${log.checkInLat}, ${log.checkInLng}`}
+                                                            >
+                                                                <MapPin size={10} />
+                                                            </a>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>
@@ -1319,6 +1345,23 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
             </div>
             );
         })()}
+
+        {/* QR SCAN MODAL */}
+        {showQrModal && (
+            <div className="absolute inset-0 z-[100] flex items-start justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden my-8">
+                    <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
+                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                            <QrCode size={20} className="text-emerald-500" /> {t('qr.title')}
+                        </h3>
+                        <button onClick={() => setShowQrModal(false)} className="text-zinc-500 hover:text-white">
+                            <X size={20} />
+                        </button>
+                    </div>
+                    <QrCheckIn currentUser={currentUser} />
+                </div>
+            </div>
+        )}
 
         {/* ADD TIME LOG MODAL */}
         {showTimeModal && (
