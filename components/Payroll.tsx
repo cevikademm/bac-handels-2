@@ -58,7 +58,10 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
       branch: Branch.DOM
   });
 
-  const [currentMonth, setCurrentMonth] = useState<string>(new Date().toISOString().slice(0, 7));
+  const [currentMonth, setCurrentMonth] = useState<string>(() => {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   // Arama state'i
   const [searchQuery, setSearchQuery] = useState('');
@@ -632,9 +635,14 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
   };
 
   const handleMonthChange = (direction: 'prev' | 'next') => {
-      const date = new Date(currentMonth + "-01");
-      date.setMonth(date.getMonth() + (direction === 'next' ? 1 : -1));
-      setCurrentMonth(date.toISOString().slice(0, 7));
+      // String aritmetigi: Date + timezone + DST kombinasyonu Mart/Nisan gecisinde
+      // currentMonth'i yanlis ayda birakabiliyordu (Europe DST bug).
+      const [yStr, mStr] = currentMonth.split('-');
+      let y = parseInt(yStr, 10);
+      let m = parseInt(mStr, 10) + (direction === 'next' ? 1 : -1);
+      if (m < 1) { m = 12; y -= 1; }
+      else if (m > 12) { m = 1; y += 1; }
+      setCurrentMonth(`${y}-${String(m).padStart(2, '0')}`);
   };
   
   const handleOpenTimeModal = () => {
