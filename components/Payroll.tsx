@@ -555,8 +555,9 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
               start_time: timeForm.startTime,
               end_time: timeForm.endTime,
               break_duration: timeForm.breakDuration,
+              total_hours: totalHours,
+              branch: timeForm.branch,
               status: currentUser.role === Role.ADMIN ? 'Onaylandı' : 'Bekliyor',
-              // branch: timeForm.branch // DB şemasına branch eklendiyse açılabilir
           };
 
           const { data, error } = await supabase.from('time_logs').insert([newLogDb]).select();
