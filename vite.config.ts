@@ -1,6 +1,7 @@
 import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import mkcert from 'vite-plugin-mkcert';
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
@@ -17,7 +18,11 @@ export default defineConfig(({ mode }) => {
           'Permissions-Policy': 'camera=(self), microphone=(), geolocation=(self)',
         },
       },
-      plugins: [react()],
+      plugins: [
+        react(),
+        // HTTPS dev server — kamera/GPS telefonda LAN IP üzerinden çalışsın
+        mkcert(),
+      ],
       // GÜVENLİK: Gemini API key artık Supabase Edge Function secrets'ta saklanır.
       // Client bundle'a hiçbir API key dahil edilmez.
       resolve: {

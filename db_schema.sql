@@ -497,22 +497,26 @@ CREATE INDEX IF NOT EXISTS idx_time_logs_open_qr
   ON public.time_logs (employee_id, branch, date)
   WHERE check_out_at IS NULL AND entry_method = 'qr';
 
--- 11. QR Giriş/Çıkış RPC
+-- 11. QR Giriş/Çıkış RPC (p_action ile açık niyet: 'in' | 'out' | 'auto')
+-- Eski 4-param imzayı temizle (yeni imza: 5 param dahil p_action)
+DROP FUNCTION IF EXISTS public.qr_check_in_out(TEXT, TEXT, NUMERIC, NUMERIC);
 CREATE OR REPLACE FUNCTION public.qr_check_in_out(
     p_employee_id TEXT,
     p_qr_token    TEXT,
     p_lat         NUMERIC DEFAULT NULL,
-    p_lng         NUMERIC DEFAULT NULL
+    p_lng         NUMERIC DEFAULT NULL,
+    p_action      TEXT    DEFAULT 'auto'
 ) RETURNS JSONB AS $$
 DECLARE
-    v_loc    public.branch_locations;
-    v_today  DATE := (NOW() AT TIME ZONE 'Europe/Berlin')::date;
-    v_now    TIMESTAMPTZ := NOW();
-    v_open   public.time_logs;
-    v_dist   NUMERIC;
-    v_in_rng BOOLEAN := TRUE;
-    v_status TEXT;
-    v_hours  NUMERIC;
+    v_loc     public.branch_locations;
+    v_today   DATE := (NOW() AT TIME ZONE 'Europe/Berlin')::date;
+    v_now     TIMESTAMPTZ := NOW();
+    v_open    public.time_logs;
+    v_found   BOOLEAN;
+    v_dist    NUMERIC;
+    v_in_rng  BOOLEAN := TRUE;
+    v_status  TEXT;
+    v_hours   NUMERIC;
 BEGIN
     SELECT * INTO v_loc FROM public.branch_locations
      WHERE qr_token = p_qr_token AND is_active = TRUE;
@@ -531,15 +535,26 @@ BEGIN
     END IF;
     v_status := CASE WHEN v_in_rng THEN 'Onaylandı' ELSE 'Bekliyor' END;
 
+    -- Bugüne ait açık QR kaydı (şube bağımsız — farklı şubede çıkış yapabilsinler)
     SELECT * INTO v_open FROM public.time_logs
      WHERE employee_id = p_employee_id
-       AND branch      = v_loc.branch
        AND date        = v_today
        AND entry_method = 'qr'
        AND check_out_at IS NULL
      ORDER BY check_in_at DESC LIMIT 1;
+    v_found := FOUND;
 
-    IF NOT FOUND THEN
+    -- Niyet doğrulama: personel yanlış butona bastıysa ret
+    IF p_action = 'in' AND v_found THEN
+        RETURN jsonb_build_object('ok', false, 'error', 'already_checked_in',
+          'branch', v_open.branch, 'start_time', v_open.start_time);
+    END IF;
+    IF p_action = 'out' AND NOT v_found THEN
+        RETURN jsonb_build_object('ok', false, 'error', 'not_checked_in');
+    END IF;
+
+    IF NOT v_found THEN
+        -- GİRİŞ (check-in)
         INSERT INTO public.time_logs(
           employee_id, date, start_time, end_time, break_duration,
           total_hours, status, branch, entry_method,
@@ -555,6 +570,7 @@ BEGIN
           'branch', v_loc.branch, 'start_time', v_open.start_time,
           'in_range', v_in_rng, 'log_id', v_open.id);
     ELSE
+        -- ÇIKIŞ (check-out)
         v_hours := ROUND(EXTRACT(EPOCH FROM (v_now - v_open.check_in_at))/3600.0, 2);
         UPDATE public.time_logs
            SET check_out_at  = v_now,
@@ -574,7 +590,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-GRANT EXECUTE ON FUNCTION public.qr_check_in_out(TEXT, TEXT, NUMERIC, NUMERIC) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.qr_check_in_out(TEXT, TEXT, NUMERIC, NUMERIC, TEXT) TO anon, authenticated;
+-- Eski imza (4 param) kaldırıldı; yeni clientler p_action gönderir, default 'auto' ile eski davranış korunur.
 
 -- 12. Şube seed — gerçek koordinatlar
 INSERT INTO public.branch_locations (branch, latitude, longitude) VALUES

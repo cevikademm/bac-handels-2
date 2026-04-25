@@ -1,18 +1,20 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  QrCode, Camera, MapPin, CheckCircle, AlertTriangle, XCircle, Loader2, LogIn, LogOut
+  QrCode, Camera, MapPin, CheckCircle, AlertTriangle, XCircle, Loader2, LogIn, LogOut,
+  ShieldCheck, ShieldAlert
 } from 'lucide-react';
 import { BrowserQRCodeReader, IScannerControls } from '@zxing/browser';
 import { Employee } from '../types';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
 
-type Phase = 'idle' | 'requesting' | 'scanning' | 'posting' | 'result' | 'error';
+type Phase = 'idle' | 'scanning' | 'posting' | 'result' | 'error';
+type ScanAction = 'in' | 'out';
 
 type RpcResponse = {
   ok: boolean;
-  error?: 'invalid_qr';
+  error?: 'invalid_qr' | 'already_checked_in' | 'not_checked_in';
   action?: 'in' | 'out';
   status?: 'Onaylandı' | 'Bekliyor';
   branch?: string;
@@ -23,25 +25,37 @@ type RpcResponse = {
   log_id?: string;
 };
 
-type ErrorKind = 'camera' | 'network' | 'invalid_qr';
+type ErrorKind =
+  | 'camera_denied'
+  | 'no_camera'
+  | 'insecure_context'
+  | 'network'
+  | 'invalid_qr'
+  | 'already_checked_in'
+  | 'not_checked_in'
+  | 'other';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 interface Props {
   currentUser: Employee;
+  onComplete?: () => void;
 }
 
-const QrCheckIn: React.FC<Props> = ({ currentUser }) => {
+const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
   const { t } = useLanguage();
   const [phase, setPhase] = useState<Phase>('idle');
   const [errorKind, setErrorKind] = useState<ErrorKind | null>(null);
+  const [errorDetail, setErrorDetail] = useState<string>('');
   const [result, setResult] = useState<RpcResponse | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
   const decodedRef = useRef<boolean>(false);
+  const locationPromiseRef = useRef<Promise<GeolocationPosition | null> | null>(null);
+  const actionRef = useRef<ScanAction>('in');
 
-  // Cleanup camera on unmount / phase change
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       controlsRef.current?.stop();
@@ -49,11 +63,121 @@ const QrCheckIn: React.FC<Props> = ({ currentUser }) => {
     };
   }, []);
 
+  // Start scanner when entering 'scanning' phase (video element already mounted)
   useEffect(() => {
     if (phase !== 'scanning') {
       controlsRef.current?.stop();
       controlsRef.current = null;
+      return;
     }
+
+    if (!videoRef.current) {
+      // safety — shouldn't happen since video is pre-mounted
+      setErrorKind('other');
+      setErrorDetail('Video element not mounted');
+      setPhase('error');
+      return;
+    }
+
+    let cancelled = false;
+
+    const start = async () => {
+      // Secure context check (covers deployed HTTP)
+      if (typeof window !== 'undefined' && !window.isSecureContext) {
+        setErrorKind('insecure_context');
+        setErrorDetail('window.isSecureContext = false');
+        setPhase('error');
+        return;
+      }
+
+      const reader = new BrowserQRCodeReader(undefined, {
+        delayBetweenScanAttempts: 150,
+      });
+
+      const onResult = (res: any, _err: any, ctrls: IScannerControls) => {
+        if (cancelled) return;
+        if (res && !decodedRef.current) {
+          const text = res.getText().trim();
+          if (!UUID_RE.test(text)) return;
+          decodedRef.current = true;
+          ctrls.stop();
+          controlsRef.current = null;
+          submit(text);
+        }
+      };
+
+      try {
+        // Prefer back camera for QR scanning
+        const controls = await reader.decodeFromConstraints(
+          { video: { facingMode: { ideal: 'environment' } } },
+          videoRef.current!,
+          onResult
+        );
+        if (cancelled) {
+          controls.stop();
+          return;
+        }
+        controlsRef.current = controls;
+      } catch (e: any) {
+        console.error('[QR] scanner start error:', e);
+        if (cancelled) return;
+
+        // Fallback: any camera if environment-facing not available
+        const name = e?.name || '';
+        if (name === 'OverconstrainedError' || name === 'NotFoundError') {
+          try {
+            const controls = await reader.decodeFromVideoDevice(
+              undefined,
+              videoRef.current!,
+              onResult
+            );
+            if (cancelled) {
+              controls.stop();
+              return;
+            }
+            controlsRef.current = controls;
+            return;
+          } catch (e2: any) {
+            console.error('[QR] fallback camera error:', e2);
+            classifyError(e2);
+            return;
+          }
+        }
+        classifyError(e);
+      }
+    };
+
+    const classifyError = (e: any) => {
+      const name = e?.name || '';
+      const msg = e?.message || String(e);
+      const code = e?.code != null ? String(e.code) : '';
+      const parts = [
+        `name: ${name || 'Error'}`,
+        `message: ${msg}`,
+      ];
+      if (code) parts.push(`code: ${code}`);
+      setErrorDetail(parts.join('\n'));
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+        setErrorKind('camera_denied');
+      } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+        setErrorKind('no_camera');
+      } else if (name === 'NotReadableError' || name === 'TrackStartError') {
+        setErrorKind('no_camera');
+      } else if (name === 'SecurityError') {
+        setErrorKind('insecure_context');
+      } else {
+        setErrorKind('other');
+      }
+      setPhase('error');
+    };
+
+    start();
+
+    return () => {
+      cancelled = true;
+      controlsRef.current?.stop();
+      controlsRef.current = null;
+    };
   }, [phase]);
 
   const getLocation = (): Promise<GeolocationPosition | null> =>
@@ -61,60 +185,28 @@ const QrCheckIn: React.FC<Props> = ({ currentUser }) => {
       if (!navigator.geolocation) return resolve(null);
       navigator.geolocation.getCurrentPosition(
         (pos) => resolve(pos),
-        () => resolve(null),
+        (err) => {
+          console.warn('[QR] geolocation error:', err);
+          resolve(null);
+        },
         { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
       );
     });
 
-  const handleStart = async () => {
+  const handleStart = (action: ScanAction) => {
+    actionRef.current = action;
     setErrorKind(null);
+    setErrorDetail('');
     setResult(null);
     decodedRef.current = false;
-    setPhase('requesting');
-
-    // Kick off geolocation in parallel; don't block camera on it
-    const locPromise = getLocation();
-
-    // Camera + scanner
-    try {
-      const reader = new BrowserQRCodeReader(undefined, {
-        delayBetweenScanAttempts: 150,
-      });
-      if (!videoRef.current) {
-        // Switch to scanning phase first so <video> mounts, then start
-        setPhase('scanning');
-        await new Promise((r) => requestAnimationFrame(() => r(null)));
-      } else {
-        setPhase('scanning');
-      }
-      // Wait a tick for ref
-      await new Promise((r) => requestAnimationFrame(() => r(null)));
-      if (!videoRef.current) throw new Error('no_video');
-
-      const controls = await reader.decodeFromVideoDevice(
-        undefined,
-        videoRef.current,
-        (res, err, ctrls) => {
-          if (res && !decodedRef.current) {
-            const text = res.getText().trim();
-            if (!UUID_RE.test(text)) return; // ignore non-UUID QRs, keep scanning
-            decodedRef.current = true;
-            ctrls.stop();
-            controlsRef.current = null;
-            submit(text, locPromise);
-          }
-        }
-      );
-      controlsRef.current = controls;
-    } catch (e) {
-      setErrorKind('camera');
-      setPhase('error');
-    }
+    // Kick off geolocation in parallel (don't block camera on it)
+    locationPromiseRef.current = getLocation();
+    setPhase('scanning');
   };
 
-  const submit = async (token: string, locPromise: Promise<GeolocationPosition | null>) => {
+  const submit = async (token: string) => {
     setPhase('posting');
-    const pos = await locPromise;
+    const pos = await (locationPromiseRef.current ?? Promise.resolve(null));
     const lat = pos?.coords.latitude ?? null;
     const lng = pos?.coords.longitude ?? null;
 
@@ -124,20 +216,43 @@ const QrCheckIn: React.FC<Props> = ({ currentUser }) => {
         p_qr_token: token,
         p_lat: lat,
         p_lng: lng,
+        p_action: actionRef.current,
       });
       if (error) throw error;
 
       const resp = data as RpcResponse;
       if (!resp?.ok) {
-        setErrorKind('invalid_qr');
+        // Farklı iş-kuralı hatalarını ayır
+        if (resp?.error === 'already_checked_in') {
+          setErrorKind('already_checked_in');
+          const extras: string[] = [`branch: ${(resp as any).branch ?? '—'}`];
+          if ((resp as any).start_time) extras.push(`start_time: ${(resp as any).start_time}`);
+          setErrorDetail(extras.join('\n'));
+        } else if (resp?.error === 'not_checked_in') {
+          setErrorKind('not_checked_in');
+          setErrorDetail('no open time_log row for today');
+        } else {
+          setErrorKind('invalid_qr');
+          setErrorDetail(resp?.error || 'Unknown RPC error');
+        }
         setPhase('error');
         return;
       }
       setResult(resp);
       setPhase('result');
-    } catch (err) {
-      console.warn('qr_check_in_out RPC error:', err);
+      // Notify parent (Payroll) so list refreshes immediately on mobile
+      onComplete?.();
+    } catch (err: any) {
+      console.error('[QR] qr_check_in_out RPC error:', err);
       setErrorKind('network');
+      const parts = [
+        `name: ${err?.name || 'Error'}`,
+        `message: ${err?.message || String(err)}`,
+      ];
+      if (err?.code) parts.push(`code: ${err.code}`);
+      if (err?.status) parts.push(`status: ${err.status}`);
+      if (err?.hint) parts.push(`hint: ${err.hint}`);
+      setErrorDetail(parts.join('\n'));
       setPhase('error');
     }
   };
@@ -146,23 +261,79 @@ const QrCheckIn: React.FC<Props> = ({ currentUser }) => {
     setPhase('idle');
     setResult(null);
     setErrorKind(null);
+    setErrorDetail('');
     decodedRef.current = false;
   };
 
-  // ----- Renders -----
+  const errorMessage = (): string => {
+    switch (errorKind) {
+      case 'camera_denied': return t('qr.cameraDenied');
+      case 'no_camera': return t('qr.noCamera');
+      case 'insecure_context': return t('qr.insecureContext');
+      case 'network': return t('qr.networkError');
+      case 'invalid_qr': return t('qr.invalidQr');
+      case 'already_checked_in': return t('qr.alreadyCheckedIn');
+      case 'not_checked_in': return t('qr.notCheckedIn');
+      default: return t('qr.networkError');
+    }
+  };
 
-  const Header = (
-    <div className="mb-6">
-      <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-        <QrCode size={24} /> {t('qr.title')}
-      </h2>
-      <p className="text-sm text-zinc-400 mt-1">{t('qr.subtitle')}</p>
-    </div>
-  );
+  // Environment diagnostics (pre-scan)
+  const diag = (() => {
+    if (typeof window === 'undefined') return null;
+    const proto = window.location?.protocol || '';
+    const host = window.location?.hostname || '';
+    const secure = window.isSecureContext;
+    const hasCamera = !!navigator.mediaDevices?.getUserMedia;
+    const hasGeo = !!navigator.geolocation;
+    const isLocalhost = host === 'localhost' || host === '127.0.0.1' || host === '::1';
+    // Secure context = HTTPS or localhost
+    const isOk = secure && hasCamera && hasGeo;
+    return { proto, host, secure, hasCamera, hasGeo, isLocalhost, isOk };
+  })();
 
   return (
     <div className="p-4 md:p-8 max-w-2xl mx-auto">
-      {Header}
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+          <QrCode size={24} /> {t('qr.title')}
+        </h2>
+        <p className="text-sm text-zinc-400 mt-1">{t('qr.subtitle')}</p>
+      </div>
+
+      {/* Scanner view — video always in DOM, visibility controlled by phase */}
+      <div
+        className={`rounded-2xl border border-zinc-800 bg-black overflow-hidden relative aspect-square ${
+          phase === 'scanning' ? 'block' : 'hidden'
+        }`}
+      >
+        <video
+          ref={videoRef}
+          className="w-full h-full object-cover"
+          muted
+          playsInline
+          autoPlay
+        />
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+          <motion.div
+            animate={{ scale: [1, 1.05, 1] }}
+            transition={{ duration: 1.6, repeat: Infinity }}
+            className="w-64 h-64 border-2 border-emerald-400/80 rounded-2xl shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]"
+          />
+        </div>
+        <div className="absolute bottom-4 left-0 right-0 text-center">
+          <p className="text-white text-sm bg-black/60 inline-block px-4 py-2 rounded-full">
+            {t('qr.scanning')}
+          </p>
+        </div>
+        <button
+          onClick={reset}
+          className="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/60 text-white flex items-center justify-center"
+          aria-label={t('qr.close')}
+        >
+          <XCircle size={20} />
+        </button>
+      </div>
 
       <AnimatePresence mode="wait">
         {phase === 'idle' && (
@@ -176,52 +347,51 @@ const QrCheckIn: React.FC<Props> = ({ currentUser }) => {
             <div className="mx-auto w-20 h-20 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-6">
               <QrCode size={40} className="text-emerald-400" />
             </div>
-            <button
-              onClick={handleStart}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-colors"
-            >
-              <Camera size={18} />
-              {t('qr.scanBtn')}
-            </button>
+            <p className="text-sm text-zinc-300 mb-4 font-medium">{t('qr.pickAction')}</p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                onClick={() => handleStart('in')}
+                disabled={!diag?.isOk}
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-700 disabled:cursor-not-allowed text-white font-semibold transition-colors min-w-[160px]"
+              >
+                <LogIn size={18} />
+                {t('qr.actionIn')}
+              </button>
+              <button
+                onClick={() => handleStart('out')}
+                disabled={!diag?.isOk}
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-orange-600 hover:bg-orange-500 disabled:bg-zinc-700 disabled:cursor-not-allowed text-white font-semibold transition-colors min-w-[160px]"
+              >
+                <LogOut size={18} />
+                {t('qr.actionOut')}
+              </button>
+            </div>
             <p className="text-xs text-zinc-500 mt-4 flex items-center justify-center gap-1">
               <MapPin size={12} /> {t('qr.gettingLocation')}
             </p>
-          </motion.div>
-        )}
 
-        {(phase === 'requesting' || phase === 'scanning') && (
-          <motion.div
-            key="scanning"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="rounded-2xl border border-zinc-800 bg-black overflow-hidden relative aspect-square"
-          >
-            <video
-              ref={videoRef}
-              className="w-full h-full object-cover"
-              muted
-              playsInline
-            />
-            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-              <motion.div
-                animate={{ scale: [1, 1.05, 1] }}
-                transition={{ duration: 1.6, repeat: Infinity }}
-                className="w-64 h-64 border-2 border-emerald-400/80 rounded-2xl shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]"
-              />
-            </div>
-            <div className="absolute bottom-4 left-0 right-0 text-center">
-              <p className="text-white text-sm bg-black/60 inline-block px-4 py-2 rounded-full">
-                {phase === 'requesting' ? t('qr.requestingPerms') : t('qr.scanning')}
-              </p>
-            </div>
-            <button
-              onClick={reset}
-              className="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/60 text-white flex items-center justify-center"
-              aria-label={t('qr.close')}
-            >
-              <XCircle size={20} />
-            </button>
+            {/* Ortam tanılaması */}
+            {diag && (
+              <div className={`mt-6 text-left rounded-xl border p-3 text-xs ${
+                diag.isOk ? 'border-emerald-900/40 bg-emerald-950/20' : 'border-amber-800/60 bg-amber-950/20'
+              }`}>
+                <div className={`flex items-center gap-1.5 font-semibold mb-2 ${diag.isOk ? 'text-emerald-300' : 'text-amber-300'}`}>
+                  {diag.isOk ? <ShieldCheck size={14}/> : <ShieldAlert size={14}/>}
+                  {diag.isOk ? t('qr.envReady') : t('qr.envNotReady')}
+                </div>
+                <ul className="space-y-1 font-mono text-[11px] text-zinc-300">
+                  <li>URL: <span className="text-zinc-400">{diag.proto}//{diag.host}</span></li>
+                  <li>Secure context: <span className={diag.secure ? 'text-emerald-400' : 'text-red-400'}>{diag.secure ? '✓' : '✗ (HTTPS veya localhost gerekli)'}</span></li>
+                  <li>Kamera API: <span className={diag.hasCamera ? 'text-emerald-400' : 'text-red-400'}>{diag.hasCamera ? '✓' : '✗'}</span></li>
+                  <li>Konum API: <span className={diag.hasGeo ? 'text-emerald-400' : 'text-red-400'}>{diag.hasGeo ? '✓' : '✗'}</span></li>
+                </ul>
+                {!diag.secure && !diag.isLocalhost && (
+                  <p className="mt-2 text-amber-200 text-[11px]">
+                    {t('qr.needHttps')}
+                  </p>
+                )}
+              </div>
+            )}
           </motion.div>
         )}
 
@@ -246,14 +416,21 @@ const QrCheckIn: React.FC<Props> = ({ currentUser }) => {
             key="error"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl border border-red-900/60 bg-red-950/40 p-8 text-center"
+            className="rounded-2xl border border-red-900/60 bg-red-950/40 p-6 text-center"
           >
             <XCircle size={40} className="text-red-400 mx-auto mb-3" />
-            <p className="text-red-200 mb-4">
-              {errorKind === 'camera' && t('qr.cameraDenied')}
-              {errorKind === 'network' && t('qr.networkError')}
-              {errorKind === 'invalid_qr' && t('qr.invalidQr')}
-            </p>
+            {errorKind && (
+              <div className="inline-flex items-center gap-1 mb-3 px-2.5 py-1 rounded-full bg-red-900/60 border border-red-800 text-red-100 font-mono text-[11px] uppercase tracking-wider">
+                {t('qr.errorCode')}: {errorKind}
+              </div>
+            )}
+            <p className="text-red-200 mb-3 font-medium">{errorMessage()}</p>
+            {errorDetail && (
+              <div className="text-[11px] text-red-300/80 mb-4 text-left bg-black/30 p-3 rounded border border-red-900/40">
+                <div className="text-[10px] uppercase text-red-400/80 mb-1 font-semibold">{t('qr.errorDetails')}</div>
+                <pre className="whitespace-pre-wrap break-words font-mono leading-relaxed">{errorDetail}</pre>
+              </div>
+            )}
             <button
               onClick={reset}
               className="px-5 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white"

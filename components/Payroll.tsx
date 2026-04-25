@@ -9,7 +9,10 @@ import QrCheckIn from './QrCheckIn';
 
 
 // Yeni sekme yapısı: FINANCIAL eklendi
-type Tab = 'STAFF' | 'MONTHLY' | 'FINANCIAL';
+type Tab = 'STAFF' | 'MONTHLY' | 'FINANCIAL' | 'APPROVALS';
+
+// Süper admin: tüm onay bekleyenleri görebilir
+const SUPER_ADMIN_EMAIL = 'cevikademm@gmail.com';
 
 interface PayrollProps {
     currentUser: Employee;
@@ -67,6 +70,9 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
 
   // Arama state'i
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Onay Bekleyenler paneli (Süper Admin)
+  const [approvalsSearch, setApprovalsSearch] = useState('');
 
   // Admin personel listesi
   const [adminEmployees, setAdminEmployees] = useState<Employee[]>([]);
@@ -164,16 +170,22 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
             // FALLBACK HESAPLAMA (0 SAAT HATASI İÇİN)
             // Eğer DB'den gelen total_hours 0 veya null ise, burada manuel hesaplıyoruz.
             let displayHours = Number(l.total_hours);
-            
-            if (!displayHours || displayHours <= 0) {
+
+            // Henüz çıkış yapılmamış QR kaydı (end_time boş) → hesaplama yapma, 0 kalsın.
+            const hasStart = !!(l.start_time && l.start_time.length >= 4);
+            const hasEnd = !!(l.end_time && l.end_time.length >= 4);
+
+            if ((!displayHours || displayHours <= 0) && hasStart && hasEnd) {
                 const s = new Date(`1970-01-01T${l.start_time}:00`);
                 const e = new Date(`1970-01-01T${l.end_time}:00`);
                 let diffMs = e.getTime() - s.getTime();
                 if (diffMs < 0) diffMs += 24 * 60 * 60 * 1000;
-                
+
                 const breakMins = l.break_duration || 0;
                 const netMins = (diffMs / 60000) - breakMins;
                 displayHours = Math.max(0, Number((netMins / 60).toFixed(2)));
+            } else if (!displayHours || displayHours <= 0) {
+                displayHours = 0;
             }
 
             return {
@@ -238,6 +250,26 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
   const selectedEmployeeForDetail = selectedEmployeeId === 'NEW'
     ? (editForm as Employee)
     : allEmployees.find(e => e.id === selectedEmployeeId);
+
+  // Tüm personeller için bekleyen kayıtlar — sadece SUPER_ADMIN için doldurulur
+  const pendingApprovals = useMemo(() => {
+      if (currentUser.email !== SUPER_ADMIN_EMAIL) return [];
+      const empById = new Map(allEmployees.map(e => [e.id, e]));
+      const q = approvalsSearch.trim().toLowerCase();
+      return timeLogs
+          .filter(l => l.status === 'Bekliyor')
+          .map(l => ({ log: l, emp: empById.get(l.employeeId) }))
+          .filter(({ emp }) => {
+              if (!q) return true;
+              if (!emp) return false;
+              return emp.name.toLowerCase().includes(q) || (emp.email || '').toLowerCase().includes(q);
+          })
+          .sort((a, b) => {
+              const dc = b.log.date.localeCompare(a.log.date);
+              if (dc !== 0) return dc;
+              return (b.log.startTime || '').localeCompare(a.log.startTime || '');
+          });
+  }, [timeLogs, allEmployees, approvalsSearch, currentUser.email]);
 
   const monthlyLogs = useMemo(() => {
     if (!targetEmployeeId) return [];
@@ -1013,6 +1045,112 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
     );
   };
 
+  // ONAY BEKLEYENLER (Süper Admin) — mobil-uyumlu kart liste
+  const renderApprovalsContent = () => {
+      const empById = new Map(allEmployees.map(e => [e.id, e]));
+      return (
+          <div className="h-full flex flex-col bg-zinc-950/50 overflow-hidden">
+              <div className="p-4 md:p-6 border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-md sticky top-0 z-20 flex flex-col gap-3">
+                  <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                          <Shield size={18} className="text-amber-400" />
+                          <h2 className="text-base md:text-lg font-bold text-white">Onay Bekleyenler</h2>
+                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-900/30 text-amber-300 border border-amber-800/50">{pendingApprovals.length}</span>
+                      </div>
+                  </div>
+                  <div className="relative">
+                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                      <input
+                          type="text"
+                          value={approvalsSearch}
+                          onChange={e => setApprovalsSearch(e.target.value)}
+                          placeholder="İsim veya e-posta ile ara..."
+                          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-zinc-200 outline-none focus:border-amber-500"
+                      />
+                  </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-2">
+                  {pendingApprovals.length === 0 ? (
+                      <div className="text-center text-zinc-500 text-sm py-12">
+                          {approvalsSearch ? 'Aramaya uyan bekleyen kayıt yok.' : 'Bekleyen kayıt yok 🎉'}
+                      </div>
+                  ) : pendingApprovals.map(({ log, emp }) => (
+                      <div key={log.id} className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-3 md:p-4">
+                          <div className="flex items-start gap-3">
+                              <img
+                                  src={emp?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp?.name || '?')}`}
+                                  className="w-10 h-10 rounded-full object-cover border border-zinc-800 shrink-0"
+                                  referrerPolicy="no-referrer"
+                                  alt=""
+                              />
+                              <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="text-sm font-semibold text-white truncate">{emp?.name || 'Bilinmeyen'}</span>
+                                      {log.method === 'qr' ? (
+                                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-900/40 text-emerald-300 border border-emerald-800/60">QR</span>
+                                      ) : (
+                                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">Manuel</span>
+                                      )}
+                                  </div>
+                                  <div className="flex items-center gap-2 text-xs text-zinc-400 mt-1 flex-wrap">
+                                      <CalendarIcon size={11} />
+                                      <span>{formatDate(log.date, { day: 'numeric', month: 'long', weekday: 'short' })}</span>
+                                      <span className="text-zinc-700">•</span>
+                                      <Clock size={11} />
+                                      <span className="font-mono">{log.startTime || '—'} - {log.endTime || '—'}</span>
+                                      {typeof log.totalHours === 'number' && log.totalHours > 0 && (
+                                          <>
+                                              <span className="text-zinc-700">•</span>
+                                              <span className="text-white font-medium">{log.totalHours} sa</span>
+                                          </>
+                                      )}
+                                  </div>
+                                  <div className="flex items-center gap-2 text-[11px] text-zinc-500 mt-1 flex-wrap">
+                                      <MapPin size={10} />
+                                      <span>{log.branch || 'Şube yok'}</span>
+                                      {log.checkInLat != null && log.checkInLng != null && (
+                                          <a
+                                              href={`https://maps.google.com/?q=${log.checkInLat},${log.checkInLng}`}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="text-emerald-400 hover:text-emerald-300 inline-flex items-center gap-0.5"
+                                          >
+                                              Konum <MapPin size={10} />
+                                          </a>
+                                      )}
+                                  </div>
+                              </div>
+                          </div>
+
+                          <div className="flex gap-2 mt-3 pt-3 border-t border-zinc-800/60">
+                              <button
+                                  onClick={() => handleStatusChange(log.id, 'Onaylandı')}
+                                  className="flex-1 px-3 py-2 bg-zinc-900 hover:bg-green-600 text-zinc-200 hover:text-white text-xs font-medium rounded-lg flex items-center justify-center gap-1.5 transition-colors border border-zinc-800 hover:border-green-500"
+                              >
+                                  <ThumbsUp size={14} /> Onayla
+                              </button>
+                              <button
+                                  onClick={() => handleStatusChange(log.id, 'Reddedildi')}
+                                  className="flex-1 px-3 py-2 bg-zinc-900 hover:bg-red-600 text-zinc-200 hover:text-white text-xs font-medium rounded-lg flex items-center justify-center gap-1.5 transition-colors border border-zinc-800 hover:border-red-500"
+                              >
+                                  <ThumbsDown size={14} /> Reddet
+                              </button>
+                              <button
+                                  onClick={() => { if (confirm('Bu kaydı silmek istediğinizden emin misiniz?')) handleDeleteTimeLog(log.id); }}
+                                  className="px-3 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-500 hover:text-red-400 rounded-lg border border-zinc-800"
+                                  title="Sil"
+                              >
+                                  <Trash2 size={14} />
+                              </button>
+                          </div>
+                      </div>
+                  ))}
+              </div>
+          </div>
+      );
+  };
+
   const renderMonthlyContent = () => {
        if (!targetEmployee) return <div className="h-full flex items-center justify-center text-zinc-500"><p>Personel seçiniz</p></div>;
        return (
@@ -1058,11 +1196,17 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                             <span className="text-sm font-bold text-white">{formatDate(log.date, {day:'numeric',month:'long',weekday:'long'})}</span>
                                             {/* GÜNCELLEME: SAAT GÖSTERİMİ & ŞUBE DETAYI */}
                                             <div className="flex flex-col gap-1 mt-1">
-                                                <div className="flex items-center gap-2 text-xs text-zinc-400">
+                                                <div className="flex items-center gap-2 text-xs text-zinc-400 flex-wrap">
                                                     <Clock size={12} />
-                                                    <span>{log.startTime} - {log.endTime}</span>
+                                                    <span className="font-mono">{log.startTime || '—'} - {log.endTime || '—'}</span>
                                                     <span className="text-zinc-600">•</span>
-                                                    <span className="text-white font-medium">{log.totalHours} Saat</span>
+                                                    {log.method === 'qr' && !log.endTime ? (
+                                                        <span className="text-amber-300 font-semibold text-[11px] px-1.5 py-0.5 rounded bg-amber-900/30 border border-amber-800/60 inline-flex items-center gap-1">
+                                                            <Loader2 size={10} className="animate-spin" /> Sürüyor
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-white font-medium">{log.totalHours} Saat</span>
+                                                    )}
                                                 </div>
                                                 {log.branch && (
                                                     <div className="flex items-center gap-2 text-[10px] text-zinc-500">
@@ -1358,7 +1502,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                             <X size={20} />
                         </button>
                     </div>
-                    <QrCheckIn currentUser={currentUser} />
+                    <QrCheckIn currentUser={currentUser} onComplete={fetchData} />
                 </div>
             </div>
         )}
@@ -1407,19 +1551,32 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                 </button>
                 {/* NEW: FINANCIAL SUMMARY TAB BUTTON - VISIBLE TO ALL ADMINS */}
                 {currentUser.role === Role.ADMIN && (
-                    <button 
-                        onClick={() => setCurrentTab('FINANCIAL')} 
+                    <button
+                        onClick={() => setCurrentTab('FINANCIAL')}
                         className={`flex-1 md:flex-none text-center px-4 py-1.5 text-xs font-medium rounded-lg transition-all ${currentTab === 'FINANCIAL' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
                     >
                         {t('pay.tabFinancial')}
+                    </button>
+                )}
+                {/* SÜPER ADMIN: Onay Bekleyenler */}
+                {currentUser.email === SUPER_ADMIN_EMAIL && (
+                    <button
+                        onClick={() => setCurrentTab('APPROVALS')}
+                        className={`flex-1 md:flex-none text-center px-4 py-1.5 text-xs font-medium rounded-lg transition-all flex items-center justify-center gap-1.5 ${currentTab === 'APPROVALS' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
+                    >
+                        <Shield size={12} />
+                        Onaylar
+                        {pendingApprovals.length > 0 && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-900/40 text-amber-300">{pendingApprovals.length}</span>
+                        )}
                     </button>
                 )}
             </div>
         </header>
 
         <div className="flex-1 overflow-hidden flex flex-col md:flex-row relative">
-            {/* SOL PANEL (LİSTE) - SADECE ADMIN GÖREBİLİR - GENİŞLİK AYARLANDI (480px) */}
-             {currentUser.role === Role.ADMIN && (
+            {/* SOL PANEL (LİSTE) - SADECE ADMIN GÖREBİLİR - APPROVALS sekmesinde gizli */}
+             {currentUser.role === Role.ADMIN && currentTab !== 'APPROVALS' && (
                  <div className={`w-full md:w-[480px] border-r border-zinc-800 flex-col bg-zinc-950 h-full ${selectedEmployeeId ? 'hidden md:flex' : 'flex'}`}>
                   <div className="p-6 pb-4">
                      <div className="flex justify-between items-center mb-6">
@@ -1512,9 +1669,13 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                 </div>
             )}
 
-            {/* SAĞ PANEL (İÇERİK) - EĞER PERSONEL İSE TAM EKRAN */}
-            <div className={`flex-1 w-full overflow-hidden ${selectedEmployeeId ? 'flex' : 'hidden md:flex'}`}>
-                 {currentTab === 'STAFF' ? renderStaffContent() : currentTab === 'FINANCIAL' ? renderFinancialContent() : renderMonthlyContent()}
+            {/* SAĞ PANEL (İÇERİK) - EĞER PERSONEL İSE TAM EKRAN
+                APPROVALS sekmesi mobilde de tam ekran görünmeli */}
+            <div className={`flex-1 w-full overflow-hidden ${currentTab === 'APPROVALS' || selectedEmployeeId ? 'flex' : 'hidden md:flex'}`}>
+                 {currentTab === 'APPROVALS' ? renderApprovalsContent()
+                   : currentTab === 'STAFF' ? renderStaffContent()
+                   : currentTab === 'FINANCIAL' ? renderFinancialContent()
+                   : renderMonthlyContent()}
             </div>
         </div>
     </div>
