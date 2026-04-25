@@ -34,9 +34,14 @@ export default defineConfig(({ mode }) => {
         // @zxing/browser CommonJS-ESM karisimi; prebundle ile minify hatasi onlenir
         include: ['@zxing/browser', '@zxing/library'],
       },
+      esbuild: {
+        // Class/function isimlerini koru — production'da "YO is not a constructor"
+        // gibi mangled hatalari engeller, stack trace okunabilir kalir
+        keepNames: true,
+      },
       build: {
-        // GÜVENLİK: Kaynak haritaları üretimde kapatılır
-        sourcemap: mode !== 'production',
+        // TESHIS: Production'da gercek hata kaynagini gormek icin gecici acik
+        sourcemap: true,
         commonjsOptions: {
           transformMixedEsModules: true,
         },
