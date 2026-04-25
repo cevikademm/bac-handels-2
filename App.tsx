@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import Messages from './components/Messages';
@@ -7,8 +7,10 @@ import Calendar from './components/Calendar';
 import ShiftSchedule from './components/ShiftSchedule';
 import Payroll from './components/Payroll';
 import Login from './components/Login';
-import SalesDashboard from './components/SalesDashboard'; // Import new component
-import QrCheckIn from './components/QrCheckIn';
+import SalesDashboard from './components/SalesDashboard';
+
+// Lazy: zxing/browser top-level import'u prod minify'da bozuluyordu
+const QrCheckIn = lazy(() => import('./components/QrCheckIn'));
 import { Settings as SettingsIcon, Shield, Volume2, Upload, RefreshCw, Play, Loader2, KeyRound, Globe, Lock, Server, CheckCircle } from 'lucide-react';
 import { MOCK_EMPLOYEES, NOTIFICATION_SOUND } from './constants';
 import { Employee, Role, AppNotification } from './types';
@@ -736,7 +738,11 @@ const AppContent: React.FC = () => {
       case 'payroll':
         return <Payroll currentUser={currentUser || MOCK_EMPLOYEES[0]} onNotify={addNotification} />;
       case 'qr':
-        return <QrCheckIn currentUser={currentUser || MOCK_EMPLOYEES[0]} />;
+        return (
+          <Suspense fallback={<div className="p-12 flex items-center justify-center text-zinc-400"><Loader2 className="animate-spin mr-2" size={20}/> Yükleniyor...</div>}>
+            <QrCheckIn currentUser={currentUser || MOCK_EMPLOYEES[0]} />
+          </Suspense>
+        );
       // NEW ROUTE
       case 'sales':
         return <SalesDashboard currentUser={currentUser || MOCK_EMPLOYEES[0]} />;

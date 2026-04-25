@@ -30,9 +30,16 @@ export default defineConfig(({ mode }) => {
           '@': path.resolve(__dirname, '.'),
         }
       },
+      optimizeDeps: {
+        // @zxing/browser CommonJS-ESM karisimi; prebundle ile minify hatasi onlenir
+        include: ['@zxing/browser', '@zxing/library'],
+      },
       build: {
         // GÜVENLİK: Kaynak haritaları üretimde kapatılır
         sourcemap: mode !== 'production',
+        commonjsOptions: {
+          transformMixedEsModules: true,
+        },
       }
     };
 });

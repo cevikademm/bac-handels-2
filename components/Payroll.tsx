@@ -1,11 +1,14 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
 import { Employee, Branch, Role, TimeLog, AppNotification } from '../types';
 import { Search, Plus, Filter, Calculator, Save, Trash2, Phone, Mail, X, MapPin, Briefcase, Link as LinkIcon, ThumbsUp, ThumbsDown, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Wallet, Banknote, Map, Timer, Edit2, Loader2, ArrowRightLeft, Building2, CalendarRange, Lock, Rocket, PieChart, Upload, Shield, AlertTriangle, QrCode } from 'lucide-react';
 import { includeAsPersonnel, isDualRoleAdmin } from '../constants';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
 import { GlowingEffect } from './ui/glowing-effect';
-import QrCheckIn from './QrCheckIn';
+
+// QR sayfa yuklenirken patlamasin diye lazy yukleniyor (zxing/browser
+// production minify'da top-level import edilince mangled constructor hatasi veriyordu).
+const QrCheckIn = lazy(() => import('./QrCheckIn'));
 
 
 // Yeni sekme yapısı: FINANCIAL eklendi
@@ -1502,7 +1505,13 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                             <X size={20} />
                         </button>
                     </div>
-                    <QrCheckIn currentUser={currentUser} onComplete={fetchData} />
+                    <Suspense fallback={
+                        <div className="p-12 flex items-center justify-center text-zinc-400">
+                            <Loader2 className="animate-spin mr-2" size={20}/> Yükleniyor...
+                        </div>
+                    }>
+                        <QrCheckIn currentUser={currentUser} onComplete={fetchData} />
+                    </Suspense>
                 </div>
             </div>
         )}
