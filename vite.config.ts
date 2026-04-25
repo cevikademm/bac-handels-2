@@ -35,15 +35,12 @@ export default defineConfig(({ mode }) => {
         include: ['@zxing/browser', '@zxing/library'],
       },
       esbuild: {
-        // Class/function isimlerini koru — production'da "YO is not a constructor"
-        // gibi mangled hatalari engeller, stack trace okunabilir kalir
+        // Class/function isimlerini koru — minify hatalarini debug etmeyi kolaylastirir
         keepNames: true,
       },
       build: {
-        // TESHIS: Production'da gercek hata kaynagini gormek icin gecici acik
-        sourcemap: true,
-        // TESHIS: Minify kapali — sinif/fonksiyon adlari korunur, gercek hata gorunur
-        minify: false,
+        // GUVENLIK: Kaynak haritalari uretim moduda kapali
+        sourcemap: mode !== 'production',
         commonjsOptions: {
           transformMixedEsModules: true,
         },
