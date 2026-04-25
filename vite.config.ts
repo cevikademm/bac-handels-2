@@ -42,6 +42,8 @@ export default defineConfig(({ mode }) => {
       build: {
         // TESHIS: Production'da gercek hata kaynagini gormek icin gecici acik
         sourcemap: true,
+        // TESHIS: Minify kapali — sinif/fonksiyon adlari korunur, gercek hata gorunur
+        minify: false,
         commonjsOptions: {
           transformMixedEsModules: true,
         },
