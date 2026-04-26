@@ -8,6 +8,7 @@ import ShiftSchedule from './components/ShiftSchedule';
 import Payroll from './components/Payroll';
 import Login from './components/Login';
 import SalesDashboard from './components/SalesDashboard';
+import LossControl from './components/LossControl';
 
 // Lazy: zxing/browser top-level import'u prod minify'da bozuluyordu
 const QrCheckIn = lazy(() => import('./components/QrCheckIn'));
@@ -746,6 +747,8 @@ const AppContent: React.FC = () => {
       // NEW ROUTE
       case 'sales':
         return <SalesDashboard currentUser={currentUser || MOCK_EMPLOYEES[0]} />;
+      case 'loss-control':
+        return <LossControl currentUser={currentUser || MOCK_EMPLOYEES[0]} />;
       case 'settings':
         return <Settings currentUser={currentUser} onUpdateUser={setCurrentUser} />;
       default:
@@ -758,12 +761,13 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <Layout 
-      activeTab={activeTab} 
-      setActiveTab={setActiveTab} 
+    <Layout
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
       userRole={currentUser?.role === Role.ADMIN ? "Yönetici (Admin)" : "Personel"}
       userName={currentUser?.name || 'Kullanıcı'}
       userAvatar={currentUser?.avatarUrl}
+      userEmail={currentUser?.email}
       onLogout={handleLogout}
     >
       {renderContent()}

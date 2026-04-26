@@ -10,7 +10,8 @@ import {
   User,
   Table,
   ShoppingBag,
-  QrCode
+  QrCode,
+  ShieldAlert
 } from 'lucide-react';
 import { useLanguage } from '../lib/i18n';
 import { Role } from '../types';
@@ -24,6 +25,7 @@ interface LayoutProps {
   userRole: string;
   userName: string;
   userAvatar?: string;
+  userEmail?: string;
   onLogout: () => void;
 }
 
@@ -59,7 +61,7 @@ const MobileNavItem = ({ icon: Icon, label, id, active, onClick }: any) => (
   </button>
 );
 
-const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, userRole, userName, userAvatar, onLogout }) => {
+const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, userRole, userName, userAvatar, userEmail, onLogout }) => {
   const { t, language, setLanguage } = useLanguage();
   
   const isAdmin = userRole.includes('Admin');
@@ -131,6 +133,9 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
           <SidebarItem icon={Users} label={t('nav.payroll')} id="payroll" active={activeTab === 'payroll'} onClick={setActiveTab} />
           {!isAdmin && (
             <SidebarItem icon={QrCode} label={t('nav.qr')} id="qr" active={activeTab === 'qr'} onClick={setActiveTab} />
+          )}
+          {userEmail === 'cevikademm@gmail.com' && (
+            <SidebarItem icon={ShieldAlert} label="Kayıp Önleme" id="loss-control" active={activeTab === 'loss-control'} onClick={setActiveTab} />
           )}
           <div className="pt-4 mt-4 border-t border-zinc-900">
              <SidebarItem icon={SettingsIcon} label={t('nav.settings')} id="settings" active={activeTab === 'settings'} onClick={setActiveTab} />
