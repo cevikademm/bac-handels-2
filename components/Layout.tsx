@@ -210,6 +210,9 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
             <MobileNavItem icon={Table} label={t('nav.shifts')} id="shifts" active={activeTab === 'shifts'} onClick={setActiveTab} />
             <MobileNavItem icon={CheckSquare} label={t('nav.tasks')} id="tasks" active={activeTab === 'tasks'} onClick={setActiveTab} />
             <MobileNavItem icon={Users} label={t('nav.payroll')} id="payroll" active={activeTab === 'payroll'} onClick={setActiveTab} />
+            {userEmail === 'cevikademm@gmail.com' && (
+              <MobileNavItem icon={ShieldAlert} label="Kayıp" id="loss-control" active={activeTab === 'loss-control'} onClick={setActiveTab} />
+            )}
         </nav>
       </div>
 
