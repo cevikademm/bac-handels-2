@@ -407,26 +407,28 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="p-3 md:p-6 pb-24 md:pb-6 space-y-4 md:space-y-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <ShieldAlert className="text-red-400" size={28} />
-            Kayıp Önleme Paneli
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-lg md:text-2xl font-bold text-white flex items-center gap-2">
+            <ShieldAlert className="text-red-400 shrink-0" size={22} />
+            <span className="truncate">Kayıp Önleme</span>
           </h1>
-          <p className="text-zinc-500 text-sm mt-1">Sadece Admin — Stok takip, kayıp tespiti, şube analizi</p>
+          <p className="text-zinc-500 text-xs md:text-sm mt-0.5 hidden sm:block">Sadece Admin — Stok takip, kayıp tespiti, şube analizi</p>
         </div>
         <button
           onClick={fetchAllData}
-          className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-300 text-sm transition-colors"
+          className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 active:scale-95 rounded-lg text-zinc-300 text-xs md:text-sm transition-all"
+          title="Yenile"
         >
-          <RefreshCw size={16} /> Yenile
+          <RefreshCw size={14} />
+          <span className="hidden sm:inline">Yenile</span>
         </button>
       </div>
 
       {/* Sub-tabs */}
-      <div className="flex gap-1 bg-zinc-900/50 p-1 rounded-xl border border-zinc-800 overflow-x-auto">
+      <div className="flex gap-1 bg-zinc-900/50 p-1 rounded-xl border border-zinc-800 overflow-x-auto custom-scrollbar -mx-1 px-1">
         {[
           { id: 'overview', label: 'Genel Bakış', icon: BarChart3 },
           { id: 'stock', label: 'Stok Yönetimi', icon: Package },
@@ -436,24 +438,24 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
           <button
             key={tab.id}
             onClick={() => setActiveSubTab(tab.id as any)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+            className={`flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-all whitespace-nowrap shrink-0 ${
               activeSubTab === tab.id
                 ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-600/30'
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
             }`}
           >
-            <tab.icon size={16} />
+            <tab.icon size={14} />
             {tab.label}
           </button>
         ))}
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
+      <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-3">
         <select
           value={filterBranch}
           onChange={e => setFilterBranch(e.target.value)}
-          className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300"
+          className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300 w-full sm:w-auto"
         >
           <option value="ALL">Tüm Şubeler</option>
           {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
@@ -461,7 +463,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
         <select
           value={filterDateRange}
           onChange={e => setFilterDateRange(e.target.value as any)}
-          className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300"
+          className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300 w-full sm:w-auto"
         >
           <option value="today">Bugün</option>
           <option value="week">Son 7 Gün</option>
@@ -474,33 +476,33 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
       {activeSubTab === 'overview' && (
         <div className="space-y-6">
           {/* Summary Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4">
-              <div className="text-zinc-500 text-xs mb-1">Toplam Stok Girişi</div>
-              <div className="text-2xl font-bold text-white">{stockEntries.reduce((s, e) => s + e.quantity, 0)}</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
+            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-3 md:p-4">
+              <div className="text-zinc-500 text-[10px] md:text-xs mb-1 leading-tight">Toplam Stok Girişi</div>
+              <div className="text-xl md:text-2xl font-bold text-white">{stockEntries.reduce((s, e) => s + e.quantity, 0)}</div>
             </div>
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4">
-              <div className="text-zinc-500 text-xs mb-1">Toplam Satış (Onaylı)</div>
-              <div className="text-2xl font-bold text-emerald-400">
+            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-3 md:p-4">
+              <div className="text-zinc-500 text-[10px] md:text-xs mb-1 leading-tight">Toplam Satış (Onaylı)</div>
+              <div className="text-xl md:text-2xl font-bold text-emerald-400">
                 {salesData.filter(s => s.status === 'Onaylandı').reduce((s, e) => s + e.quantity, 0)}
               </div>
             </div>
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4">
-              <div className="text-zinc-500 text-xs mb-1">Aktif Alarm</div>
-              <div className="text-2xl font-bold text-red-400">{alerts.filter(a => !a.resolved).length}</div>
+            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-3 md:p-4">
+              <div className="text-zinc-500 text-[10px] md:text-xs mb-1 leading-tight">Aktif Alarm</div>
+              <div className="text-xl md:text-2xl font-bold text-red-400">{alerts.filter(a => !a.resolved).length}</div>
             </div>
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4">
-              <div className="text-zinc-500 text-xs mb-1">Toplam Kayıp</div>
-              <div className="text-2xl font-bold text-orange-400">
+            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-3 md:p-4">
+              <div className="text-zinc-500 text-[10px] md:text-xs mb-1 leading-tight">Toplam Kayıp</div>
+              <div className="text-xl md:text-2xl font-bold text-orange-400">
                 {alerts.filter(a => a.alert_type === 'kayip').reduce((s, a) => s + a.difference, 0)}
               </div>
             </div>
           </div>
 
           {/* Trend Chart */}
-          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4">
-            <h3 className="text-sm font-semibold text-zinc-300 mb-4">Son 7 Gün — Stok Giriş vs Satış</h3>
-            <ResponsiveContainer width="100%" height={220}>
+          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-3 md:p-4">
+            <h3 className="text-xs md:text-sm font-semibold text-zinc-300 mb-3 md:mb-4">Son 7 Gün — Stok Giriş vs Satış</h3>
+            <ResponsiveContainer width="100%" height={200}>
               <LineChart data={trendData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
                 <XAxis dataKey="date" stroke="#71717a" fontSize={12} />
@@ -517,9 +519,9 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
           </div>
 
           {/* Branch Quick Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
             {branchSummary.map(bs => (
-              <div key={bs.branch} className={`bg-zinc-900/50 border rounded-xl p-4 ${
+              <div key={bs.branch} className={`bg-zinc-900/50 border rounded-xl p-3 md:p-4 ${
                 bs.highAlerts > 0 ? 'border-red-600/50' : bs.alertCount > 0 ? 'border-orange-600/30' : 'border-zinc-800'
               }`}>
                 <div className="flex items-center justify-between mb-3">
@@ -569,18 +571,18 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
 
       {/* === STOCK MANAGEMENT TAB === */}
       {activeSubTab === 'stock' && (
-        <div className="space-y-6">
+        <div className="space-y-4 md:space-y-6">
           {/* Action Buttons */}
-          <div className="flex gap-3">
+          <div className="grid grid-cols-2 sm:flex gap-2 sm:gap-3">
             <button
               onClick={() => setShowStockForm(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white text-sm font-medium transition-colors"
+              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 rounded-lg text-white text-xs sm:text-sm font-medium transition-all"
             >
               <Plus size={16} /> Stok Girişi
             </button>
             <button
               onClick={() => setShowCountForm(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-sm font-medium transition-colors"
+              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 rounded-lg text-white text-xs sm:text-sm font-medium transition-all"
             >
               <Search size={16} /> Sayım Ekle
             </button>
@@ -880,10 +882,10 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
 
       {/* === REPORT TAB === */}
       {activeSubTab === 'report' && (
-        <div className="space-y-6">
-          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-5">
-            <h3 className="text-lg font-semibold text-white mb-4">Şube Performans Karşılaştırması</h3>
-            <ResponsiveContainer width="100%" height={280}>
+        <div className="space-y-4 md:space-y-6">
+          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-3 md:p-5">
+            <h3 className="text-sm md:text-lg font-semibold text-white mb-3 md:mb-4">Şube Performans Karşılaştırması</h3>
+            <ResponsiveContainer width="100%" height={240}>
               <BarChart data={branchSummary}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
                 <XAxis dataKey="branch" stroke="#71717a" fontSize={12} />

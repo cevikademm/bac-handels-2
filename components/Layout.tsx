@@ -84,13 +84,26 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
           </div>
           
           <div className="flex items-center gap-2">
-              <button 
+              <button
                 onClick={() => setLanguage(language === 'tr' ? 'de' : 'tr')}
                 className="flex items-center justify-center h-9 px-2 bg-zinc-900/50 border border-zinc-800 rounded-lg text-xs font-bold text-zinc-400 hover:text-white transition-colors"
               >
                   {language === 'tr' ? '🇹🇷' : '🇩🇪'}
               </button>
-              <button 
+              {userEmail === 'cevikademm@gmail.com' && (
+                <button
+                  onClick={() => setActiveTab('loss-control')}
+                  className={`flex items-center justify-center h-9 w-9 rounded-lg border transition-colors ${
+                    activeTab === 'loss-control'
+                      ? 'bg-red-600/20 text-red-400 border-red-600/40'
+                      : 'bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:text-red-400'
+                  }`}
+                  title="Kayıp Önleme"
+                >
+                  <ShieldAlert size={18} />
+                </button>
+              )}
+              <button
                 onClick={() => setActiveTab('settings')}
                 className={`p-2 rounded-full transition-colors ${activeTab === 'settings' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white'}`}
               >
@@ -134,15 +147,27 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
           {!isAdmin && (
             <SidebarItem icon={QrCode} label={t('nav.qr')} id="qr" active={activeTab === 'qr'} onClick={setActiveTab} />
           )}
-          {userEmail === 'cevikademm@gmail.com' && (
-            <SidebarItem icon={ShieldAlert} label="Kayıp Önleme" id="loss-control" active={activeTab === 'loss-control'} onClick={setActiveTab} />
-          )}
           <div className="pt-4 mt-4 border-t border-zinc-900">
              <SidebarItem icon={SettingsIcon} label={t('nav.settings')} id="settings" active={activeTab === 'settings'} onClick={setActiveTab} />
           </div>
         </nav>
 
         <div className="mt-auto">
+            {userEmail === 'cevikademm@gmail.com' && (
+              <div className="px-4 pb-2">
+                <button
+                  onClick={() => setActiveTab('loss-control')}
+                  className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-bold transition-all border ${
+                    activeTab === 'loss-control'
+                      ? 'bg-red-600/20 text-red-400 border-red-600/40'
+                      : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-red-400 hover:border-red-600/30'
+                  }`}
+                >
+                  <ShieldAlert size={16} />
+                  <span>Kayıp Önleme</span>
+                </button>
+              </div>
+            )}
             <div className="px-4 pb-4">
                 <div className="flex bg-zinc-900 rounded-lg p-1 border border-zinc-800">
                     <button
@@ -210,9 +235,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
             <MobileNavItem icon={Table} label={t('nav.shifts')} id="shifts" active={activeTab === 'shifts'} onClick={setActiveTab} />
             <MobileNavItem icon={CheckSquare} label={t('nav.tasks')} id="tasks" active={activeTab === 'tasks'} onClick={setActiveTab} />
             <MobileNavItem icon={Users} label={t('nav.payroll')} id="payroll" active={activeTab === 'payroll'} onClick={setActiveTab} />
-            {userEmail === 'cevikademm@gmail.com' && (
-              <MobileNavItem icon={ShieldAlert} label="Kayıp" id="loss-control" active={activeTab === 'loss-control'} onClick={setActiveTab} />
-            )}
         </nav>
       </div>
 
