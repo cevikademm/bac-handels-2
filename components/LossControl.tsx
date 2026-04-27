@@ -399,7 +399,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex items-center justify-center h-full">
         <Loader2 className="animate-spin text-indigo-400" size={32} />
         <span className="ml-3 text-zinc-400">Kayıp Önleme verileri yükleniyor...</span>
       </div>
@@ -407,7 +407,8 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
   }
 
   return (
-    <div className="p-3 md:p-6 pb-24 md:pb-6 space-y-4 md:space-y-6 max-w-7xl mx-auto">
+    <div className="h-full w-full overflow-y-auto overflow-x-hidden custom-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
+      <div className="p-3 md:p-6 pb-32 md:pb-10 space-y-4 md:space-y-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
@@ -999,6 +1000,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };
