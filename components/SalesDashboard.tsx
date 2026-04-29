@@ -2,8 +2,9 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { SalesLog, Employee, Role, Branch } from '../types';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
+import { formatLocalDate, isUserOnShiftAt, formatTimeOfDay, canSeeOffShiftAlerts } from '../lib/utils';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
-import { Trophy, TrendingUp, ShoppingBag, MapPin, Award, Medal, Calendar, Package, Activity, BarChart3, ListTodo, User, Lock, EyeOff, Filter, ChevronDown, Clock, Tag, Send, Loader2, CheckCircle2, XCircle, Trash2, X, Star, Zap, Crown, Percent, Settings } from 'lucide-react';
+import { Trophy, TrendingUp, ShoppingBag, MapPin, Award, Medal, Calendar, Package, Activity, BarChart3, ListTodo, User, Lock, EyeOff, Filter, ChevronDown, Clock, Tag, Send, Loader2, CheckCircle2, XCircle, Trash2, X, Star, Zap, Crown, Percent, Settings, AlertTriangle } from 'lucide-react';
 import { GlowingEffect } from './ui/glowing-effect';
 
 
@@ -47,6 +48,12 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
     const isAdmin = currentUser.role === Role.ADMIN;
     const isMounted = useRef(true);
 
+    // Mesai dışı satış uyarısını sadece bu emailler görür ve onlar engelleme dışıdır.
+    const canSeeOffShift = canSeeOffShiftAlerts(currentUser.email);
+
+    // Bu haftanın shift_schedules satırları — satış giriş anındaki vardiya kontrolü için.
+    const [currentWeekShifts, setCurrentWeekShifts] = useState<any[]>([]);
+
     // Filter States
     const [selectedBranch, setSelectedBranch] = useState<string>('ALL');
     const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
@@ -58,10 +65,13 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
     const [newProductName, setNewProductName] = useState('');
 
     // New Sales Form State
+    // branch: Personel havuzdan farklı şubelerde çalışabildiği için satış girilirken
+    // hangi şubede yapıldığı zorunlu olarak seçilmeli — currentUser.branch boş olabilir.
     const [salesForm, setSalesForm] = useState({
         product: '',
         quantity: 1,
-        date: new Date().toISOString().split('T')[0]
+        date: new Date().toISOString().split('T')[0],
+        branch: (currentUser.branch as string) || (Object.values(Branch)[0] as string)
     });
 
     useEffect(() => {
@@ -103,10 +113,23 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                     quantity: l.quantity,
                     saleDate: l.sale_date,
                     status: l.status,
-                    createdAt: l.created_at
+                    createdAt: l.created_at,
+                    isOffShift: !!l.is_off_shift
                 }));
                 setSalesData(formattedSales);
             }
+
+            // Mevcut haftanın vardiya programı — satış giriş anında kullanıcı mesaide mi kontrolü için.
+            const today = new Date();
+            const dayIdx = (today.getDay() + 6) % 7; // Pzt=0..Pzr=6
+            const monday = new Date(today);
+            monday.setDate(monday.getDate() - dayIdx);
+            const weekKey = formatLocalDate(monday);
+            const { data: shiftRows } = await supabase
+                .from('shift_schedules')
+                .select('week_start_date, time_slot, days')
+                .eq('week_start_date', weekKey);
+            if (shiftRows && isMounted.current) setCurrentWeekShifts(shiftRows);
 
             const { data: profiles } = await supabase.from('profiles').select('*');
             if (profiles && isMounted.current) {
@@ -165,17 +188,34 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
         e.preventDefault();
         setIsSaving(true);
         try {
-            const payload = { 
-                employee_id: currentUser.id, 
-                branch: currentUser.branch || 'Bilinmiyor',
-                product_name: salesForm.product, 
-                quantity: salesForm.quantity, 
-                sale_date: salesForm.date, 
-                status: 'Bekliyor' 
+            if (!salesForm.branch) {
+                alert(t('sales.branch'));
+                setIsSaving(false);
+                return;
+            }
+
+            // Mesai kontrolü: kullanıcı şu an atanmış vardiyada değilse satış giremez.
+            // İki adminin (cevikademm, gurcan) bu kuraldan muafiyeti var ama kayda
+            // yine "mesai dışı" olarak düşülür ki tabloda izlenebilsin.
+            const onShift = isUserOnShiftAt(currentUser.id, new Date(), currentWeekShifts);
+            if (!onShift && !canSeeOffShift) {
+                alert('Şu an mesainizde değilsiniz. Mesai saatleri dışında satış girilemez.');
+                setIsSaving(false);
+                return;
+            }
+
+            const payload = {
+                employee_id: currentUser.id,
+                branch: salesForm.branch,
+                product_name: salesForm.product,
+                quantity: salesForm.quantity,
+                sale_date: salesForm.date,
+                status: 'Bekliyor',
+                is_off_shift: !onShift
             };
             const { data, error } = await supabase.from('sales_logs').insert([payload]).select();
             if (error) throw error;
-            
+
             if (data && isMounted.current) {
                 const newLog = {
                     id: data[0].id,
@@ -185,15 +225,16 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                     quantity: data[0].quantity,
                     saleDate: data[0].sale_date,
                     status: 'Bekliyor',
-                    createdAt: data[0].created_at
+                    createdAt: data[0].created_at,
+                    isOffShift: !!data[0].is_off_shift
                 };
                 setSalesData(prev => [newLog, ...prev]);
                 alert(t('sales.alertSuccess'));
             }
-        } catch (err: any) { 
-            alert(err.message); 
-        } finally { 
-            if(isMounted.current) setIsSaving(false); 
+        } catch (err: any) {
+            alert(err.message);
+        } finally {
+            if(isMounted.current) setIsSaving(false);
         }
     };
 
@@ -424,7 +465,12 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                                                 </div>
                                                 <div>
                                                     <p className="text-sm font-bold text-white mb-0.5">{log.productName}</p>
-                                                    <p className="text-[10px] text-zinc-500 font-medium">{formatDate(log.saleDate)}</p>
+                                                    <p className="text-[10px] text-zinc-500 font-medium">
+                                                        {formatDate(log.saleDate)}
+                                                        {formatTimeOfDay(log.createdAt) && (
+                                                            <span className="ml-1.5 text-zinc-600 font-mono">{formatTimeOfDay(log.createdAt)}</span>
+                                                        )}
+                                                    </p>
                                                 </div>
                                             </div>
                                             <div className="text-right">
@@ -538,6 +584,11 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                     <form onSubmit={handleSaveSale} className="w-full lg:w-auto flex flex-col sm:flex-row flex-wrap lg:flex-nowrap items-stretch sm:items-end gap-3">
                         <div className="flex-1 w-full sm:w-auto lg:w-40">
                             <input type="date" value={salesForm.date} onChange={e => setSalesForm({...salesForm, date: e.target.value})} className="w-full bg-orange-700/50 border border-orange-400/30 rounded-xl px-4 py-3 text-sm text-white outline-none focus:bg-orange-700" />
+                        </div>
+                        <div className="flex-1 w-full sm:w-auto lg:w-40">
+                            <select required value={salesForm.branch} onChange={e => setSalesForm({...salesForm, branch: e.target.value})} className="w-full bg-orange-700/50 border border-orange-400/30 rounded-xl px-4 py-3 text-sm text-white outline-none focus:bg-orange-700" title={t('sales.branch')}>
+                                {Object.values(Branch).map(b => <option key={b} value={b} className="text-zinc-900">{b}</option>)}
+                            </select>
                         </div>
                         <div className="flex-[2] w-full sm:w-auto lg:w-64">
                             <select value={salesForm.product} onChange={e => setSalesForm({...salesForm, product: e.target.value})} className="w-full bg-orange-700/50 border border-orange-400/30 rounded-xl px-4 py-3 text-sm text-white outline-none focus:bg-orange-700">
@@ -665,12 +716,26 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                                     ? (emp?.avatarUrl || `https://ui-avatars.com/api/?name=${emp?.name || '?'}`)
                                     : `https://ui-avatars.com/api/?name=?&background=18181b&color=52525b`;
 
+                                const entryTime = formatTimeOfDay(log.createdAt);
+                                const showOffShift = canSeeOffShift && log.isOffShift;
                                 return (
-                                    <tr key={log.id} className={`hover:bg-zinc-800/30 transition-colors group ${isPending ? 'bg-orange-500/5' : ''}`}>
+                                    <tr key={log.id} className={`hover:bg-zinc-800/30 transition-colors group ${isPending ? 'bg-orange-500/5' : ''} ${showOffShift ? 'bg-red-500/5' : ''}`}>
                                         <td className="p-4">
-                                            <div className="flex items-center gap-2">
-                                                <Calendar size={14} className="text-zinc-600" />
-                                                <span className="text-sm font-medium text-zinc-400">{formatDate(log.saleDate)}</span>
+                                            <div className="flex flex-col gap-1">
+                                                <div className="flex items-center gap-2">
+                                                    <Calendar size={14} className="text-zinc-600" />
+                                                    <span className="text-sm font-medium text-zinc-400">{formatDate(log.saleDate)}</span>
+                                                    {entryTime && (
+                                                        <span className="inline-flex items-center gap-1 text-[11px] font-mono text-zinc-500 bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 rounded">
+                                                            <Clock size={10} /> {entryTime}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {showOffShift && (
+                                                    <span className="inline-flex items-center gap-1 self-start text-[9px] font-bold uppercase tracking-wider text-red-400 bg-red-500/10 border border-red-500/30 px-1.5 py-0.5 rounded" title="Bu satış kullanıcının vardiyası dışında girildi">
+                                                        <AlertTriangle size={10} /> Mesai Dışı
+                                                    </span>
+                                                )}
                                             </div>
                                         </td>
                                         <td className="p-4">
@@ -755,8 +820,10 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                             ? (emp?.avatarUrl || `https://ui-avatars.com/api/?name=${emp?.name || '?'}`)
                             : `https://ui-avatars.com/api/?name=?&background=18181b&color=52525b`;
 
+                        const entryTime = formatTimeOfDay(log.createdAt);
+                        const showOffShift = canSeeOffShift && log.isOffShift;
                         return (
-                            <div key={log.id} className={`p-4 flex flex-col gap-3 hover:bg-zinc-800/30 transition-colors ${isPending ? 'bg-orange-500/5' : ''}`}>
+                            <div key={log.id} className={`p-4 flex flex-col gap-3 hover:bg-zinc-800/30 transition-colors ${isPending ? 'bg-orange-500/5' : ''} ${showOffShift ? 'bg-red-500/5' : ''}`}>
                                 <div className="flex justify-between items-start">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-full overflow-hidden border border-zinc-800 bg-zinc-900 shrink-0">
@@ -766,9 +833,19 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                                             <span className={`text-sm font-bold block ${isMe ? 'text-orange-400' : 'text-zinc-200'}`}>
                                                 {displayName}
                                             </span>
-                                            <div className="flex items-center gap-2 mt-0.5">
+                                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                                 <Calendar size={12} className="text-zinc-600" />
                                                 <span className="text-xs font-medium text-zinc-400">{formatDate(log.saleDate)}</span>
+                                                {entryTime && (
+                                                    <span className="inline-flex items-center gap-1 text-[10px] font-mono text-zinc-500 bg-zinc-900 border border-zinc-800 px-1 py-0.5 rounded">
+                                                        <Clock size={9} /> {entryTime}
+                                                    </span>
+                                                )}
+                                                {showOffShift && (
+                                                    <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-red-400 bg-red-500/10 border border-red-500/30 px-1.5 py-0.5 rounded">
+                                                        <AlertTriangle size={9} /> Mesai Dışı
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
                                     </div>

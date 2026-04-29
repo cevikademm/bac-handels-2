@@ -131,4 +131,5 @@ export interface SalesLog {
     saleDate: string;
     status: 'Bekliyor' | 'Onaylandı' | 'Reddedildi';
     createdAt: string;
+    isOffShift?: boolean; // satış girişi anında kullanıcı vardiyada mıydı (false) yoksa evdeyken mi girdi (true)
 }
