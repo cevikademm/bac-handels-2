@@ -3,15 +3,20 @@ import { Employee, Branch } from '../types';
 import { supabase } from '../lib/supabase';
 import {
   AlertTriangle, Package, TrendingDown, TrendingUp, ShieldAlert, BarChart3,
-  Plus, Trash2, CheckCircle2, XCircle, Filter, Calendar, MapPin, Clock,
+  Plus, Trash2, Pencil, CheckCircle2, XCircle, Filter, Calendar, MapPin, Clock,
   ArrowDownRight, ArrowUpRight, Eye, RefreshCw, Loader2, Search, FileText
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line, Legend } from 'recharts';
 
 // ========================
 // KAYIP ÖNLEME PANELİ
-// Sadece cevikademm@gmail.com görebilir
+// Erişim: cevikademm@gmail.com ve gurcan@bac.de
 // ========================
+
+export const LOSS_CONTROL_ALLOWED_EMAILS = ['cevikademm@gmail.com', 'gurcan@bac.de'];
+
+export const canAccessLossControl = (email?: string | null): boolean =>
+  !!email && LOSS_CONTROL_ALLOWED_EMAILS.includes(email.trim().toLowerCase());
 
 interface LossControlProps {
   currentUser: Employee;
@@ -66,13 +71,19 @@ interface LossAlert {
 
 const BRANCHES = Object.values(Branch);
 
-const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
-  // Access Control - sadece cevikademm@gmail.com
-  if (currentUser.email !== 'cevikademm@gmail.com') {
-    return null;
-  }
+// WhatsApp brand icon (lucide-react'da yok, inline SVG)
+const WhatsAppIcon = ({ size = 20 }: { size?: number }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" width={size} height={size} aria-hidden="true">
+    <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" />
+  </svg>
+);
 
-  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'stock' | 'alerts' | 'report'>('overview');
+const ADMIN_WHATSAPP = '905324961412';
+
+const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
+  const isLossAdmin = canAccessLossControl(currentUser.email);
+
+  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'stock' | 'alerts' | 'report'>(isLossAdmin ? 'overview' : 'stock');
   const [isLoading, setIsLoading] = useState(true);
 
   // Data States
@@ -108,6 +119,11 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
   const [showStockForm, setShowStockForm] = useState(false);
   const [showCountForm, setShowCountForm] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<StockEntry | null>(null);
+  const [editingCount, setEditingCount] = useState<StockCount | null>(null);
+
+  // Mevcut Stok Durumu için periyot toggle
+  const [stockPeriod, setStockPeriod] = useState<'week' | 'month'>('month');
 
   // Fetch all data
   useEffect(() => {
@@ -278,22 +294,42 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
     setAlerts(newAlerts);
   };
 
-  // Save Stock Entry
+  // Open Edit / Reset helpers
+  const resetStockForm = () => setStockForm({ product_name: '', branch: BRANCHES[0], quantity: 0, entry_date: new Date().toISOString().split('T')[0], note: '' });
+  const resetCountForm = () => setCountForm({ product_name: '', branch: BRANCHES[0], counted_quantity: 0, count_date: new Date().toISOString().split('T')[0], note: '' });
+
+  const closeStockForm = () => { setShowStockForm(false); setEditingEntry(null); resetStockForm(); };
+  const closeCountForm = () => { setShowCountForm(false); setEditingCount(null); resetCountForm(); };
+
+  const openEditEntry = (e: StockEntry) => {
+    setEditingEntry(e);
+    setStockForm({ product_name: e.product_name, branch: e.branch, quantity: e.quantity, entry_date: e.entry_date, note: e.note || '' });
+    setShowStockForm(true);
+  };
+
+  const openEditCount = (c: StockCount) => {
+    setEditingCount(c);
+    setCountForm({ product_name: c.product_name, branch: c.branch, counted_quantity: c.counted_quantity, count_date: c.count_date, note: c.note || '' });
+    setShowCountForm(true);
+  };
+
+  // Save Stock Entry (insert or update)
   const handleSaveStockEntry = async () => {
     if (!stockForm.product_name || stockForm.quantity <= 0) return;
     setIsSaving(true);
     try {
-      const { error } = await supabase.from('stock_entries').insert({
+      const payload = {
         product_name: stockForm.product_name,
         branch: stockForm.branch,
         quantity: stockForm.quantity,
         entry_date: stockForm.entry_date,
-        entered_by: currentUser.id,
         note: stockForm.note || null
-      });
+      };
+      const { error } = editingEntry
+        ? await supabase.from('stock_entries').update(payload).eq('id', editingEntry.id)
+        : await supabase.from('stock_entries').insert({ ...payload, entered_by: currentUser.id });
       if (error) throw error;
-      setShowStockForm(false);
-      setStockForm({ product_name: '', branch: BRANCHES[0], quantity: 0, entry_date: new Date().toISOString().split('T')[0], note: '' });
+      closeStockForm();
       fetchAllData();
     } catch (err) {
       alert('Stok girişi kaydedilemedi: ' + (err as Error).message);
@@ -302,22 +338,23 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
     }
   };
 
-  // Save Stock Count
+  // Save Stock Count (insert or update)
   const handleSaveCount = async () => {
     if (!countForm.product_name || countForm.counted_quantity < 0) return;
     setIsSaving(true);
     try {
-      const { error } = await supabase.from('stock_counts').insert({
+      const payload = {
         product_name: countForm.product_name,
         branch: countForm.branch,
         counted_quantity: countForm.counted_quantity,
         count_date: countForm.count_date,
-        counted_by: currentUser.id,
         note: countForm.note || null
-      });
+      };
+      const { error } = editingCount
+        ? await supabase.from('stock_counts').update(payload).eq('id', editingCount.id)
+        : await supabase.from('stock_counts').insert({ ...payload, counted_by: currentUser.id });
       if (error) throw error;
-      setShowCountForm(false);
-      setCountForm({ product_name: '', branch: BRANCHES[0], counted_quantity: 0, count_date: new Date().toISOString().split('T')[0], note: '' });
+      closeCountForm();
       fetchAllData();
     } catch (err) {
       alert('Sayım kaydedilemedi: ' + (err as Error).message);
@@ -325,6 +362,58 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
       setIsSaving(false);
     }
   };
+
+  // Delete handlers
+  const handleDeleteEntry = async (id: string) => {
+    if (!confirm('Bu stok girişini silmek istediğinizden emin misiniz?')) return;
+    try {
+      const { error } = await supabase.from('stock_entries').delete().eq('id', id);
+      if (error) throw error;
+      fetchAllData();
+    } catch (err) {
+      alert('Silinemedi: ' + (err as Error).message);
+    }
+  };
+
+  const handleDeleteCount = async (id: string) => {
+    if (!confirm('Bu sayımı silmek istediğinizden emin misiniz?')) return;
+    try {
+      const { error } = await supabase.from('stock_counts').delete().eq('id', id);
+      if (error) throw error;
+      fetchAllData();
+    } catch (err) {
+      alert('Silinemedi: ' + (err as Error).message);
+    }
+  };
+
+  // (Şube, Ürün) bazında mevcut stok: toplam giriş - dönemde onaylı satış
+  const currentStock = useMemo(() => {
+    const map = new Map<string, { branch: string; product: string; stocked: number; sold: number }>();
+
+    stockEntries.forEach(s => {
+      const key = `${s.branch}|${s.product_name}`;
+      const cur = map.get(key) || { branch: s.branch, product: s.product_name, stocked: 0, sold: 0 };
+      cur.stocked += s.quantity;
+      map.set(key, cur);
+    });
+
+    const days = stockPeriod === 'week' ? 7 : 30;
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    salesData
+      .filter(s => s.status === 'Onaylandı' && s.sale_date >= since)
+      .forEach(s => {
+        const key = `${s.branch}|${s.product_name}`;
+        const cur = map.get(key) || { branch: s.branch, product: s.product_name, stocked: 0, sold: 0 };
+        cur.sold += s.quantity;
+        map.set(key, cur);
+      });
+
+    let rows = Array.from(map.values()).map(r => ({ ...r, remaining: r.stocked - r.sold }));
+    if (filterBranch !== 'ALL') rows = rows.filter(r => r.branch === filterBranch);
+    rows.sort((a, b) => a.branch.localeCompare(b.branch) || a.product.localeCompare(b.product));
+    return rows;
+  }, [stockEntries, salesData, stockPeriod, filterBranch]);
 
   // Filtered data
   const filteredSales = useMemo(() => {
@@ -407,16 +496,31 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
   }
 
   return (
-    <div className="h-full w-full overflow-y-auto overflow-x-hidden custom-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
+    <div className="relative h-full w-full overflow-y-auto overflow-x-hidden custom-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
+      {!isLossAdmin && (
+        <a
+          href={`https://wa.me/${ADMIN_WHATSAPP}?text=${encodeURIComponent('Merhaba, stokta bir sorun var. Detay: ')}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="fixed bottom-24 right-4 md:bottom-8 md:right-8 z-40 flex items-center gap-2 px-4 py-3 bg-[#25D366] hover:bg-[#1ebe5a] active:scale-95 rounded-full shadow-lg shadow-emerald-500/40 text-white font-semibold text-xs md:text-sm transition-all"
+          title="Stok hatası varsa admine WhatsApp at"
+          aria-label="WhatsApp ile admine ulaş"
+        >
+          <WhatsAppIcon size={18} />
+          <span className="hidden sm:inline">Admine Ulaş</span>
+        </a>
+      )}
       <div className="p-3 md:p-6 pb-32 md:pb-10 space-y-4 md:space-y-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h1 className="text-lg md:text-2xl font-bold text-white flex items-center gap-2">
             <ShieldAlert className="text-red-400 shrink-0" size={22} />
-            <span className="truncate">Kayıp Önleme</span>
+            <span className="truncate">{isLossAdmin ? 'Kayıp Önleme' : 'Stok'}</span>
           </h1>
-          <p className="text-zinc-500 text-xs md:text-sm mt-0.5 hidden sm:block">Sadece Admin — Stok takip, kayıp tespiti, şube analizi</p>
+          <p className="text-zinc-500 text-xs md:text-sm mt-0.5 hidden sm:block">
+            {isLossAdmin ? 'Stok takip, kayıp tespiti, şube analizi' : 'Stok girişi yapın · sorun varsa admine WhatsApp atın'}
+          </p>
         </div>
         <button
           onClick={fetchAllData}
@@ -431,11 +535,11 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
       {/* Sub-tabs */}
       <div className="flex gap-1 bg-zinc-900/50 p-1 rounded-xl border border-zinc-800 overflow-x-auto custom-scrollbar -mx-1 px-1">
         {[
-          { id: 'overview', label: 'Genel Bakış', icon: BarChart3 },
-          { id: 'stock', label: 'Stok Yönetimi', icon: Package },
-          { id: 'alerts', label: 'Alarmlar', icon: AlertTriangle },
-          { id: 'report', label: 'Şube Raporu', icon: FileText },
-        ].map(tab => (
+          { id: 'overview', label: 'Genel Bakış', icon: BarChart3, adminOnly: false },
+          { id: 'stock', label: 'Stok Yönetimi', icon: Package, adminOnly: false },
+          { id: 'alerts', label: 'Alarmlar', icon: AlertTriangle, adminOnly: true },
+          { id: 'report', label: 'Şube Raporu', icon: FileText, adminOnly: true },
+        ].filter(tab => isLossAdmin || !tab.adminOnly).map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveSubTab(tab.id as any)}
@@ -574,25 +678,27 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
       {activeSubTab === 'stock' && (
         <div className="space-y-4 md:space-y-6">
           {/* Action Buttons */}
-          <div className="grid grid-cols-2 sm:flex gap-2 sm:gap-3">
+          <div className={`grid ${isLossAdmin ? 'grid-cols-2 sm:flex' : 'grid-cols-1'} gap-2 sm:gap-3`}>
             <button
               onClick={() => setShowStockForm(true)}
               className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 rounded-lg text-white text-xs sm:text-sm font-medium transition-all"
             >
               <Plus size={16} /> Stok Girişi
             </button>
-            <button
-              onClick={() => setShowCountForm(true)}
-              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 rounded-lg text-white text-xs sm:text-sm font-medium transition-all"
-            >
-              <Search size={16} /> Sayım Ekle
-            </button>
+            {isLossAdmin && (
+              <button
+                onClick={() => setShowCountForm(true)}
+                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 rounded-lg text-white text-xs sm:text-sm font-medium transition-all"
+              >
+                <Search size={16} /> Sayım Ekle
+              </button>
+            )}
           </div>
 
           {/* Stock Entry Form Modal */}
           {showStockForm && (
             <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-5 space-y-4">
-              <h3 className="text-lg font-semibold text-white">Yeni Stok Girişi</h3>
+              <h3 className="text-lg font-semibold text-white">{editingEntry ? 'Stok Girişi Düzenle' : 'Yeni Stok Girişi'}</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs text-zinc-400 mb-1 block">Ürün</label>
@@ -655,7 +761,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                   Kaydet
                 </button>
                 <button
-                  onClick={() => setShowStockForm(false)}
+                  onClick={closeStockForm}
                   className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-300 text-sm transition-colors"
                 >
                   İptal
@@ -667,7 +773,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
           {/* Count Form Modal */}
           {showCountForm && (
             <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-5 space-y-4">
-              <h3 className="text-lg font-semibold text-white">Fiziksel Sayım Girişi</h3>
+              <h3 className="text-lg font-semibold text-white">{editingCount ? 'Sayım Düzenle' : 'Fiziksel Sayım Girişi'}</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs text-zinc-400 mb-1 block">Ürün</label>
@@ -730,7 +836,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                   Kaydet
                 </button>
                 <button
-                  onClick={() => setShowCountForm(false)}
+                  onClick={closeCountForm}
                   className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-300 text-sm transition-colors"
                 >
                   İptal
@@ -738,6 +844,58 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
               </div>
             </div>
           )}
+
+          {/* Mevcut Stok Durumu — (şube + ürün) bazında giriş, satılan, kalan */}
+          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden">
+            <div className="px-3 md:px-4 py-3 border-b border-zinc-800 flex items-center justify-between gap-2 flex-wrap">
+              <h3 className="text-xs md:text-sm font-semibold text-zinc-300">Mevcut Stok Durumu</h3>
+              <div className="flex items-center gap-1 bg-zinc-900 rounded-lg p-1 border border-zinc-800">
+                <button
+                  onClick={() => setStockPeriod('week')}
+                  className={`px-3 py-1 text-[11px] md:text-xs font-bold rounded transition-all ${stockPeriod === 'week' ? 'bg-indigo-600 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                >
+                  Son 7 Gün
+                </button>
+                <button
+                  onClick={() => setStockPeriod('month')}
+                  className={`px-3 py-1 text-[11px] md:text-xs font-bold rounded transition-all ${stockPeriod === 'month' ? 'bg-indigo-600 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                >
+                  Son 30 Gün
+                </button>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-zinc-900">
+                  <tr className="text-zinc-500 text-xs">
+                    <th className="px-3 md:px-4 py-2 text-left">Şube</th>
+                    <th className="px-3 md:px-4 py-2 text-left">Ürün</th>
+                    <th className="px-3 md:px-4 py-2 text-right">Toplam Giriş</th>
+                    <th className="px-3 md:px-4 py-2 text-right">Satılan</th>
+                    <th className="px-3 md:px-4 py-2 text-right">Kalan</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentStock.map(r => (
+                    <tr key={`${r.branch}|${r.product}`} className="border-t border-zinc-800/50 hover:bg-zinc-800/30">
+                      <td className="px-3 md:px-4 py-2 text-zinc-300 whitespace-nowrap">{r.branch}</td>
+                      <td className="px-3 md:px-4 py-2 text-zinc-200">{r.product}</td>
+                      <td className="px-3 md:px-4 py-2 text-right text-zinc-300 tabular-nums">{r.stocked}</td>
+                      <td className="px-3 md:px-4 py-2 text-right text-emerald-400 font-medium tabular-nums">−{r.sold}</td>
+                      <td className={`px-3 md:px-4 py-2 text-right font-bold tabular-nums ${r.remaining < 0 ? 'text-red-400' : r.remaining < 5 ? 'text-orange-400' : 'text-white'}`}>
+                        {r.remaining}
+                      </td>
+                    </tr>
+                  ))}
+                  {currentStock.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-8 text-center text-zinc-600">Bu filtreyle eşleşen kayıt yok</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
 
           {/* Stock History Table */}
           <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden">
@@ -753,6 +911,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                     <th className="px-4 py-2 text-left">Ürün</th>
                     <th className="px-4 py-2 text-right">Adet</th>
                     <th className="px-4 py-2 text-left">Not</th>
+                    {isLossAdmin && <th className="px-4 py-2 text-right">İşlem</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -763,11 +922,31 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                       <td className="px-4 py-2 text-zinc-200">{entry.product_name}</td>
                       <td className="px-4 py-2 text-right text-white font-medium">{entry.quantity}</td>
                       <td className="px-4 py-2 text-zinc-500">{entry.note || '—'}</td>
+                      {isLossAdmin && (
+                        <td className="px-4 py-2">
+                          <div className="flex justify-end gap-1">
+                            <button
+                              onClick={() => openEditEntry(entry)}
+                              className="p-1.5 rounded text-zinc-400 hover:text-indigo-400 hover:bg-indigo-600/10 transition-colors"
+                              title="Düzenle"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteEntry(entry.id)}
+                              className="p-1.5 rounded text-zinc-400 hover:text-red-400 hover:bg-red-600/10 transition-colors"
+                              title="Sil"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                   {stockEntries.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-zinc-600">Henüz stok girişi yok</td>
+                      <td colSpan={isLossAdmin ? 6 : 5} className="px-4 py-8 text-center text-zinc-600">Henüz stok girişi yok</td>
                     </tr>
                   )}
                 </tbody>
@@ -789,6 +968,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                     <th className="px-4 py-2 text-left">Ürün</th>
                     <th className="px-4 py-2 text-right">Sayılan</th>
                     <th className="px-4 py-2 text-left">Not</th>
+                    {isLossAdmin && <th className="px-4 py-2 text-right">İşlem</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -799,11 +979,31 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                       <td className="px-4 py-2 text-zinc-200">{count.product_name}</td>
                       <td className="px-4 py-2 text-right text-white font-medium">{count.counted_quantity}</td>
                       <td className="px-4 py-2 text-zinc-500">{count.note || '—'}</td>
+                      {isLossAdmin && (
+                        <td className="px-4 py-2">
+                          <div className="flex justify-end gap-1">
+                            <button
+                              onClick={() => openEditCount(count)}
+                              className="p-1.5 rounded text-zinc-400 hover:text-indigo-400 hover:bg-indigo-600/10 transition-colors"
+                              title="Düzenle"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCount(count.id)}
+                              className="p-1.5 rounded text-zinc-400 hover:text-red-400 hover:bg-red-600/10 transition-colors"
+                              title="Sil"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                   {stockCounts.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-zinc-600">Henüz sayım yok</td>
+                      <td colSpan={isLossAdmin ? 6 : 5} className="px-4 py-8 text-center text-zinc-600">Henüz sayım yok</td>
                     </tr>
                   )}
                 </tbody>

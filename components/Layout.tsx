@@ -16,6 +16,7 @@ import {
 import { useLanguage } from '../lib/i18n';
 import { Role } from '../types';
 import { GlowingEffect } from './ui/glowing-effect';
+import { canAccessLossControl } from './LossControl';
 
 
 interface LayoutProps {
@@ -90,19 +91,17 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
               >
                   {language === 'tr' ? '🇹🇷' : '🇩🇪'}
               </button>
-              {userEmail === 'cevikademm@gmail.com' && (
-                <button
-                  onClick={() => setActiveTab('loss-control')}
-                  className={`flex items-center justify-center h-9 w-9 rounded-lg border transition-colors ${
-                    activeTab === 'loss-control'
-                      ? 'bg-red-600/20 text-red-400 border-red-600/40'
-                      : 'bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:text-red-400'
-                  }`}
-                  title="Kayıp Önleme"
-                >
-                  <ShieldAlert size={18} />
-                </button>
-              )}
+              <button
+                onClick={() => setActiveTab('loss-control')}
+                className={`flex items-center justify-center h-9 w-9 rounded-lg border transition-colors ${
+                  activeTab === 'loss-control'
+                    ? 'bg-red-600/20 text-red-400 border-red-600/40'
+                    : 'bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:text-red-400'
+                }`}
+                title={canAccessLossControl(userEmail) ? 'Kayıp Önleme' : 'Stok'}
+              >
+                <ShieldAlert size={18} />
+              </button>
               <button
                 onClick={() => setActiveTab('settings')}
                 className={`p-2 rounded-full transition-colors ${activeTab === 'settings' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white'}`}
@@ -153,21 +152,19 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
         </nav>
 
         <div className="mt-auto">
-            {userEmail === 'cevikademm@gmail.com' && (
-              <div className="px-4 pb-2">
-                <button
-                  onClick={() => setActiveTab('loss-control')}
-                  className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-bold transition-all border ${
-                    activeTab === 'loss-control'
-                      ? 'bg-red-600/20 text-red-400 border-red-600/40'
-                      : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-red-400 hover:border-red-600/30'
-                  }`}
-                >
-                  <ShieldAlert size={16} />
-                  <span>Kayıp Önleme</span>
-                </button>
-              </div>
-            )}
+            <div className="px-4 pb-2">
+              <button
+                onClick={() => setActiveTab('loss-control')}
+                className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-bold transition-all border ${
+                  activeTab === 'loss-control'
+                    ? 'bg-red-600/20 text-red-400 border-red-600/40'
+                    : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-red-400 hover:border-red-600/30'
+                }`}
+              >
+                <ShieldAlert size={16} />
+                <span>{canAccessLossControl(userEmail) ? 'Kayıp Önleme' : 'Stok'}</span>
+              </button>
+            </div>
             <div className="px-4 pb-4">
                 <div className="flex bg-zinc-900 rounded-lg p-1 border border-zinc-800">
                     <button
