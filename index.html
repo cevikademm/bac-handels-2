@@ -48,7 +48,10 @@
       body {
         background-color: #09090b; /* Zinc-950 */
         color: #e4e4e7; /* Zinc-200 */
-        /* Dynamic Viewport Height for Mobile Browsers */
+        /* Dynamic Viewport Height for Mobile Browsers
+           - 100vh fallback: Samsung Internet eski sürümler ve dvh desteği olmayanlar için.
+           - 100dvh: modern Chrome/Safari/Firefox. Adres çubuğu açılırken ekran daralmaz. */
+        height: 100vh;
         height: 100dvh;
         width: 100vw;
         overflow: hidden; /* App-like feel */
@@ -56,6 +59,13 @@
         -webkit-user-select: none; /* Prevent text selection */
         user-select: none;
         -webkit-tap-highlight-color: transparent; /* Remove blue tap highlight */
+      }
+      /* Uygulama kabuğu: cross-browser tam ekran. Tailwind arbitrary [height:100dvh]
+         eski Samsung Internet'te invalid kuralı atlatamadığı için CSS cascade ile
+         iki kuralı yan yana yazıyoruz: 100dvh tanımsızsa 100vh devrede kalır. */
+      .app-shell {
+        height: 100vh;
+        height: 100dvh;
       }
       input, textarea, [contenteditable] {
         -webkit-user-select: text;

@@ -68,7 +68,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
   const isAdmin = userRole.includes('Admin');
 
   return (
-    <div className="relative h-[100dvh] w-full bg-zinc-950 text-zinc-200 font-sans overflow-hidden flex flex-col md:flex-row">
+    <div className="app-shell relative w-full bg-zinc-950 text-zinc-200 font-sans overflow-hidden flex flex-col md:flex-row">
       
       {/* --- MOBILE HEADER (Visible only on mobile) --- */}
       <header className="md:hidden h-[calc(4rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] bg-zinc-950 border-b border-zinc-800 flex items-center justify-between px-4 shrink-0 z-30 relative shadow-sm">
@@ -217,12 +217,15 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
          </div>
       </main>
 
-      {/* --- MOBILE BOTTOM NAVIGATION --- */}
-      <div 
-        className="md:hidden absolute bottom-0 left-0 right-0 z-50 px-4 pointer-events-none"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 5px)' }}
+      {/* --- MOBILE BOTTOM NAVIGATION ---
+          - paddingBottom env() Apple'da homebar boşluğunu, Samsung/diğerlerinde
+            12px varsayılan boşluğu garanti eder. -mb-6 kaldırıldı çünkü
+            safe-area-inset-bottom = 0 olan Samsung'ta nav viewport dışına kayıyordu. */}
+      <div
+        className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-4 pb-3 pointer-events-none"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}
       >
-        <nav className="w-full h-16 bg-zinc-900/90 backdrop-blur-xl border border-zinc-800/60 rounded-2xl flex justify-around items-center px-1 ml-0 -mb-6 shadow-[0_8px_30px_rgba(0,0,0,0.6)] pointer-events-auto">
+        <nav className="w-full h-16 bg-zinc-900/90 backdrop-blur-xl border border-zinc-800/60 rounded-2xl flex justify-around items-center px-1 shadow-[0_8px_30px_rgba(0,0,0,0.6)] pointer-events-auto">
             <MobileNavItem icon={LayoutDashboard} label={t('nav.dashboard')} id="dashboard" active={activeTab === 'dashboard'} onClick={setActiveTab} />
             <MobileNavItem icon={CalendarIcon} label={t('nav.calendar')} id="calendar" active={activeTab === 'calendar'} onClick={setActiveTab} />
             {!isAdmin && (
