@@ -4,7 +4,8 @@ import { supabase } from '../lib/supabase';
 import {
   AlertTriangle, Package, TrendingDown, TrendingUp, ShieldAlert, BarChart3,
   Plus, Trash2, Pencil, CheckCircle2, XCircle, Filter, Calendar, MapPin, Clock,
-  ArrowDownRight, ArrowUpRight, Eye, RefreshCw, Loader2, Search, FileText
+  ArrowDownRight, ArrowUpRight, Eye, RefreshCw, Loader2, Search, FileText,
+  Sparkles, Crown, Zap, Users, Activity, Award, TrendingUp as TUp
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line, Legend } from 'recharts';
 
@@ -17,6 +18,11 @@ export const LOSS_CONTROL_ALLOWED_EMAILS = ['cevikademm@gmail.com', 'gurcan@bac.
 
 export const canAccessLossControl = (email?: string | null): boolean =>
   !!email && LOSS_CONTROL_ALLOWED_EMAILS.includes(email.trim().toLowerCase());
+
+// Patron paneli (AI Analiz sekmesi) — şimdilik sadece bu hesap görür
+export const SUPER_ADMIN_EMAIL = 'cevikademm@gmail.com';
+export const isSuperAdmin = (email?: string | null): boolean =>
+  !!email && email.trim().toLowerCase() === SUPER_ADMIN_EMAIL;
 
 interface LossControlProps {
   currentUser: Employee;
@@ -82,8 +88,9 @@ const ADMIN_WHATSAPP = '905324961412';
 
 const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
   const isLossAdmin = canAccessLossControl(currentUser.email);
+  const isSuper = isSuperAdmin(currentUser.email);
 
-  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'stock' | 'alerts' | 'report'>(isLossAdmin ? 'overview' : 'stock');
+  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'stock' | 'alerts' | 'report' | 'ai'>(isLossAdmin ? 'overview' : 'stock');
   const [isLoading, setIsLoading] = useState(true);
 
   // Data States
@@ -96,7 +103,12 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
 
   // Filter States
   const [filterBranch, setFilterBranch] = useState<string>('ALL');
+  const [filterProduct, setFilterProduct] = useState<string>('ALL');
   const [filterDateRange, setFilterDateRange] = useState<'today' | 'week' | 'month' | 'all'>('month');
+
+  // Vardiya planı — pairing analizi için (sadece super admin için fetch ediliyor)
+  const [shifts, setShifts] = useState<any[]>([]);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   // Stock Entry Form
   const [stockForm, setStockForm] = useState({
@@ -161,6 +173,13 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
       const { data: empData } = await supabase
         .from('profiles')
         .select('*');
+
+      // Vardiya planı — sadece super admin pairing analizi için kullanır
+      const { data: shiftData } = isSuper
+        ? await supabase.from('shift_schedules').select('*')
+        : { data: null };
+      if (shiftData) setShifts(shiftData);
+      setLastRefresh(new Date());
 
       if (stockData) setStockEntries(stockData);
       if (countData) setStockCounts(countData);
@@ -413,14 +432,16 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
 
     let rows = Array.from(map.values()).map(r => ({ ...r, remaining: r.stocked - r.sold }));
     if (filterBranch !== 'ALL') rows = rows.filter(r => r.branch === filterBranch);
+    if (filterProduct !== 'ALL') rows = rows.filter(r => r.product === filterProduct);
     rows.sort((a, b) => a.branch.localeCompare(b.branch) || a.product.localeCompare(b.product));
     return rows;
-  }, [stockEntries, salesData, stockPeriod, filterBranch]);
+  }, [stockEntries, salesData, stockPeriod, filterBranch, filterProduct]);
 
   // Filtered data
   const filteredSales = useMemo(() => {
     let data = salesData;
     if (filterBranch !== 'ALL') data = data.filter(s => s.branch === filterBranch);
+    if (filterProduct !== 'ALL') data = data.filter(s => s.product_name === filterProduct);
     const now = new Date();
     if (filterDateRange === 'today') {
       const today = now.toISOString().split('T')[0];
@@ -433,7 +454,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
       data = data.filter(s => s.sale_date >= monthAgo);
     }
     return data;
-  }, [salesData, filterBranch, filterDateRange]);
+  }, [salesData, filterBranch, filterProduct, filterDateRange]);
 
   // Branch Summary Cards
   const branchSummary = useMemo(() => {
@@ -488,6 +509,180 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
   // Employee name helper
   const getEmpName = (id: string) => employees.find(e => e.id === id)?.name || id;
 
+  // ========================================================================
+  // === AI ANALİZ — sadece super admin (cevikademm@gmail.com) için ===
+  // Personel performansı, şube skoru, eşleşme önerileri, otomatik içgörüler
+  // ========================================================================
+
+  // Yardımcı: YYYY-MM-DD'ye gün ekle
+  const addDays = (dateStr: string, n: number): string => {
+    const d = new Date(dateStr);
+    d.setDate(d.getDate() + n);
+    return d.toISOString().split('T')[0];
+  };
+
+  // Personel performansı (son 30 gün)
+  const employeePerf = useMemo(() => {
+    if (!isSuper) return [];
+    const since = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+    const map = new Map<string, { id: string; name: string; total: number; approved: number; rejected: number; pending: number; branches: Map<string, number>; offShift: number }>();
+
+    salesData.filter((s: any) => s.sale_date >= since).forEach((s: any) => {
+      const id = s.employee_id;
+      if (!id) return;
+      const cur = map.get(id) || { id, name: getEmpName(id), total: 0, approved: 0, rejected: 0, pending: 0, branches: new Map(), offShift: 0 };
+      cur.total += s.quantity;
+      if (s.status === 'Onaylandı') cur.approved += s.quantity;
+      else if (s.status === 'Reddedildi') cur.rejected += s.quantity;
+      else cur.pending += s.quantity;
+      if (s.is_off_shift) cur.offShift += 1;
+      cur.branches.set(s.branch, (cur.branches.get(s.branch) || 0) + s.quantity);
+      map.set(id, cur);
+    });
+
+    return Array.from(map.values())
+      .map(e => {
+        const topB = Array.from(e.branches.entries()).sort((a, b) => b[1] - a[1])[0];
+        return {
+          ...e,
+          approvalRate: e.total > 0 ? (e.approved / e.total) * 100 : 0,
+          topBranch: topB?.[0] || '-',
+          topBranchSales: topB?.[1] || 0
+        };
+      })
+      .sort((a, b) => b.approved - a.approved);
+  }, [salesData, employees, isSuper]);
+
+  // Şube skoru: onaylı satış × 10 − kayıp × 5 − red × 2 − mesai dışı × 1
+  const branchScores = useMemo(() => {
+    if (!isSuper) return [];
+    const since = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+    return BRANCHES.map(branch => {
+      const branchSales = salesData.filter((s: any) => s.branch === branch && s.sale_date >= since);
+      const approved = branchSales.filter((s: any) => s.status === 'Onaylandı').reduce((sum: number, s: any) => sum + s.quantity, 0);
+      const pending = branchSales.filter((s: any) => s.status === 'Bekliyor').reduce((sum: number, s: any) => sum + s.quantity, 0);
+      const rejected = branchSales.filter((s: any) => s.status === 'Reddedildi').reduce((sum: number, s: any) => sum + s.quantity, 0);
+      const offShift = branchSales.filter((s: any) => s.is_off_shift).length;
+      const branchAlerts = alerts.filter(a => a.branch === branch);
+      const lossCount = branchAlerts.filter(a => a.alert_type === 'kayip').reduce((sum, a) => sum + a.difference, 0);
+      const score = approved * 10 - lossCount * 5 - rejected * 2 - offShift * 1;
+      return { branch, approved, pending, rejected, offShift, lossCount, score };
+    }).sort((a, b) => b.score - a.score);
+  }, [salesData, alerts, isSuper]);
+
+  // Personel eşleşme önerileri: vardiya planından (date, branch) bazında çalışan
+  // setlerini çıkar, her ikili için birlikte yapılan onaylı satışı topla,
+  // şube ortalamasıyla karşılaştır → sinerji yüzdesi.
+  const pairingRecs = useMemo(() => {
+    if (!isSuper || shifts.length === 0) return [];
+
+    // (date|branch) -> Set<employeeId>
+    const dateBranchEmps = new Map<string, Set<string>>();
+    shifts.forEach((row: any) => {
+      const wsd = row.week_start_date;
+      const branch = row.branch;
+      const days: string[] = Array.isArray(row.days) ? row.days : [];
+      if (!wsd || !branch) return;
+      days.forEach((empId, idx) => {
+        if (!empId) return;
+        const date = addDays(wsd, idx);
+        const key = `${date}|${branch}`;
+        if (!dateBranchEmps.has(key)) dateBranchEmps.set(key, new Set());
+        dateBranchEmps.get(key)!.add(empId);
+      });
+    });
+
+    // (date|branch) -> onaylı satış toplamı
+    const dateBranchSales = new Map<string, number>();
+    salesData.filter((s: any) => s.status === 'Onaylandı').forEach((s: any) => {
+      const key = `${s.sale_date}|${s.branch}`;
+      dateBranchSales.set(key, (dateBranchSales.get(key) || 0) + s.quantity);
+    });
+
+    // Branch bazında: pair stats + branch günlük ortalaması
+    const branchPairs = new Map<string, Map<string, { e1: string; e2: string; coDays: number; totalSales: number }>>();
+    const branchDayAgg = new Map<string, { days: number; sales: number }>();
+
+    dateBranchEmps.forEach((empSet, key) => {
+      const [, branch] = key.split('|');
+      const sales = dateBranchSales.get(key) || 0;
+      const bAgg = branchDayAgg.get(branch) || { days: 0, sales: 0 };
+      bAgg.days += 1;
+      bAgg.sales += sales;
+      branchDayAgg.set(branch, bAgg);
+      const arr = Array.from(empSet).sort();
+      for (let i = 0; i < arr.length; i++) {
+        for (let j = i + 1; j < arr.length; j++) {
+          const pkey = `${arr[i]}|${arr[j]}`;
+          if (!branchPairs.has(branch)) branchPairs.set(branch, new Map());
+          const bp = branchPairs.get(branch)!;
+          const stat = bp.get(pkey) || { e1: arr[i], e2: arr[j], coDays: 0, totalSales: 0 };
+          stat.coDays += 1;
+          stat.totalSales += sales;
+          bp.set(pkey, stat);
+        }
+      }
+    });
+
+    const result: { branch: string; branchAvg: number; pairs: any[] }[] = [];
+    branchPairs.forEach((pairs, branch) => {
+      const agg = branchDayAgg.get(branch);
+      const branchAvg = agg && agg.days > 0 ? agg.sales / agg.days : 0;
+      const ranked = Array.from(pairs.values())
+        .filter(p => p.coDays >= 2) // anlamlı veri için min 2 ortak gün
+        .map(p => ({
+          ...p,
+          avgSales: p.totalSales / p.coDays,
+          synergy: branchAvg > 0 ? ((p.totalSales / p.coDays) / branchAvg - 1) * 100 : 0,
+          name1: getEmpName(p.e1),
+          name2: getEmpName(p.e2)
+        }))
+        .sort((a, b) => b.avgSales - a.avgSales)
+        .slice(0, 3);
+      if (ranked.length > 0) result.push({ branch, branchAvg, pairs: ranked });
+    });
+    return result;
+  }, [shifts, salesData, employees, isSuper]);
+
+  // Otomatik içgörüler — anlamlı tek cümlelik tespitler
+  const autoInsights = useMemo(() => {
+    if (!isSuper) return [];
+    const out: { type: 'success' | 'warning' | 'info'; text: string }[] = [];
+
+    if (branchScores.length > 0) {
+      const top = branchScores[0];
+      if (top.approved > 0) out.push({ type: 'success', text: `🏆 ${top.branch} son 30 günün lideri — ${top.approved} onaylı satış, skor ${top.score}.` });
+      const bottom = branchScores[branchScores.length - 1];
+      if (bottom.score < top.score / 2 && top.score > 0) {
+        out.push({ type: 'warning', text: `⚠️ ${bottom.branch} performansı düşük: ${bottom.approved} satış. ${top.branch}'a göre %${(((top.score - bottom.score) / Math.max(1, top.score)) * 100).toFixed(0)} geride.` });
+      }
+    }
+
+    if (employeePerf.length > 0) {
+      const topEmp = employeePerf[0];
+      if (topEmp.approved > 0) out.push({ type: 'success', text: `💪 ${topEmp.name} ayın yıldızı — ${topEmp.approved} onaylı satış, %${topEmp.approvalRate.toFixed(0)} onay oranı (en sık: ${topEmp.topBranch}).` });
+    }
+
+    const offShiftTotal = salesData.filter((s: any) => s.is_off_shift && s.status !== 'Reddedildi').length;
+    if (offShiftTotal >= 5) {
+      out.push({ type: 'warning', text: `🕒 Toplam ${offShiftTotal} satış mesai dışında girilmiş — vardiya planlama veya yetki kontrolü gerekiyor.` });
+    }
+
+    const bestPair = pairingRecs
+      .flatMap(b => b.pairs.map(p => ({ ...p, branchName: b.branch })))
+      .sort((a, b) => b.synergy - a.synergy)[0];
+    if (bestPair && bestPair.synergy > 10) {
+      out.push({ type: 'success', text: `✨ ${bestPair.name1} + ${bestPair.name2} ikilisi ${bestPair.branchName}'da şube ortalamasının %${bestPair.synergy.toFixed(0)} üstünde satış yapıyor — birlikte daha sık planlayın.` });
+    }
+
+    const totalLoss = alerts.filter(a => a.alert_type === 'kayip' && !a.resolved).reduce((sum, a) => sum + a.difference, 0);
+    if (totalLoss > 0) {
+      out.push({ type: 'warning', text: `📉 Çözülmemiş ${totalLoss} adet kayıp tespit edildi — Kayıp Önleme alarmlarını gözden geçirin.` });
+    }
+
+    return out;
+  }, [branchScores, employeePerf, pairingRecs, alerts, salesData, isSuper]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -537,11 +732,12 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
       {/* Sub-tabs */}
       <div className="flex gap-1 bg-zinc-900/50 p-1 rounded-xl border border-zinc-800 overflow-x-auto custom-scrollbar -mx-1 px-1">
         {[
-          { id: 'overview', label: 'Genel Bakış', icon: BarChart3, adminOnly: false },
-          { id: 'stock', label: 'Stok Yönetimi', icon: Package, adminOnly: false },
-          { id: 'alerts', label: 'Alarmlar', icon: AlertTriangle, adminOnly: true },
-          { id: 'report', label: 'Şube Raporu', icon: FileText, adminOnly: true },
-        ].filter(tab => isLossAdmin || !tab.adminOnly).map(tab => (
+          { id: 'overview', label: 'Genel Bakış', icon: BarChart3, adminOnly: false, superOnly: false },
+          { id: 'stock', label: 'Stok Yönetimi', icon: Package, adminOnly: false, superOnly: false },
+          { id: 'alerts', label: 'Alarmlar', icon: AlertTriangle, adminOnly: true, superOnly: false },
+          { id: 'report', label: 'Şube Raporu', icon: FileText, adminOnly: true, superOnly: false },
+          { id: 'ai', label: 'AI Analiz', icon: Sparkles, adminOnly: true, superOnly: true },
+        ].filter(tab => (isLossAdmin || !tab.adminOnly) && (!tab.superOnly || isSuper)).map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveSubTab(tab.id as any)}
@@ -566,6 +762,15 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
         >
           <option value="ALL">Tüm Şubeler</option>
           {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
+        </select>
+        <select
+          value={filterProduct}
+          onChange={e => setFilterProduct(e.target.value)}
+          className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300 w-full sm:w-auto"
+          title="Ürün filtresi"
+        >
+          <option value="ALL">Tüm Ürünler</option>
+          {products.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
         <select
           value={filterDateRange}
@@ -1200,6 +1405,268 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
               </table>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* === AI ANALİZ TAB (sadece super admin: cevikademm@gmail.com) === */}
+      {activeSubTab === 'ai' && isSuper && (
+        <div className="space-y-4 md:space-y-6">
+          {/* Live indicator + son güncelleme */}
+          <div className="flex items-center justify-between flex-wrap gap-2 bg-gradient-to-r from-violet-900/40 via-fuchsia-900/30 to-pink-900/30 border border-violet-700/40 rounded-xl px-4 py-3">
+            <div className="flex items-center gap-3">
+              <div className="relative flex items-center justify-center">
+                <div className="absolute w-3 h-3 bg-emerald-400 rounded-full animate-ping" />
+                <div className="relative w-3 h-3 bg-emerald-400 rounded-full" />
+              </div>
+              <div>
+                <div className="text-xs md:text-sm font-bold text-white flex items-center gap-1.5">
+                  <Sparkles size={14} className="text-violet-300" /> Canlı Algoritma Aktif
+                </div>
+                <div className="text-[10px] md:text-xs text-violet-200/70">
+                  Son güncelleme: {lastRefresh.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={fetchAllData}
+              className="text-xs md:text-sm flex items-center gap-1.5 px-3 py-1.5 bg-violet-600/30 hover:bg-violet-600/50 border border-violet-500/40 rounded-lg text-white font-bold transition-all"
+            >
+              <RefreshCw size={14} /> Yenile
+            </button>
+          </div>
+
+          {/* Auto Insights — anlamlı tek-cümle tespitler */}
+          {autoInsights.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-sm md:text-base font-bold text-white flex items-center gap-2">
+                <Zap size={16} className="text-yellow-400" /> Anlık İçgörüler
+              </h3>
+              <div className="grid gap-2">
+                {autoInsights.map((ins, i) => (
+                  <div
+                    key={i}
+                    className={`p-3 rounded-lg border text-xs md:text-sm leading-relaxed ${
+                      ins.type === 'success' ? 'bg-emerald-950/30 border-emerald-700/40 text-emerald-200' :
+                      ins.type === 'warning' ? 'bg-orange-950/30 border-orange-700/40 text-orange-200' :
+                      'bg-blue-950/30 border-blue-700/40 text-blue-200'
+                    }`}
+                  >
+                    {ins.text}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Hero stats — 4 büyük kart */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+            <div className="relative overflow-hidden bg-gradient-to-br from-emerald-900/40 to-emerald-950/60 border border-emerald-700/40 rounded-xl p-3 md:p-4">
+              <Crown className="absolute -top-2 -right-2 text-emerald-700/30" size={64} />
+              <div className="relative">
+                <div className="text-[10px] md:text-xs text-emerald-300/70 font-bold uppercase tracking-wider">En İyi Şube</div>
+                <div className="text-lg md:text-2xl font-black text-emerald-300 mt-1 truncate">{branchScores[0]?.branch || '—'}</div>
+                <div className="text-[10px] md:text-xs text-emerald-400/80 mt-0.5">{branchScores[0]?.approved || 0} onaylı satış</div>
+              </div>
+            </div>
+            <div className="relative overflow-hidden bg-gradient-to-br from-violet-900/40 to-violet-950/60 border border-violet-700/40 rounded-xl p-3 md:p-4">
+              <Award className="absolute -top-2 -right-2 text-violet-700/30" size={64} />
+              <div className="relative">
+                <div className="text-[10px] md:text-xs text-violet-300/70 font-bold uppercase tracking-wider">Ayın Yıldızı</div>
+                <div className="text-lg md:text-2xl font-black text-violet-300 mt-1 truncate">{employeePerf[0]?.name || '—'}</div>
+                <div className="text-[10px] md:text-xs text-violet-400/80 mt-0.5">{employeePerf[0]?.approved || 0} satış · %{(employeePerf[0]?.approvalRate || 0).toFixed(0)} onay</div>
+              </div>
+            </div>
+            <div className="relative overflow-hidden bg-gradient-to-br from-blue-900/40 to-blue-950/60 border border-blue-700/40 rounded-xl p-3 md:p-4">
+              <Activity className="absolute -top-2 -right-2 text-blue-700/30" size={64} />
+              <div className="relative">
+                <div className="text-[10px] md:text-xs text-blue-300/70 font-bold uppercase tracking-wider">Aktif Personel</div>
+                <div className="text-lg md:text-2xl font-black text-blue-300 mt-1">{employeePerf.length}</div>
+                <div className="text-[10px] md:text-xs text-blue-400/80 mt-0.5">son 30 gün satış girişi</div>
+              </div>
+            </div>
+            <div className="relative overflow-hidden bg-gradient-to-br from-pink-900/40 to-pink-950/60 border border-pink-700/40 rounded-xl p-3 md:p-4">
+              <Sparkles className="absolute -top-2 -right-2 text-pink-700/30" size={64} />
+              <div className="relative">
+                <div className="text-[10px] md:text-xs text-pink-300/70 font-bold uppercase tracking-wider">Sinerji İkilisi</div>
+                {(() => {
+                  const best = pairingRecs.flatMap(b => b.pairs.map(p => ({ ...p, branchName: b.branch }))).sort((a, b) => b.synergy - a.synergy)[0];
+                  return best ? (
+                    <>
+                      <div className="text-xs md:text-sm font-black text-pink-300 mt-1 truncate">{best.name1.split(' ')[0]} + {best.name2.split(' ')[0]}</div>
+                      <div className="text-[10px] md:text-xs text-pink-400/80 mt-0.5">{best.branchName} · +%{best.synergy.toFixed(0)}</div>
+                    </>
+                  ) : <div className="text-xs text-pink-400/60 mt-1 italic">Yeterli veri yok</div>;
+                })()}
+              </div>
+            </div>
+          </div>
+
+          {/* Şube Sıralaması (Branch Leaderboard) */}
+          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden">
+            <div className="px-3 md:px-4 py-3 border-b border-zinc-800 flex items-center gap-2">
+              <BarChart3 size={16} className="text-emerald-400" />
+              <h3 className="text-xs md:text-sm font-bold text-zinc-200">Şube Sıralaması (Son 30 Gün)</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-zinc-900">
+                  <tr className="text-zinc-500 text-[10px] md:text-xs">
+                    <th className="px-3 py-2 text-left">#</th>
+                    <th className="px-3 py-2 text-left">Şube</th>
+                    <th className="px-3 py-2 text-right">Onaylı</th>
+                    <th className="px-3 py-2 text-right">Bekleyen</th>
+                    <th className="px-3 py-2 text-right">Kayıp</th>
+                    <th className="px-3 py-2 text-right">Mes.Dışı</th>
+                    <th className="px-3 py-2 text-right">Skor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {branchScores.map((b, i) => (
+                    <tr key={b.branch} className="border-t border-zinc-800/50">
+                      <td className="px-3 py-2">
+                        <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-black ${
+                          i === 0 ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/40' :
+                          i === 1 ? 'bg-zinc-400/20 text-zinc-300 border border-zinc-400/40' :
+                          i === 2 ? 'bg-orange-700/20 text-orange-400 border border-orange-700/40' :
+                          'bg-zinc-800 text-zinc-500'
+                        }`}>{i + 1}</span>
+                      </td>
+                      <td className="px-3 py-2 text-zinc-200 font-medium">{b.branch}</td>
+                      <td className="px-3 py-2 text-right text-emerald-400 tabular-nums">{b.approved}</td>
+                      <td className="px-3 py-2 text-right text-yellow-400 tabular-nums">{b.pending}</td>
+                      <td className="px-3 py-2 text-right text-red-400 tabular-nums">{b.lossCount}</td>
+                      <td className="px-3 py-2 text-right text-orange-400 tabular-nums">{b.offShift}</td>
+                      <td className={`px-3 py-2 text-right font-black tabular-nums ${b.score < 0 ? 'text-red-400' : 'text-white'}`}>{b.score}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-3 md:px-4 py-2 border-t border-zinc-800 text-[10px] text-zinc-500 italic">
+              Skor formülü: onaylı × 10 − kayıp × 5 − red × 2 − mesai_dışı × 1
+            </div>
+          </div>
+
+          {/* Personel Performans Tablosu */}
+          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden">
+            <div className="px-3 md:px-4 py-3 border-b border-zinc-800 flex items-center gap-2">
+              <Users size={16} className="text-violet-400" />
+              <h3 className="text-xs md:text-sm font-bold text-zinc-200">Personel Performansı (Son 30 Gün)</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-zinc-900">
+                  <tr className="text-zinc-500 text-[10px] md:text-xs">
+                    <th className="px-3 py-2 text-left">#</th>
+                    <th className="px-3 py-2 text-left">Personel</th>
+                    <th className="px-3 py-2 text-right">Onaylı</th>
+                    <th className="px-3 py-2 text-right">Bekleyen</th>
+                    <th className="px-3 py-2 text-right">Reddedilen</th>
+                    <th className="px-3 py-2 text-right">Onay %</th>
+                    <th className="px-3 py-2 text-left">En Sık Şube</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {employeePerf.slice(0, 15).map((e, i) => (
+                    <tr key={e.id} className="border-t border-zinc-800/50">
+                      <td className="px-3 py-2 text-zinc-500 tabular-nums">{i + 1}</td>
+                      <td className="px-3 py-2 text-zinc-200 font-medium truncate max-w-[160px]">{e.name}</td>
+                      <td className="px-3 py-2 text-right text-emerald-400 font-bold tabular-nums">{e.approved}</td>
+                      <td className="px-3 py-2 text-right text-yellow-400 tabular-nums">{e.pending}</td>
+                      <td className="px-3 py-2 text-right text-red-400 tabular-nums">{e.rejected}</td>
+                      <td className={`px-3 py-2 text-right tabular-nums ${e.approvalRate >= 80 ? 'text-emerald-400' : e.approvalRate >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                        {e.approvalRate.toFixed(0)}%
+                      </td>
+                      <td className="px-3 py-2 text-zinc-400 text-xs">{e.topBranch}</td>
+                    </tr>
+                  ))}
+                  {employeePerf.length === 0 && (
+                    <tr><td colSpan={7} className="px-3 py-8 text-center text-zinc-600">Son 30 günde satış girişi yok</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Eşleşme Önerileri (Pairing) */}
+          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden">
+            <div className="px-3 md:px-4 py-3 border-b border-zinc-800 flex items-center gap-2">
+              <Sparkles size={16} className="text-pink-400" />
+              <h3 className="text-xs md:text-sm font-bold text-zinc-200">Personel Eşleşme Önerileri</h3>
+              <span className="ml-auto text-[10px] text-zinc-500 italic">Vardiya + satış verisi karşılaştırması</span>
+            </div>
+            <div className="p-3 md:p-4 space-y-4">
+              {pairingRecs.length === 0 ? (
+                <div className="text-center text-zinc-600 italic text-sm py-6">
+                  Yeterli vardiya/satış verisi yok — analiz için en az 2 ortak gün gerekiyor.
+                </div>
+              ) : (
+                pairingRecs.map(b => (
+                  <div key={b.branch} className="bg-zinc-950/60 border border-zinc-800/60 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <MapPin size={14} className="text-emerald-400" />
+                        <span className="font-bold text-white text-sm">{b.branch}</span>
+                      </div>
+                      <span className="text-[10px] text-zinc-500">Şube günlük ort: <span className="text-zinc-300 font-bold">{b.branchAvg.toFixed(1)}</span></span>
+                    </div>
+                    <div className="space-y-2">
+                      {b.pairs.map((p, idx) => (
+                        <div
+                          key={`${p.e1}|${p.e2}`}
+                          className={`flex items-center justify-between gap-2 p-2.5 rounded-lg border ${
+                            p.synergy >= 20 ? 'bg-emerald-950/40 border-emerald-700/40' :
+                            p.synergy >= 0 ? 'bg-zinc-900/60 border-zinc-700/40' :
+                            'bg-orange-950/30 border-orange-700/30'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black ${
+                              idx === 0 ? 'bg-yellow-500/30 text-yellow-300' : 'bg-zinc-800 text-zinc-400'
+                            }`}>{idx + 1}</span>
+                            <div className="min-w-0">
+                              <div className="text-xs md:text-sm font-bold text-zinc-100 truncate">{p.name1} + {p.name2}</div>
+                              <div className="text-[10px] text-zinc-500">{p.coDays} ortak gün · ort. {p.avgSales.toFixed(1)} satış/gün</div>
+                            </div>
+                          </div>
+                          <div className={`shrink-0 text-right font-black text-xs md:text-sm tabular-nums ${
+                            p.synergy >= 0 ? 'text-emerald-400' : 'text-orange-400'
+                          }`}>
+                            {p.synergy >= 0 ? '+' : ''}{p.synergy.toFixed(0)}%
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {b.pairs[0] && b.pairs[0].synergy > 10 && (
+                      <div className="mt-3 text-[11px] text-zinc-400 italic leading-relaxed">
+                        💡 <span className="text-zinc-300 font-bold">{b.pairs[0].name1}</span> ve <span className="text-zinc-300 font-bold">{b.pairs[0].name2}</span> bu şubede şube ortalamasının <span className="text-emerald-400 font-bold">%{b.pairs[0].synergy.toFixed(0)}</span> üstünde satış üretiyor — birlikte planlamak satışları artırabilir.
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Şube Performans Karşılaştırma Grafiği */}
+          {branchScores.length > 0 && (
+            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-3 md:p-5">
+              <h3 className="text-xs md:text-sm font-bold text-zinc-200 mb-3 flex items-center gap-2">
+                <TUp size={16} className="text-blue-400" /> Şube Karşılaştırma — Skor & Onaylı Satış
+              </h3>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={branchScores}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                  <XAxis dataKey="branch" stroke="#71717a" fontSize={11} />
+                  <YAxis stroke="#71717a" fontSize={11} />
+                  <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 8 }} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Bar dataKey="approved" fill="#34d399" name="Onaylı Satış" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="score" fill="#a78bfa" name="Skor" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
       )}
       </div>
