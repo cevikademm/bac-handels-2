@@ -857,14 +857,15 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                                     </div>
                                 </div>
                                 
-                                <div className="flex items-center justify-between mt-1">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs font-bold text-zinc-500 bg-zinc-900 border border-zinc-800 px-2 py-1 rounded">
-                                            {log.branch}
-                                        </span>
-                                        <div className="flex items-center gap-1.5 px-2 py-1 bg-zinc-900 border border-zinc-800 rounded">
-                                            <Package size={12} className="text-indigo-400" />
-                                            <span className="text-xs text-zinc-300">{log.productName}</span>
+                                <div className="flex items-center justify-between gap-2 mt-1 flex-wrap">
+                                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                                        <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded">
+                                            <MapPin size={12} className="text-emerald-400 shrink-0" />
+                                            <span className="text-xs font-bold text-emerald-300 truncate">{log.branch || '—'}</span>
+                                        </div>
+                                        <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-zinc-900 border border-zinc-800 rounded">
+                                            <Package size={12} className="text-indigo-400 shrink-0" />
+                                            <span className="text-xs text-zinc-300 truncate">{log.productName}</span>
                                         </div>
                                     </div>
                                     
