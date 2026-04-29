@@ -327,9 +327,9 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
               {/* Admin butonları */}
               {isAdmin && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-                      <button onClick={handleCopyNextWeek} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '12px', color: '#a1a1aa', minHeight: '44px' }} title="Kopyala"><Copy size={18} /></button>
-                      <button onClick={addNewRow} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#4f46e5', border: 'none', borderRadius: '12px', color: '#fff', fontWeight: 700, minHeight: '44px' }} title="Yeni Satır"><Plus size={18} /></button>
-                      <button onClick={handleManualSave} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#16a34a', border: 'none', borderRadius: '12px', color: '#fff', fontWeight: 700, minHeight: '44px' }} title="Kaydet">{isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}</button>
+                      <button onClick={handleCopyNextWeek} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '12px', color: '#a1a1aa', minHeight: '44px' }} title={t('shift.copyTitle')}><Copy size={18} /></button>
+                      <button onClick={addNewRow} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#4f46e5', border: 'none', borderRadius: '12px', color: '#fff', fontWeight: 700, minHeight: '44px' }} title={t('shift.newRow')}><Plus size={18} /></button>
+                      <button onClick={handleManualSave} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#16a34a', border: 'none', borderRadius: '12px', color: '#fff', fontWeight: 700, minHeight: '44px' }} title={t('shift.saveTitle')}>{isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}</button>
                   </div>
               )}
           </div>
@@ -359,9 +359,9 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                   </div>
                   {isAdmin && (
                       <div className="flex items-center gap-2">
-                          <button onClick={handleCopyNextWeek} className="p-3 flex items-center justify-center bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-400 hover:text-white min-h-[44px]" title="Kopyala"><Copy size={18} /></button>
-                          <button onClick={addNewRow} className="px-6 py-3 flex items-center justify-center bg-indigo-600 text-white rounded-xl font-bold shadow-lg min-h-[44px]" title="Yeni Satır"><Plus size={18} /></button>
-                          <button onClick={handleManualSave} className="px-6 py-3 flex items-center justify-center bg-green-600 text-white rounded-xl font-bold shadow-lg min-h-[44px]" title="Kaydet">{isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}</button>
+                          <button onClick={handleCopyNextWeek} className="p-3 flex items-center justify-center bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-400 hover:text-white min-h-[44px]" title={t('shift.copyTitle')}><Copy size={18} /></button>
+                          <button onClick={addNewRow} className="px-6 py-3 flex items-center justify-center bg-indigo-600 text-white rounded-xl font-bold shadow-lg min-h-[44px]" title={t('shift.newRow')}><Plus size={18} /></button>
+                          <button onClick={handleManualSave} className="px-6 py-3 flex items-center justify-center bg-green-600 text-white rounded-xl font-bold shadow-lg min-h-[44px]" title={t('shift.saveTitle')}>{isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}</button>
                       </div>
                   )}
               </div>
@@ -415,7 +415,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                                                         ) : (<span className={`text-sm ${empId === currentUser.id ? 'text-green-500 font-black' : 'text-zinc-900'}`}>{empId === currentUser.id ? currentUser.name : '-'}</span>)}
                                                     </div>
                                                     {conflict && (
-                                                        <div className="flex items-center gap-1 mt-0.5" title={`Çakışma: ${conflict}`}>
+                                                        <div className="flex items-center gap-1 mt-0.5" title={`${t('shift.conflictTitle')}: ${conflict}`}>
                                                             <AlertTriangle size={10} className="text-red-500"/>
                                                             <span className="text-[9px] text-red-400 truncate max-w-[80px]">{conflict}</span>
                                                         </div>

@@ -478,7 +478,7 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
                                     {/* Admin için seçenekler */}
                                     {currentUser.role === Role.ADMIN && (
                                         <>
-                                            <option value="" disabled>Seçiniz</option>
+                                            <option value="" disabled>{t('msg.selectPlaceholder')}</option>
                                             <option value="ALL">{'📢 ' + t('msg.allStaffAnnounce')}</option>
                                             {filteredRecipients.map(emp => (
                                                 <option key={emp.id} value={emp.id}>{emp.name}</option>
@@ -624,7 +624,7 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
                                             <button 
                                                 onClick={() => handleDeleteMessage(msg.id)}
                                                 className={`p-1 text-zinc-600 hover:text-red-500 transition-opacity opacity-0 group-hover:opacity-100 ${isMe ? 'mr-2' : 'ml-2 order-2'}`}
-                                                title="Mesajı Sil"
+                                                title={t('msg.deleteMsgTitle')}
                                             >
                                                 <Trash2 size={12} />
                                             </button>

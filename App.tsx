@@ -9,6 +9,8 @@ import Payroll from './components/Payroll';
 import Login from './components/Login';
 import SalesDashboard from './components/SalesDashboard';
 import LossControl from './components/LossControl';
+import PWAInstallBanner, { PushSubscriptionCard } from './components/PWAInstallBanner';
+import NotificationPreferencesCard from './components/NotificationPreferencesCard';
 
 // Lazy: zxing/browser top-level import'u prod minify'da bozuluyordu
 const QrCheckIn = lazy(() => import('./components/QrCheckIn'));
@@ -91,10 +93,10 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
             if (onUpdateUser) {
                 onUpdateUser({ ...currentUser, avatarUrl: newAvatarUrl });
             }
-            alert('Profil fotoğrafı başarıyla güncellendi.');
+            alert(t('dash.avatarSuccess'));
         } catch (error) {
             console.error('Error uploading avatar:', error);
-            alert('Fotoğraf yüklenirken bir hata oluştu.');
+            alert(t('dash.avatarError'));
         } finally {
             setIsUploadingAvatar(false);
         }
@@ -144,11 +146,11 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
     const handleAdminPasswordReset = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedEmployeeId) {
-            alert("Lütfen bir personel seçin.");
+            alert(t('app.selectStaff'));
             return;
         }
 
-        if (!window.confirm("Bu personelin şifresini standart 'Bac123+' olarak sıfırlamak istediğinize emin misiniz?")) {
+        if (!window.confirm(t('app.confirmResetOne'))) {
             return;
         }
 
@@ -172,21 +174,21 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                 details: { reset_by: currentUser?.name },
             });
 
-            alert("Personel şifresi başarıyla 'Bac123+' olarak sıfırlandı.");
+            alert(t('app.resetOneOk'));
             setSelectedEmployeeId('');
         } catch (err) {
             console.error("Şifre sıfırlama hatası:", err);
-            alert("Şifre sıfırlanırken bir hata oluştu: " + (err as Error).message);
+            alert(t('app.resetOneError') + (err as Error).message);
         } finally {
             setResetLoading(false);
         }
     };
 
     const handleResetAllPasswords = async () => {
-        if (!window.confirm("TÜM personellerin şifreleri 'Bac123+' olarak sıfırlanacak. Emin misiniz?")) {
+        if (!window.confirm(t('app.confirmResetAll'))) {
             return;
         }
-        if (!window.confirm("Bu işlem geri alınamaz! Devam etmek istiyor musunuz?")) {
+        if (!window.confirm(t('app.confirmResetAll2'))) {
             return;
         }
 
@@ -208,10 +210,10 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                 details: { reset_by: currentUser?.name, scope: 'all' },
             });
 
-            alert("Tüm personellerin şifreleri başarıyla 'Bac123+' olarak sıfırlandı.");
+            alert(t('app.resetAllOk'));
         } catch (err) {
             console.error("Toplu şifre sıfırlama hatası:", err);
-            alert("Şifreler sıfırlanırken bir hata oluştu: " + (err as Error).message);
+            alert(t('app.resetAllError') + (err as Error).message);
         } finally {
             setResetLoading(false);
         }
@@ -222,12 +224,12 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
         if (!file) return;
 
         if (!file.type.startsWith('audio/')) {
-            alert("Lütfen geçerli bir ses dosyası yükleyin (mp3, wav).");
+            alert(t('app.fileTypeError'));
             return;
         }
 
         if (file.size > 1 * 1024 * 1024) {
-            alert("Dosya boyutu çok büyük (Max 1MB).");
+            alert(t('app.fileTooBig'));
             return;
         }
 
@@ -252,9 +254,9 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                 const audio = new Audio(base64);
                 audio.volume = 0.5;
                 audio.play().catch(e => console.warn("Otomatik oynatma engellendi:", e)); 
-                alert("Bildirim sesi başarıyla varsayılan olarak atandı ve kaydedildi.");
+                alert(t('app.soundSaved'));
             } catch (err) {
-                alert("Dosya işlenirken hata oluştu.");
+                alert(t('app.soundProcessError'));
                 console.error(err);
             } finally {
                 setSoundLoading(false);
@@ -282,10 +284,10 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
             audio.volume = 0.5;
             audio.play().catch(e => {
                 console.error("Ses çalma hatası:", e);
-                alert("Ses çalınamadı. Tarayıcı izinlerini kontrol edin.");
+                alert(t('app.soundPlayError'));
             });
         } catch (error) {
-            alert("Ses dosyası bozuk veya desteklenmiyor.");
+            alert(t('app.soundFileBroken'));
         }
     };
 
@@ -293,22 +295,22 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
         e.preventDefault();
         
         if (!passForm.current || !passForm.new || !passForm.confirm) {
-            alert("Lütfen tüm alanları doldurunuz.");
+            alert(t('app.passFillAll'));
             return;
         }
 
         if (passForm.new !== passForm.confirm) {
-            alert("Yeni şifreler birbiriyle uyuşmuyor.");
+            alert(t('app.passNoMatch'));
             return;
         }
 
         if (passForm.new.length < 6) {
-            alert("Yeni şifre en az 6 karakter olmalıdır.");
+            alert(t('app.passMinLen'));
             return;
         }
 
         if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(passForm.new)) {
-            alert("Şifre en az bir büyük harf, bir küçük harf ve bir rakam içermelidir.");
+            alert(t('app.passComplexity'));
             return;
         }
 
@@ -326,17 +328,17 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                 if (error) throw error;
 
                 if (data === false) {
-                    alert("Mevcut şifreniz hatalı. Lütfen tekrar deneyin.");
+                    alert(t('app.passCurrentWrong'));
                     setPassLoading(false);
                     return;
                 }
 
-                alert("Şifreniz başarıyla güncellendi.");
+                alert(t('app.passUpdated'));
                 setPassForm({ current: '', new: '', confirm: '' });
             }
         } catch (err: any) {
             console.error("Password update error:", err);
-            alert("Şifre güncellenirken hata: " + (err?.message || JSON.stringify(err)));
+            alert(t('app.passUpdateError') + (err?.message || JSON.stringify(err)));
         } finally {
             setPassLoading(false);
         }
@@ -355,7 +357,7 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                     <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
                         <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
                             <Upload size={20} className="text-pink-500"/>
-                            Profil Fotoğrafı
+                            {t('set.profilePhoto')}
                         </h3>
                         <div className="bg-zinc-900 rounded-lg p-4 border border-zinc-800/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                             <div className="flex items-center gap-4">
@@ -368,10 +370,10 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                                 </div>
                                 <div>
                                     <p className="text-zinc-200 text-sm font-medium mb-1">
-                                        Profil Fotoğrafınızı Güncelleyin
+                                        {t('set.updatePhotoTitle')}
                                     </p>
                                     <p className="text-xs text-zinc-500">
-                                        Maksimum 2MB boyutunda bir resim seçin.
+                                        {t('set.updatePhotoHint')}
                                     </p>
                                 </div>
                             </div>
@@ -379,7 +381,7 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                             <div className="flex items-center gap-2 w-full md:w-auto">
                                 <label className={`flex-1 md:flex-none cursor-pointer px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-lg shadow-indigo-900/20 ${isUploadingAvatar ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                     {isUploadingAvatar ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-                                    <span>{isUploadingAvatar ? t('common.loading') : 'Fotoğraf Yükle'}</span>
+                                    <span>{isUploadingAvatar ? t('common.loading') : t('set.uploadPhoto')}</span>
                                     <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={isUploadingAvatar} />
                                 </label>
                             </div>
@@ -454,6 +456,12 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                         </div>
                     </div>
 
+                    {/* PUSH NOTIFICATION SUBSCRIPTION (PWA) */}
+                    <PushSubscriptionCard userId={currentUser?.id} />
+
+                    {/* NOTIFICATION PREFERENCES (Admin only) */}
+                    <NotificationPreferencesCard currentUser={currentUser} />
+
                     {/* PASSWORD CHANGE SECTION */}
                     <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
                         <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
@@ -482,7 +490,7 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                                         value={passForm.new}
                                         onChange={(e) => setPassForm({...passForm, new: e.target.value})}
                                         className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-indigo-500 outline-none transition-all placeholder:text-zinc-700"
-                                        placeholder="En az 6 karakter"
+                                        placeholder={t('set.passMin6')}
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -514,21 +522,21 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                         <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
                             <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
                                 <Shield size={20} className="text-red-500"/>
-                                Personel Şifre Sıfırlama
+                                {t('set.staffPwReset')}
                             </h3>
                             <p className="text-sm text-zinc-400 mb-6">
-                                Personellerin şifrelerini unuttuklarında standart "Bac123+" olarak sıfırlayabilirsiniz.
+                                {t('set.staffPwResetDesc')}
                             </p>
                             
                             <form onSubmit={handleAdminPasswordReset} className="space-y-4 max-w-lg">
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium text-zinc-400">Personel Seçin</label>
+                                    <label className="text-xs font-medium text-zinc-400">{t('set.staffSelectLabel')}</label>
                                     <select 
                                         value={selectedEmployeeId}
                                         onChange={(e) => setSelectedEmployeeId(e.target.value)}
                                         className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-indigo-500 outline-none transition-all"
                                     >
-                                        <option value="">-- Personel Seçin --</option>
+                                        <option value="">{t('set.staffSelectPlaceholder')}</option>
                                         {employees.map(emp => (
                                             <option key={emp.id} value={emp.id}>{emp.name}{emp.role ? ` - ${emp.role}` : ''}</option>
                                         ))}
@@ -540,19 +548,19 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                                         disabled={resetLoading || !selectedEmployeeId}
                                         className="px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-red-900/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        {resetLoading ? <Loader2 size={16} className="animate-spin" /> : "Şifreyi Sıfırla"}
+                                        {resetLoading ? <Loader2 size={16} className="animate-spin" /> : t('set.resetPasswordBtn')}
                                     </button>
                                 </div>
                             </form>
 
                             <div className="mt-6 pt-6 border-t border-zinc-800">
-                                <p className="text-xs text-zinc-500 mb-3">Admin haricindeki tüm personellerin şifrelerini toplu olarak sıfırlayın.</p>
+                                <p className="text-xs text-zinc-500 mb-3">{t('set.resetAllInfo')}</p>
                                 <button
                                     onClick={handleResetAllPasswords}
                                     disabled={resetLoading}
                                     className="px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-orange-900/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {resetLoading ? <Loader2 size={16} className="animate-spin" /> : "Tüm Şifreleri Sıfırla"}
+                                    {resetLoading ? <Loader2 size={16} className="animate-spin" /> : t('set.resetAllBtn')}
                                 </button>
                             </div>
                         </div>
@@ -562,10 +570,10 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                     <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
                         <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
                             <Shield size={20} className="text-emerald-500"/>
-                            {t('set.security') || 'Güvenlik ve Sertifikalar'}
+                            {t('set.security') || t('set.securityFallback')}
                         </h3>
                         <p className="text-sm text-zinc-400 mb-6 font-medium">
-                            Kullanıcı verileriniz uluslararası güvenlik standartlarında korunmakta ve yüksek güvenlikli altyapılarda saklanmaktadır.
+                            {t('set.securityIntro')}
                         </p>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -576,9 +584,9 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                                         <Lock size={16} className="text-indigo-400" />
                                         RLS (Row Level Security)
                                     </span>
-                                    <span className="px-2 py-1 bg-emerald-900/20 text-emerald-400 text-xs rounded border border-emerald-900/30 font-medium">Aktif</span>
+                                    <span className="px-2 py-1 bg-emerald-900/20 text-emerald-400 text-xs rounded border border-emerald-900/30 font-medium">{t('set.rlsActive')}</span>
                                 </div>
-                                <span className="text-xs text-zinc-500">Satır bazlı veri güvenliği politikası uygulanmaktadır. Yetkisiz erişimler engellenir.</span>
+                                <span className="text-xs text-zinc-500">{t('set.rlsDesc')}</span>
                             </div>
                             
                             {/* Database Encryption */}
@@ -586,11 +594,11 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                                 <div className="flex items-center justify-between">
                                     <span className="text-zinc-200 text-sm font-semibold flex items-center gap-2">
                                         <Server size={16} className="text-blue-400" />
-                                        {t('set.dbEnc') || 'Veritabanı Şifreleme'}
+                                        {t('set.dbEnc') || t('set.dbEncFallback')}
                                     </span>
                                     <span className="px-2 py-1 bg-emerald-900/20 text-emerald-400 text-xs rounded border border-emerald-900/30 font-medium">AES-256</span>
                                 </div>
-                                <span className="text-xs text-zinc-500">Tüm kullanıcı verileri ve şifreler AES-256 standardı ile şifrelenerek depolanmaktadır.</span>
+                                <span className="text-xs text-zinc-500">{t('set.dbEncDesc')}</span>
                             </div>
 
                             {/* SSL Certificate */}
@@ -598,11 +606,11 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                                 <div className="flex items-center justify-between">
                                     <span className="text-zinc-200 text-sm font-semibold flex items-center gap-2">
                                         <Globe size={16} className="text-emerald-400" />
-                                        SSL/TLS Sertifikası
+                                        {t('set.sslTitle')}
                                     </span>
-                                    <span className="px-2 py-1 bg-emerald-900/20 text-emerald-400 text-xs rounded border border-emerald-900/30 font-medium">Geçerli</span>
+                                    <span className="px-2 py-1 bg-emerald-900/20 text-emerald-400 text-xs rounded border border-emerald-900/30 font-medium">{t('set.sslValid')}</span>
                                 </div>
-                                <span className="text-xs text-zinc-500">Uygulama ile sunucu arasındaki tüm iletişim 256-bit SSL şifreleme üzerinden gerçekleştirilir.</span>
+                                <span className="text-xs text-zinc-500">{t('set.sslDesc')}</span>
                             </div>
 
                             {/* GDPR / KVKK Compliance */}
@@ -610,11 +618,11 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                                 <div className="flex items-center justify-between">
                                     <span className="text-zinc-200 text-sm font-semibold flex items-center gap-2">
                                         <CheckCircle size={16} className="text-purple-400" />
-                                        Veri Uyumluluğu
+                                        {t('set.complianceTitle')}
                                     </span>
                                     <span className="px-2 py-1 bg-emerald-900/20 text-emerald-400 text-xs rounded border border-emerald-900/30 font-medium">GDPR / KVKK</span>
                                 </div>
-                                <span className="text-xs text-zinc-500">Kişisel verileriniz global veri koruma standartlarına tam uyum içerisinde işlenmektedir.</span>
+                                <span className="text-xs text-zinc-500">{t('set.complianceDesc')}</span>
                             </div>
                         </div>
                     </div>
@@ -740,7 +748,7 @@ const AppContent: React.FC = () => {
         return <Payroll currentUser={currentUser || MOCK_EMPLOYEES[0]} onNotify={addNotification} />;
       case 'qr':
         return (
-          <Suspense fallback={<div className="p-12 flex items-center justify-center text-zinc-400"><Loader2 className="animate-spin mr-2" size={20}/> Yükleniyor...</div>}>
+          <Suspense fallback={<div className="p-12 flex items-center justify-center text-zinc-400"><Loader2 className="animate-spin mr-2" size={20}/> {t('common.loading')}</div>}>
             <QrCheckIn currentUser={currentUser || MOCK_EMPLOYEES[0]} />
           </Suspense>
         );
@@ -761,17 +769,20 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <Layout
-      activeTab={activeTab}
-      setActiveTab={setActiveTab}
-      userRole={currentUser?.role === Role.ADMIN ? "Yönetici (Admin)" : "Personel"}
-      userName={currentUser?.name || 'Kullanıcı'}
-      userAvatar={currentUser?.avatarUrl}
-      userEmail={currentUser?.email}
-      onLogout={handleLogout}
-    >
-      {renderContent()}
-    </Layout>
+    <>
+      <Layout
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        userRole={currentUser?.role === Role.ADMIN ? t('app.adminTitle') : t('app.staffTitle')}
+        userName={currentUser?.name || t('app.unnamedUser')}
+        userAvatar={currentUser?.avatarUrl}
+        userEmail={currentUser?.email}
+        onLogout={handleLogout}
+      >
+        {renderContent()}
+      </Layout>
+      <PWAInstallBanner userId={currentUser?.id} />
+    </>
   );
 };
 

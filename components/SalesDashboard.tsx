@@ -6,6 +6,7 @@ import { formatLocalDate, isUserOnShiftAt, formatTimeOfDay, canSeeOffShiftAlerts
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
 import { Trophy, TrendingUp, ShoppingBag, MapPin, Award, Medal, Calendar, Package, Activity, BarChart3, ListTodo, User, Lock, EyeOff, Filter, ChevronDown, Clock, Tag, Send, Loader2, CheckCircle2, XCircle, Trash2, X, Star, Zap, Crown, Percent, Settings, AlertTriangle, Camera, Receipt } from 'lucide-react';
 import { GlowingEffect } from './ui/glowing-effect';
+import { notifyEvent } from '../lib/notifyEvent';
 
 
 interface SalesDashboardProps {
@@ -193,13 +194,13 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
         if (isSaving) return;
 
         if (!salesForm.branch) { alert(t('sales.branch')); return; }
-        if (!salesForm.product) { alert('Ürün seçin'); return; }
-        if (!salesForm.quantity || salesForm.quantity <= 0) { alert('Geçerli adet girin'); return; }
+        if (!salesForm.product) { alert(t('sales.alertSelectProduct')); return; }
+        if (!salesForm.quantity || salesForm.quantity <= 0) { alert(t('sales.alertValidQty')); return; }
 
         // Mesai kontrolü
         const onShift = isUserOnShiftAt(currentUser.id, new Date(), currentWeekShifts);
         if (!onShift && !canSeeOffShift) {
-            alert('Şu an mesainizde değilsiniz. Mesai saatleri dışında satış girilemez.');
+            alert(t('sales.alertOffShift'));
             return;
         }
 
@@ -261,10 +262,23 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                     receiptUrl: data[0].receipt_url || receiptUrl
                 };
                 setSalesData(prev => [newLog, ...prev]);
+
+                // Vardiya dışı ise admin'lere push gönder
+                if (!onShift) {
+                    notifyEvent({
+                        type: 'off_shift_sale',
+                        employee_id: currentUser.id,
+                        employee_name: currentUser.name,
+                        branch: salesForm.branch,
+                        product_name: salesForm.product,
+                        quantity: salesForm.quantity,
+                    });
+                }
+
                 alert(t('sales.alertSuccess'));
             }
         } catch (err: any) {
-            alert('Yüklenemedi: ' + (err.message || err));
+            alert(t('sales.alertUploadFailed') + (err.message || err));
         } finally {
             if (isMounted.current) setIsSaving(false);
         }
@@ -546,7 +560,7 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                         {isAdmin && (
                             <button onClick={() => setShowProductModal(true)} className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 border border-zinc-700 hover:border-orange-500/50 text-white rounded-xl transition-colors text-xs font-medium shadow-lg">
                                 <Settings size={14} className="text-orange-400" />
-                                Ürün Yönetimi
+                                {t('sales.productMgmt')}
                             </button>
                         )}
                     </div>
@@ -624,7 +638,7 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                         </div>
                         <div className="flex-[2] w-full sm:w-auto lg:w-64">
                             <select value={salesForm.product} onChange={e => setSalesForm({...salesForm, product: e.target.value})} className="w-full bg-orange-700/50 border border-orange-400/30 rounded-xl px-4 py-3 text-sm text-white outline-none focus:bg-orange-700">
-                                {actionProducts.filter(p => p.is_active === true || String(p.is_active).toLowerCase() === 'true' || p.is_active === 1).length === 0 && <option value="" disabled className="text-zinc-900">Ürün Bulunamadı</option>}
+                                {actionProducts.filter(p => p.is_active === true || String(p.is_active).toLowerCase() === 'true' || p.is_active === 1).length === 0 && <option value="" disabled className="text-zinc-900">{t('sales.productNotFound')}</option>}
                                 {actionProducts.filter(p => p.is_active === true || String(p.is_active).toLowerCase() === 'true' || p.is_active === 1).map(p => <option key={p.id} value={p.name} className="text-zinc-900">{p.name}</option>)}
                             </select>
                         </div>
@@ -634,7 +648,7 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                             </div>
                             <button type="submit" disabled={isSaving} className="flex-1 sm:flex-none px-6 py-3 bg-white text-orange-600 font-black rounded-xl hover:scale-105 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
                                 {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
-                                {isSaving ? 'Yükleniyor...' : 'Fiş Çek & Ekle'}
+                                {isSaving ? t('common.loading') : t('sales.takeReceiptAdd')}
                             </button>
                         </div>
                         {/* Gizli file input — submit butonu kamera/dosya seçiciyi açar.
@@ -740,7 +754,7 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                                 <th className="p-4">{t('sales.branch')}</th>
                                 <th className="p-4">{t('sales.product')}</th>
                                 <th className="p-4 text-center">{t('sales.quantity')}</th>
-                                <th className="p-4 text-right">Durum / İşlem</th>
+                                <th className="p-4 text-right">{t('sales.statusActionCol')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-800">
@@ -776,8 +790,8 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                                                     )}
                                                 </div>
                                                 {showOffShift && (
-                                                    <span className="inline-flex items-center gap-1 self-start text-[9px] font-bold uppercase tracking-wider text-red-400 bg-red-500/10 border border-red-500/30 px-1.5 py-0.5 rounded" title="Bu satış kullanıcının vardiyası dışında girildi">
-                                                        <AlertTriangle size={10} /> Mesai Dışı
+                                                    <span className="inline-flex items-center gap-1 self-start text-[9px] font-bold uppercase tracking-wider text-red-400 bg-red-500/10 border border-red-500/30 px-1.5 py-0.5 rounded" title={t('sales.offShiftBadgeTitle')}>
+                                                        <AlertTriangle size={10} /> {t('sales.offShift')}
                                                     </span>
                                                 )}
                                             </div>
@@ -887,7 +901,7 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                                                 )}
                                                 {showOffShift && (
                                                     <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-red-400 bg-red-500/10 border border-red-500/30 px-1.5 py-0.5 rounded">
-                                                        <AlertTriangle size={9} /> Mesai Dışı
+                                                        <AlertTriangle size={9} /> {t('sales.offShift')}
                                                     </span>
                                                 )}
                                             </div>
@@ -917,10 +931,10 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="inline-flex items-center gap-1.5 px-2 py-1 bg-indigo-500/10 border border-indigo-500/30 rounded hover:bg-indigo-500/20 transition-colors"
-                                                title="Fiş fotoğrafını görüntüle"
+                                                title={t('sales.viewReceipt')}
                                             >
                                                 <Receipt size={12} className="text-indigo-400 shrink-0" />
-                                                <span className="text-[10px] font-bold text-indigo-300">Fiş</span>
+                                                <span className="text-[10px] font-bold text-indigo-300">{t('sales.receiptBadge')}</span>
                                             </a>
                                         )}
                                     </div>
@@ -967,7 +981,7 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[80vh]">
                         <div className="p-6 border-b border-zinc-800 flex justify-between items-center">
                             <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                <Settings size={20} className="text-orange-500" /> Ürün / Aksiyon Yönetimi
+                                <Settings size={20} className="text-orange-500" /> {t('sales.productActionMgmt')}
                             </h3>
                             <button onClick={() => setShowProductModal(false)} className="text-zinc-500 hover:text-white">
                                 <X size={20} />
@@ -980,7 +994,7 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                                     value={newProductName} 
                                     onChange={e => setNewProductName(e.target.value)} 
                                     onKeyDown={e => e.key === 'Enter' && handleAddProduct()}
-                                    placeholder="Yeni ürün adı..." 
+                                    placeholder={t('sales.newProductPlaceholder')}
                                     className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-white text-sm outline-none focus:border-orange-500/50" 
                                 />
                                 <button onClick={handleAddProduct} className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-sm font-bold transition-colors">
@@ -989,7 +1003,7 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                             </div>
                             <div className="space-y-2">
                                 {actionProducts.length === 0 ? (
-                                    <p className="text-sm text-zinc-500 text-center py-4">Henüz ürün eklenmemiş.</p>
+                                    <p className="text-sm text-zinc-500 text-center py-4">{t('sales.noProductsYet')}</p>
                                 ) : actionProducts.map(product => (
                                     <div key={product.id} className="flex items-center justify-between p-3 bg-zinc-950/50 border border-zinc-800 rounded-lg group">
                                         <span className={`text-sm font-medium ${product.is_active ? 'text-white' : 'text-zinc-500 line-through'}`}>

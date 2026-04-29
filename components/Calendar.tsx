@@ -193,7 +193,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                   startTime: sTime,
                   endTime: eTime,
                   attendees: [currentUser.id],
-                  description: `Şube: ${schedule.branch}`,
+                  description: `${t('cal.transferDescPrefix')}${schedule.branch}`,
                   isShift: true,
                   shiftBranch: schedule.branch
               } as DisplayEvent;
@@ -422,10 +422,10 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                             <div>
                                 <label className="text-xs text-zinc-400 block mb-1.5">{t('cal.type')}</label>
                                 <div className="flex gap-2 overflow-x-auto pb-1">
-                                    {['Toplantı', 'Montaj', 'Teslim Tarihi', 'Diğer'].map(type => (
+                                    {(['Toplantı', 'Montaj', 'Teslim Tarihi', 'Diğer'] as const).map(type => (
                                         <button key={type} type="button" onClick={() => setNewEventForm({...newEventForm, type: type as any})}
                                             className={`px-3 py-1.5 rounded-lg text-xs font-medium border whitespace-nowrap transition-all ${newEventForm.type === type ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-zinc-900 text-zinc-400 border-zinc-800'}`}>
-                                            {type === 'Şube Transferi' ? t('cal.type.transfer') : type}
+                                            {type === 'Toplantı' ? t('cal.typeMeeting') : type === 'Montaj' ? t('cal.assemblyType') : type === 'Teslim Tarihi' ? t('cal.deadlineType') : t('cal.typeOther')}
                                         </button>
                                     ))}
                                 </div>
@@ -494,8 +494,8 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
         {/* --- LEFT PANEL: SUMMARY & NAV (HIDDEN ON MOBILE) --- */}
         <div className="w-full md:w-80 bg-zinc-950 border-b md:border-b-0 md:border-r border-zinc-800 flex-col hidden md:flex">
             <div className="p-6 border-b border-zinc-900">
-                <h2 className="text-xl font-bold text-white mb-1">Ajanda</h2>
-                <p className="text-xs text-zinc-500">Haftalık Planlama</p>
+                <h2 className="text-xl font-bold text-white mb-1">{t('nav.calendar')}</h2>
+                <p className="text-xs text-zinc-500">{t('cal.weeklyPlanning')}</p>
             </div>
             
             <div className="p-6 space-y-6 flex-1 overflow-y-auto">
@@ -514,7 +514,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                         {/* Transfer stat hidden - feature disabled */}
                         <div className="p-3 bg-blue-950/30 rounded-lg border border-blue-500/20">
                             <span className="text-2xl font-bold text-blue-400 block">{weekStats.tasks}</span>
-                            <span className="text-[10px] text-blue-300/70">Görev</span>
+                            <span className="text-[10px] text-blue-300/70">{t('cal.taskBadge')}</span>
                         </div>
                     </div>
                 </div>
@@ -663,7 +663,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                                                                     <Clock size={12}/> {evt.startTime} - {evt.endTime}
                                                                 </span>
                                                                 {evt.type === 'Şube Transferi' && <span className="text-[10px] bg-orange-500/20 text-orange-400 px-1.5 rounded font-bold">{t('cal.transfer_label')}</span>}
-                                                                {evt.isShift && <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 rounded font-bold">VARDİYA</span>}
+                                                                {evt.isShift && <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 rounded font-bold">{t('cal.shiftBadge')}</span>}
                                                             </div>
                                                             <h4 className="text-base font-bold text-zinc-200 group-hover/card:text-white transition-colors">{getText(evt.title)}</h4>
 
@@ -802,14 +802,14 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                         <div className="flex items-center gap-4 text-zinc-300">
                             <div className="w-10 h-10 rounded-lg bg-zinc-900 flex items-center justify-center border border-zinc-800"><CalendarIcon size={20}/></div>
                             <div>
-                                <p className="text-xs text-zinc-500">Tarih</p>
+                                <p className="text-xs text-zinc-500">{t('sales.date')}</p>
                                 <p className="font-medium">{formatDate(selectedEvent.date, {day:'numeric', month:'long', year: 'numeric'})}</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-4 text-zinc-300">
                             <div className="w-10 h-10 rounded-lg bg-zinc-900 flex items-center justify-center border border-zinc-800"><Clock size={20}/></div>
                             <div>
-                                <p className="text-xs text-zinc-500">Saat</p>
+                                <p className="text-xs text-zinc-500">{t('common.hour')}</p>
                                 <p className="font-medium">{selectedEvent.startTime} - {selectedEvent.endTime}</p>
                             </div>
                         </div>
@@ -819,7 +819,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                             const bc = getbranchColors(selectedEvent.shiftBranch!);
                             return (
                                 <div className={`p-4 rounded-xl border ${bc.bg} ${bc.border} shadow-lg ${bc.glow}`}>
-                                    <h4 className="text-xs font-bold text-zinc-500 uppercase mb-3">Şube</h4>
+                                    <h4 className="text-xs font-bold text-zinc-500 uppercase mb-3">{t('cal.branchLabel')}</h4>
                                     <div className="flex items-center gap-3">
                                         <div className={`w-10 h-10 rounded-lg ${bc.bg} border ${bc.border} flex items-center justify-center`}>
                                             <Building2 size={20} className={bc.text} />
@@ -830,13 +830,13 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                             );
                         })() : (
                             <div className="p-4 bg-zinc-900/50 rounded-xl border border-zinc-800">
-                                <h4 className="text-xs font-bold text-zinc-500 uppercase mb-2">Açıklama</h4>
-                                <p className="text-sm text-zinc-300 leading-relaxed">{getText(selectedEvent.description) || 'Açıklama yok.'}</p>
+                                <h4 className="text-xs font-bold text-zinc-500 uppercase mb-2">{t('cal.descLabel')}</h4>
+                                <p className="text-sm text-zinc-300 leading-relaxed">{getText(selectedEvent.description) || t('cal.noDescription')}</p>
                             </div>
                         )}
 
                         <div>
-                            <h4 className="text-xs font-bold text-zinc-500 uppercase mb-3">Katılımcılar ({selectedEvent.attendees.length})</h4>
+                            <h4 className="text-xs font-bold text-zinc-500 uppercase mb-3">{t('cal.attendees')} ({selectedEvent.attendees.length})</h4>
                             <div className="space-y-2">
                                 {selectedEvent.attendees.map(id => {
                                     const emp = employees.find(e => e.id === id);

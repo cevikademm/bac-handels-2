@@ -8,6 +8,7 @@ import { BrowserQRCodeReader, IScannerControls } from '@zxing/browser';
 import { Employee } from '../types';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
+import { notifyEvent } from '../lib/notifyEvent';
 
 type Phase = 'idle' | 'scanning' | 'posting' | 'result' | 'error';
 type ScanAction = 'in' | 'out';
@@ -242,6 +243,16 @@ const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
       setPhase('result');
       // Notify parent (Payroll) so list refreshes immediately on mobile
       onComplete?.();
+
+      // Vardiya saati dışı QR ise admin'e push (edge function shift kontrolü yapar)
+      notifyEvent({
+        type: 'off_shift_qr',
+        employee_id: currentUser.id,
+        employee_name: currentUser.name,
+        branch: (resp as any).branch,
+        action: actionRef.current,
+        at: new Date().toISOString(),
+      });
     } catch (err: any) {
       console.error('[QR] qr_check_in_out RPC error:', err);
       setErrorKind('network');
@@ -381,9 +392,9 @@ const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
                 </div>
                 <ul className="space-y-1 font-mono text-[11px] text-zinc-300">
                   <li>URL: <span className="text-zinc-400">{diag.proto}//{diag.host}</span></li>
-                  <li>Secure context: <span className={diag.secure ? 'text-emerald-400' : 'text-red-400'}>{diag.secure ? '✓' : '✗ (HTTPS veya localhost gerekli)'}</span></li>
-                  <li>Kamera API: <span className={diag.hasCamera ? 'text-emerald-400' : 'text-red-400'}>{diag.hasCamera ? '✓' : '✗'}</span></li>
-                  <li>Konum API: <span className={diag.hasGeo ? 'text-emerald-400' : 'text-red-400'}>{diag.hasGeo ? '✓' : '✗'}</span></li>
+                  <li>Secure context: <span className={diag.secure ? 'text-emerald-400' : 'text-red-400'}>{diag.secure ? '✓' : `✗ (${t('qr.diagSecureNeeded')})`}</span></li>
+                  <li>{t('qr.diagCameraApi')}: <span className={diag.hasCamera ? 'text-emerald-400' : 'text-red-400'}>{diag.hasCamera ? '✓' : '✗'}</span></li>
+                  <li>{t('qr.diagLocationApi')}: <span className={diag.hasGeo ? 'text-emerald-400' : 'text-red-400'}>{diag.hasGeo ? '✓' : '✗'}</span></li>
                 </ul>
                 {!diag.secure && !diag.isLocalhost && (
                   <p className="mt-2 text-amber-200 text-[11px]">

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Employee, Branch } from '../types';
 import { supabase } from '../lib/supabase';
+import { useLanguage } from '../lib/i18n';
 import {
   AlertTriangle, Package, TrendingDown, TrendingUp, ShieldAlert, BarChart3,
   Plus, Trash2, Pencil, CheckCircle2, XCircle, Filter, Calendar, MapPin, Clock,
@@ -87,6 +88,7 @@ const WhatsAppIcon = ({ size = 20 }: { size?: number }) => (
 const ADMIN_WHATSAPP = '905324961412';
 
 const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
+  const { t } = useLanguage();
   const isLossAdmin = canAccessLossControl(currentUser.email);
   const isSuper = isSuperAdmin(currentUser.email);
 
@@ -196,7 +198,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
       if (productsData) setProducts(productsData.map((p: any) => p.name));
       if (empData) setEmployees(empData.map((d: any) => ({
         id: d.id,
-        name: d.full_name || d.email || 'İsimsiz',
+        name: d.full_name || d.email || t('loss.unnamedStaff'),
         email: d.email,
         role: d.role,
         branch: d.branch,
@@ -351,7 +353,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
       closeStockForm();
       fetchAllData();
     } catch (err) {
-      alert('Stok girişi kaydedilemedi: ' + (err as Error).message);
+      alert(t('loss.alertSaveStockFail') + (err as Error).message);
     } finally {
       setIsSaving(false);
     }
@@ -376,7 +378,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
       closeCountForm();
       fetchAllData();
     } catch (err) {
-      alert('Sayım kaydedilemedi: ' + (err as Error).message);
+      alert(t('loss.alertSaveCountFail') + (err as Error).message);
     } finally {
       setIsSaving(false);
     }
@@ -384,7 +386,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
 
   // Delete handlers
   const handleDeleteEntry = async (id: string) => {
-    if (!confirm('Bu stok girişini silmek istediğinizden emin misiniz?')) return;
+    if (!confirm(t('loss.confirmDeleteStock'))) return;
     try {
       const { error } = await supabase.from('stock_entries').delete().eq('id', id);
       if (error) throw error;
@@ -395,7 +397,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
   };
 
   const handleDeleteCount = async (id: string) => {
-    if (!confirm('Bu sayımı silmek istediğinizden emin misiniz?')) return;
+    if (!confirm(t('loss.confirmDeleteCount'))) return;
     try {
       const { error } = await supabase.from('stock_counts').delete().eq('id', id);
       if (error) throw error;
@@ -687,7 +689,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
     return (
       <div className="flex items-center justify-center h-full">
         <Loader2 className="animate-spin text-indigo-400" size={32} />
-        <span className="ml-3 text-zinc-400">Kayıp Önleme verileri yükleniyor...</span>
+        <span className="ml-3 text-zinc-400">{t('loss.loadingData')}</span>
       </div>
     );
   }
@@ -700,11 +702,11 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
           target="_blank"
           rel="noopener noreferrer"
           className="fixed bottom-24 right-4 md:bottom-8 md:right-8 z-40 flex items-center gap-2 px-4 py-3 bg-[#25D366] hover:bg-[#1ebe5a] active:scale-95 rounded-full shadow-lg shadow-emerald-500/40 text-white font-semibold text-xs md:text-sm transition-all"
-          title="Stok hatası varsa admine WhatsApp at"
-          aria-label="WhatsApp ile admine ulaş"
+          title={t('loss.contactAdminTitle')}
+          aria-label={t('loss.contactAdminAria')}
         >
           <WhatsAppIcon size={18} />
-          <span className="hidden sm:inline">Admine Ulaş</span>
+          <span className="hidden sm:inline">{t('loss.contactAdminBtn')}</span>
         </a>
       )}
       <div className="p-3 md:p-6 pb-32 md:pb-10 space-y-4 md:space-y-6 max-w-7xl mx-auto">
@@ -713,10 +715,10 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
         <div className="min-w-0 flex-1">
           <h1 className="text-lg md:text-2xl font-bold text-white flex items-center gap-2">
             <ShieldAlert className="text-red-400 shrink-0" size={22} />
-            <span className="truncate">{isLossAdmin ? 'Kayıp Önleme' : 'Stok'}</span>
+            <span className="truncate">{isLossAdmin ? t('loss.title') : t('loss.titleStock')}</span>
           </h1>
           <p className="text-zinc-500 text-xs md:text-sm mt-0.5 hidden sm:block">
-            {isLossAdmin ? 'Stok takip, kayıp tespiti, şube analizi' : 'Stok girişi yapın · sorun varsa admine WhatsApp atın'}
+            {isLossAdmin ? t('loss.subtitleAdmin') : t('loss.subtitleStaff')}
           </p>
         </div>
         <button
@@ -732,10 +734,10 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
       {/* Sub-tabs */}
       <div className="flex gap-1 bg-zinc-900/50 p-1 rounded-xl border border-zinc-800 overflow-x-auto custom-scrollbar -mx-1 px-1">
         {[
-          { id: 'overview', label: 'Genel Bakış', icon: BarChart3, adminOnly: false, superOnly: false },
-          { id: 'stock', label: 'Stok Yönetimi', icon: Package, adminOnly: false, superOnly: false },
+          { id: 'overview', label: t('loss.tabOverview'), icon: BarChart3, adminOnly: false, superOnly: false },
+          { id: 'stock', label: t('loss.tabStock'), icon: Package, adminOnly: false, superOnly: false },
           { id: 'alerts', label: 'Alarmlar', icon: AlertTriangle, adminOnly: true, superOnly: false },
-          { id: 'report', label: 'Şube Raporu', icon: FileText, adminOnly: true, superOnly: false },
+          { id: 'report', label: t('loss.tabReport'), icon: FileText, adminOnly: true, superOnly: false },
           { id: 'ai', label: 'AI Analiz', icon: Sparkles, adminOnly: true, superOnly: true },
         ].filter(tab => (isLossAdmin || !tab.adminOnly) && (!tab.superOnly || isSuper)).map(tab => (
           <button
@@ -760,16 +762,16 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
           onChange={e => setFilterBranch(e.target.value)}
           className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300 w-full sm:w-auto"
         >
-          <option value="ALL">Tüm Şubeler</option>
+          <option value="ALL">{t('loss.allBranches')}</option>
           {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
         </select>
         <select
           value={filterProduct}
           onChange={e => setFilterProduct(e.target.value)}
           className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300 w-full sm:w-auto"
-          title="Ürün filtresi"
+          title={t('loss.productFilter')}
         >
-          <option value="ALL">Tüm Ürünler</option>
+          <option value="ALL">{t('loss.allProducts')}</option>
           {products.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
         <select
@@ -777,10 +779,10 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
           onChange={e => setFilterDateRange(e.target.value as any)}
           className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300 w-full sm:w-auto"
         >
-          <option value="today">Bugün</option>
-          <option value="week">Son 7 Gün</option>
-          <option value="month">Son 30 Gün</option>
-          <option value="all">Tümü</option>
+          <option value="today">{t('loss.periodToday')}</option>
+          <option value="week">{t('loss.periodWeek')}</option>
+          <option value="month">{t('loss.periodMonth')}</option>
+          <option value="all">{t('loss.periodAll')}</option>
         </select>
       </div>
 
@@ -790,11 +792,11 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
           {/* Summary Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
             <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-3 md:p-4">
-              <div className="text-zinc-500 text-[10px] md:text-xs mb-1 leading-tight">Toplam Stok Girişi</div>
+              <div className="text-zinc-500 text-[10px] md:text-xs mb-1 leading-tight">{t('loss.totalStockIn')}</div>
               <div className="text-xl md:text-2xl font-bold text-white">{stockEntries.reduce((s, e) => s + e.quantity, 0)}</div>
             </div>
             <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-3 md:p-4">
-              <div className="text-zinc-500 text-[10px] md:text-xs mb-1 leading-tight">Toplam Satış (Onaylı)</div>
+              <div className="text-zinc-500 text-[10px] md:text-xs mb-1 leading-tight">{t('loss.totalApprovedSales')}</div>
               <div className="text-xl md:text-2xl font-bold text-emerald-400">
                 {salesData.filter(s => s.status === 'Onaylandı').reduce((s, e) => s + e.quantity, 0)}
               </div>
@@ -804,7 +806,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
               <div className="text-xl md:text-2xl font-bold text-red-400">{alerts.filter(a => !a.resolved).length}</div>
             </div>
             <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-3 md:p-4">
-              <div className="text-zinc-500 text-[10px] md:text-xs mb-1 leading-tight">Toplam Kayıp</div>
+              <div className="text-zinc-500 text-[10px] md:text-xs mb-1 leading-tight">{t('loss.totalLoss')}</div>
               <div className="text-xl md:text-2xl font-bold text-orange-400">
                 {alerts.filter(a => a.alert_type === 'kayip').reduce((s, a) => s + a.difference, 0)}
               </div>
@@ -813,7 +815,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
 
           {/* Trend Chart */}
           <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-3 md:p-4">
-            <h3 className="text-xs md:text-sm font-semibold text-zinc-300 mb-3 md:mb-4">Son 7 Gün — Stok Giriş vs Satış</h3>
+            <h3 className="text-xs md:text-sm font-semibold text-zinc-300 mb-3 md:mb-4">{t('loss.last7Chart')}</h3>
             <ResponsiveContainer width="100%" height={200}>
               <LineChart data={trendData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
@@ -824,8 +826,8 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                   labelStyle={{ color: '#a1a1aa' }}
                 />
                 <Legend />
-                <Line type="monotone" dataKey="stok_giris" stroke="#60a5fa" strokeWidth={2} name="Stok Giriş" dot={false} />
-                <Line type="monotone" dataKey="satis" stroke="#34d399" strokeWidth={2} name="Satış" dot={false} />
+                <Line type="monotone" dataKey="stok_giris" stroke="#60a5fa" strokeWidth={2} name={t('loss.lineStockIn')} dot={false} />
+                <Line type="monotone" dataKey="satis" stroke="#34d399" strokeWidth={2} name={t('loss.lineSales')} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -849,11 +851,11 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                 </div>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-zinc-500">Stok Giriş:</span>
+                    <span className="text-zinc-500">{t('loss.stockInLabel')}</span>
                     <span className="text-zinc-200">{bs.totalStocked}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-zinc-500">Satış:</span>
+                    <span className="text-zinc-500">{t('loss.salesLabel')}</span>
                     <span className="text-emerald-400">{bs.totalSold}</span>
                   </div>
                   <div className="flex justify-between">
@@ -863,13 +865,13 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                   {bs.totalCounted !== null && (
                     <>
                       <div className="flex justify-between">
-                        <span className="text-zinc-500">Sayım:</span>
+                        <span className="text-zinc-500">{t('loss.countLabel')}</span>
                         <span className="text-zinc-200">{bs.totalCounted}</span>
                       </div>
                       <div className="flex justify-between border-t border-zinc-800 pt-2">
                         <span className="text-zinc-500 font-medium">Fark:</span>
                         <span className={`font-bold ${bs.loss && bs.loss > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-                          {bs.loss !== null ? (bs.loss > 0 ? `-${bs.loss} Kayıp` : bs.loss < 0 ? `+${Math.abs(bs.loss)} Fazla` : '✓ Eşit') : '—'}
+                          {bs.loss !== null ? (bs.loss > 0 ? `-${bs.loss} ${t('loss.lossWord')}` : bs.loss < 0 ? `+${Math.abs(bs.loss)} ${t('loss.surplusWord')}` : t('loss.equal')) : '—'}
                         </span>
                       </div>
                     </>
@@ -890,14 +892,14 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
               onClick={() => setShowStockForm(true)}
               className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 rounded-lg text-white text-xs sm:text-sm font-medium transition-all"
             >
-              <Plus size={16} /> Stok Girişi
+              <Plus size={16} /> {t('loss.btnNewStock')}
             </button>
             {isLossAdmin && (
               <button
                 onClick={() => setShowCountForm(true)}
                 className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 rounded-lg text-white text-xs sm:text-sm font-medium transition-all"
               >
-                <Search size={16} /> Sayım Ekle
+                <Search size={16} /> {t('loss.btnAddCount')}
               </button>
             )}
           </div>
@@ -905,21 +907,21 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
           {/* Stock Entry Form Modal */}
           {showStockForm && (
             <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-5 space-y-4">
-              <h3 className="text-lg font-semibold text-white">{editingEntry ? 'Stok Girişi Düzenle' : 'Yeni Stok Girişi'}</h3>
+              <h3 className="text-lg font-semibold text-white">{editingEntry ? t('loss.editStockEntry') : t('loss.newStockEntry')}</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-zinc-400 mb-1 block">Ürün</label>
+                  <label className="text-xs text-zinc-400 mb-1 block">{t('loss.product')}</label>
                   <select
                     value={stockForm.product_name}
                     onChange={e => setStockForm(p => ({ ...p, product_name: e.target.value }))}
                     className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200"
                   >
-                    <option value="">Seçin...</option>
+                    <option value="">{t('loss.selectPlaceholder')}</option>
                     {products.map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-zinc-400 mb-1 block">Şube</label>
+                  <label className="text-xs text-zinc-400 mb-1 block">{t('loss.branch')}</label>
                   <select
                     value={stockForm.branch}
                     onChange={e => setStockForm(p => ({ ...p, branch: e.target.value }))}
@@ -954,7 +956,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                   type="text"
                   value={stockForm.note}
                   onChange={e => setStockForm(p => ({ ...p, note: e.target.value }))}
-                  placeholder="Fatura no, tedarikçi vs."
+                  placeholder={t('loss.invoicePlaceholder')}
                   className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200"
                 />
               </div>
@@ -971,7 +973,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                   onClick={closeStockForm}
                   className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-300 text-sm transition-colors"
                 >
-                  İptal
+                  {t('loss.cancel')}
                 </button>
               </div>
             </div>
@@ -980,21 +982,21 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
           {/* Count Form Modal */}
           {showCountForm && (
             <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-5 space-y-4">
-              <h3 className="text-lg font-semibold text-white">{editingCount ? 'Sayım Düzenle' : 'Fiziksel Sayım Girişi'}</h3>
+              <h3 className="text-lg font-semibold text-white">{editingCount ? t('loss.editCount') : t('loss.newCount')}</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-zinc-400 mb-1 block">Ürün</label>
+                  <label className="text-xs text-zinc-400 mb-1 block">{t('loss.product')}</label>
                   <select
                     value={countForm.product_name}
                     onChange={e => setCountForm(p => ({ ...p, product_name: e.target.value }))}
                     className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200"
                   >
-                    <option value="">Seçin...</option>
+                    <option value="">{t('loss.selectPlaceholder')}</option>
                     {products.map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-zinc-400 mb-1 block">Şube</label>
+                  <label className="text-xs text-zinc-400 mb-1 block">{t('loss.branch')}</label>
                   <select
                     value={countForm.branch}
                     onChange={e => setCountForm(p => ({ ...p, branch: e.target.value }))}
@@ -1004,7 +1006,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-zinc-400 mb-1 block">Sayılan Adet</label>
+                  <label className="text-xs text-zinc-400 mb-1 block">{t('loss.countedQty')}</label>
                   <input
                     type="number"
                     min={0}
@@ -1029,7 +1031,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                   type="text"
                   value={countForm.note}
                   onChange={e => setCountForm(p => ({ ...p, note: e.target.value }))}
-                  placeholder="Sayım detayı..."
+                  placeholder={t('loss.countDetailPlaceholder')}
                   className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200"
                 />
               </div>
@@ -1046,7 +1048,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                   onClick={closeCountForm}
                   className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-300 text-sm transition-colors"
                 >
-                  İptal
+                  {t('loss.cancel')}
                 </button>
               </div>
             </div>

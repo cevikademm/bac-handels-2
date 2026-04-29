@@ -5,6 +5,7 @@ import { includeAsPersonnel, isDualRoleAdmin } from '../constants';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
 import { GlowingEffect } from './ui/glowing-effect';
+import { notifyEvent } from '../lib/notifyEvent';
 
 // QR sayfa yuklenirken patlamasin diye lazy yukleniyor (zxing/browser
 // production minify'da top-level import edilince mangled constructor hatasi veriyordu).
@@ -625,6 +626,16 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
               setTimeLogs([newLogFrontend, ...timeLogs]);
               setShowTimeModal(false);
               alert(t('common.success'));
+
+              // Kiosk haricinde (manuel) mesai kaydı → admin'e push
+              const targetEmp = employees.find(e => e.id === targetEmployeeId);
+              notifyEvent({
+                  type: 'non_kiosk_check',
+                  employee_id: targetEmployeeId,
+                  employee_name: targetEmp?.name || 'Personel',
+                  branch: timeForm.branch,
+                  action: 'in',
+              });
           }
       } catch (err: any) {
            console.warn("Saat kaydetme hatası (Yerel Mod Devrede):", err);

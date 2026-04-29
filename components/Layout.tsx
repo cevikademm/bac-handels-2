@@ -98,7 +98,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
                     ? 'bg-red-600/20 text-red-400 border-red-600/40'
                     : 'bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:text-red-400'
                 }`}
-                title={canAccessLossControl(userEmail) ? 'Kayıp Önleme' : 'Stok'}
+                title={canAccessLossControl(userEmail) ? t('nav.lossControl') : t('nav.stock')}
               >
                 <ShieldAlert size={18} />
               </button>
@@ -162,7 +162,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
                 }`}
               >
                 <ShieldAlert size={16} />
-                <span>{canAccessLossControl(userEmail) ? 'Kayıp Önleme' : 'Stok'}</span>
+                <span>{canAccessLossControl(userEmail) ? t('nav.lossControl') : t('nav.stock')}</span>
               </button>
             </div>
             <div className="px-4 pb-4">

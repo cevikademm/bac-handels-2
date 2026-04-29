@@ -466,7 +466,7 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
 
                                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                     {task.status === 'done' && (
-                                        <button onClick={() => reopenTask(task.id)} title="Görevi Geri Aç" className="p-1.5 bg-zinc-800 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors">
+                                        <button onClick={() => reopenTask(task.id)} title={t('tasks.reopenTask')} className="p-1.5 bg-zinc-800 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors">
                                             <Undo2 size={14} />
                                         </button>
                                     )}
@@ -476,14 +476,14 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
                                         <>
                                             <button 
                                                 onClick={() => handleEditTask(task)} 
-                                                title="Düzenle" 
+                                                title={t('tasks.editTitle')}
                                                 className="p-1.5 bg-zinc-800 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors"
                                             >
                                                 <Edit2 size={14} />
                                             </button>
                                             <button 
                                                 onClick={() => handleDeleteTask(task.id)} 
-                                                title="İptal Et / Sil" 
+                                                title={t('tasks.cancelDelete')}
                                                 className="p-1.5 bg-zinc-800 rounded-lg text-zinc-400 hover:text-red-400 hover:bg-red-900/20 transition-colors"
                                             >
                                                 <Trash2 size={14} />
@@ -504,7 +504,7 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
                                 <div className="flex items-center gap-2 mt-2 bg-gradient-to-r from-green-900/30 to-emerald-900/10 w-fit px-3 py-1 rounded-lg border border-green-500/20">
                                     <CheckCircle2 size={14} className="text-green-500"/>
                                     <span className="text-[11px] text-green-300 font-bold">
-                                        Tamamlayan: {mainCompleter ? mainCompleter.name : 'Bilinmiyor'}
+                                        {t('tasks.completedBy')}: {mainCompleter ? mainCompleter.name : t('tasks.unknown')}
                                     </span>
                                     {mainCompleter && (
                                         <img src={mainCompleter.avatarUrl} className="w-5 h-5 rounded-full border border-green-500/50" referrerPolicy="no-referrer" />

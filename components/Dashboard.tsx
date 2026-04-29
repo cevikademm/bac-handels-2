@@ -416,11 +416,11 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
 
   const getSenderName = (senderId: string) => {
       if (senderId === currentUser.id) return language === 'de' ? 'Ich' : 'Ben';
-      if (senderId === 'admin_1') return 'Yönetim'; // Fallback
+      if (senderId === 'admin_1') return t('dash.management'); // Fallback
       const emp = dashboardEmployees.find(e => e.id === senderId);
       // Adminler listede olmayabilir, isim bulamazsak 'Yönetici' diyelim
       if (!emp) {
-           return 'Sistem / Yönetici';
+           return t('dash.systemAdmin');
       }
       return emp ? emp.name : 'Sistem';
   };
@@ -637,7 +637,7 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                 <div className="flex-1 text-center md:text-left z-10">
                     <h3 className="text-xl font-bold text-white mb-1 flex items-center justify-center md:justify-start gap-2">
                         {t('dash.adminAlert')}
-                        <span className="text-[10px] bg-red-600 text-white px-2 py-0.5 rounded-full font-bold animate-bounce">YENİ</span>
+                        <span className="text-[10px] bg-red-600 text-white px-2 py-0.5 rounded-full font-bold animate-bounce">{t('dash.newBadge')}</span>
                     </h3>
                     <p className="text-indigo-200 text-sm leading-relaxed max-w-2xl line-clamp-1">
                         {adminMessageAlert.message}
@@ -667,13 +667,13 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                    </h3>
                    <div className="space-y-1 text-sm">
                         <p className="text-orange-200 font-medium">
-                            {language === 'de' ? 'Ihr Arbeitsort wurde durch die Verwaltung geändert.' : 'Yönetim kararı ile görev yeriniz değiştirilmiştir.'}
+                            {t('dash.transferAlertMsg')}
                         </p>
                         <p className="text-zinc-300">
                             <span className="bg-orange-500/20 text-orange-200 px-2 py-0.5 rounded border border-orange-500/30 font-bold">{activeTransferEvent.title}</span>
                         </p>
                         <p className="text-zinc-300">
-                            {language === 'de' ? 'Datum' : 'Tarih'}: <span className="text-orange-300 font-bold">{formatDate(activeTransferEvent.date)} - {activeTransferEvent.endDate ? formatDate(activeTransferEvent.endDate) : '...'}</span>
+                            {t('sales.date')}: <span className="text-orange-300 font-bold">{formatDate(activeTransferEvent.date)} - {activeTransferEvent.endDate ? formatDate(activeTransferEvent.endDate) : '...'}</span>
                         </p>
                         <p className="text-zinc-300">
                             {t('common.timeLabel')}: <span className="text-orange-300 font-bold">{activeTransferEvent.startTime} - {activeTransferEvent.endTime}</span>
@@ -760,7 +760,7 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
               ) : (
                   <div className="col-span-4 flex flex-col items-center justify-center py-8 bg-zinc-900/20 border border-dashed border-zinc-800 rounded-2xl text-zinc-500">
                       <CheckCircle2 size={32} className="mb-2 opacity-20"/>
-                      <p className="text-sm">Şu anda aktif görev bulunmuyor.</p>
+                      <p className="text-sm">{t('dash.noActiveTasks')}</p>
                   </div>
               )}
           </div>
