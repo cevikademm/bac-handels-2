@@ -63,3 +63,32 @@ export function formatTimeOfDay(iso?: string | null): string {
 export const OFF_SHIFT_ALERT_EMAILS = ['cevikademm@gmail.com', 'gurcan@bac.de'];
 export const canSeeOffShiftAlerts = (email?: string | null): boolean =>
   !!email && OFF_SHIFT_ALERT_EMAILS.includes(email.trim().toLowerCase());
+
+// Fiş fotoğrafı için kanvas tabanlı sıkıştırma. Mobilde ham foto 3-5 MB
+// olabiliyor — okunaklı kalan 800px genişlik + JPEG q=0.6 ~30-80 KB üretir.
+// EXIF orientation 'from-image' ile otomatik düzeltilir (modern Chrome/Safari).
+export async function compressImageToJpeg(
+  file: File,
+  opts: { maxWidth?: number; quality?: number } = {}
+): Promise<Blob> {
+  const { maxWidth = 800, quality = 0.6 } = opts;
+  // @ts-ignore — imageOrientation 'from-image' Chrome 79+ / Safari 13.4+
+  const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  const ratio = Math.min(1, maxWidth / bitmap.width);
+  const w = Math.max(1, Math.round(bitmap.width * ratio));
+  const h = Math.max(1, Math.round(bitmap.height * ratio));
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas context kullanılamıyor');
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  bitmap.close?.();
+  return await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      b => (b ? resolve(b) : reject(new Error('Resim sıkıştırılamadı'))),
+      'image/jpeg',
+      quality
+    );
+  });
+}

@@ -2,9 +2,9 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { SalesLog, Employee, Role, Branch } from '../types';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
-import { formatLocalDate, isUserOnShiftAt, formatTimeOfDay, canSeeOffShiftAlerts } from '../lib/utils';
+import { formatLocalDate, isUserOnShiftAt, formatTimeOfDay, canSeeOffShiftAlerts, compressImageToJpeg } from '../lib/utils';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
-import { Trophy, TrendingUp, ShoppingBag, MapPin, Award, Medal, Calendar, Package, Activity, BarChart3, ListTodo, User, Lock, EyeOff, Filter, ChevronDown, Clock, Tag, Send, Loader2, CheckCircle2, XCircle, Trash2, X, Star, Zap, Crown, Percent, Settings, AlertTriangle } from 'lucide-react';
+import { Trophy, TrendingUp, ShoppingBag, MapPin, Award, Medal, Calendar, Package, Activity, BarChart3, ListTodo, User, Lock, EyeOff, Filter, ChevronDown, Clock, Tag, Send, Loader2, CheckCircle2, XCircle, Trash2, X, Star, Zap, Crown, Percent, Settings, AlertTriangle, Camera, Receipt } from 'lucide-react';
 import { GlowingEffect } from './ui/glowing-effect';
 
 
@@ -114,7 +114,8 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                     saleDate: l.sale_date,
                     status: l.status,
                     createdAt: l.created_at,
-                    isOffShift: !!l.is_off_shift
+                    isOffShift: !!l.is_off_shift,
+                    receiptUrl: l.receipt_url || undefined
                 }));
                 setSalesData(formattedSales);
             }
@@ -183,26 +184,55 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
         }
     };
 
-    // SALES MANAGEMENT FUNCTIONS (Ported from ShiftSchedule)
-    const handleSaveSale = async (e: React.FormEvent) => {
+    // Fiş fotoğrafı için file input ref — submit, kamera/dosya seçiciyi tetikler
+    const receiptInputRef = useRef<HTMLInputElement>(null);
+
+    // 1. ADIM: form gönderilince validate + kamera/dosya açılır.
+    const handleSaveSale = (e: React.FormEvent) => {
         e.preventDefault();
+        if (isSaving) return;
+
+        if (!salesForm.branch) { alert(t('sales.branch')); return; }
+        if (!salesForm.product) { alert('Ürün seçin'); return; }
+        if (!salesForm.quantity || salesForm.quantity <= 0) { alert('Geçerli adet girin'); return; }
+
+        // Mesai kontrolü
+        const onShift = isUserOnShiftAt(currentUser.id, new Date(), currentWeekShifts);
+        if (!onShift && !canSeeOffShift) {
+            alert('Şu an mesainizde değilsiniz. Mesai saatleri dışında satış girilemez.');
+            return;
+        }
+
+        // Kamera / dosya seçiciyi tetikle
+        if (receiptInputRef.current) {
+            receiptInputRef.current.value = '';
+            receiptInputRef.current.click();
+        }
+    };
+
+    // 2. ADIM: kullanıcı fişi seçince → sıkıştır → Storage'a yükle → satışı kaydet.
+    const handleReceiptSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (e.target) e.target.value = '';
+        if (!file) return;
+
         setIsSaving(true);
         try {
-            if (!salesForm.branch) {
-                alert(t('sales.branch'));
-                setIsSaving(false);
-                return;
-            }
+            // Fişi sıkıştır (max 800px, q=0.6 — ~30-80 KB ama metin okunaklı)
+            const blob = await compressImageToJpeg(file, { maxWidth: 800, quality: 0.6 });
 
-            // Mesai kontrolü: kullanıcı şu an atanmış vardiyada değilse satış giremez.
-            // İki adminin (cevikademm, gurcan) bu kuraldan muafiyeti var ama kayda
-            // yine "mesai dışı" olarak düşülür ki tabloda izlenebilsin.
+            // Storage path: <userId>/<timestamp>.jpg — çakışmaz, kullanıcıya göre gruplanır
+            const path = `${currentUser.id}/${Date.now()}.jpg`;
+            const { error: upErr } = await supabase.storage
+                .from('sales_receipts')
+                .upload(path, blob, { contentType: 'image/jpeg', upsert: false });
+            if (upErr) throw upErr;
+
+            const { data: pub } = supabase.storage.from('sales_receipts').getPublicUrl(path);
+            const receiptUrl = pub.publicUrl;
+
+            // is_off_shift değeri formun submit'lendiği andaki vardiya durumuna göre
             const onShift = isUserOnShiftAt(currentUser.id, new Date(), currentWeekShifts);
-            if (!onShift && !canSeeOffShift) {
-                alert('Şu an mesainizde değilsiniz. Mesai saatleri dışında satış girilemez.');
-                setIsSaving(false);
-                return;
-            }
 
             const payload = {
                 employee_id: currentUser.id,
@@ -211,13 +241,14 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                 quantity: salesForm.quantity,
                 sale_date: salesForm.date,
                 status: 'Bekliyor',
-                is_off_shift: !onShift
+                is_off_shift: !onShift,
+                receipt_url: receiptUrl
             };
             const { data, error } = await supabase.from('sales_logs').insert([payload]).select();
             if (error) throw error;
 
             if (data && isMounted.current) {
-                const newLog = {
+                const newLog: SalesLog = {
                     id: data[0].id,
                     employeeId: data[0].employee_id,
                     branch: data[0].branch,
@@ -226,15 +257,16 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                     saleDate: data[0].sale_date,
                     status: 'Bekliyor',
                     createdAt: data[0].created_at,
-                    isOffShift: !!data[0].is_off_shift
+                    isOffShift: !!data[0].is_off_shift,
+                    receiptUrl: data[0].receipt_url || receiptUrl
                 };
                 setSalesData(prev => [newLog, ...prev]);
                 alert(t('sales.alertSuccess'));
             }
         } catch (err: any) {
-            alert(err.message);
+            alert('Yüklenemedi: ' + (err.message || err));
         } finally {
-            if(isMounted.current) setIsSaving(false);
+            if (isMounted.current) setIsSaving(false);
         }
     };
 
@@ -600,11 +632,23 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                             <div className="flex-1 sm:w-24">
                                 <input type="number" min="1" value={salesForm.quantity} onChange={e => setSalesForm({...salesForm, quantity: parseInt(e.target.value)})} className="w-full bg-orange-700/50 border border-orange-400/30 rounded-xl px-4 py-3 text-sm text-white font-bold text-center outline-none focus:bg-orange-700" />
                             </div>
-                            <button type="submit" disabled={isSaving} className="flex-1 sm:flex-none px-6 py-3 bg-white text-orange-600 font-black rounded-xl hover:scale-105 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2">
-                                {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-                                {t('sales.add')}
+                            <button type="submit" disabled={isSaving} className="flex-1 sm:flex-none px-6 py-3 bg-white text-orange-600 font-black rounded-xl hover:scale-105 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                                {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
+                                {isSaving ? 'Yükleniyor...' : 'Fiş Çek & Ekle'}
                             </button>
                         </div>
+                        {/* Gizli file input — submit butonu kamera/dosya seçiciyi açar.
+                            capture="environment" mobilde arka kamerayı tetikler. */}
+                        <input
+                            ref={receiptInputRef}
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            onChange={handleReceiptSelected}
+                            className="sr-only"
+                            tabIndex={-1}
+                            aria-hidden="true"
+                        />
                     </form>
                 </div>
             </div>
@@ -867,6 +911,18 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                                             <Package size={12} className="text-indigo-400 shrink-0" />
                                             <span className="text-xs text-zinc-300 truncate">{log.productName}</span>
                                         </div>
+                                        {log.receiptUrl && (isAdmin || isMe) && (
+                                            <a
+                                                href={log.receiptUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-1.5 px-2 py-1 bg-indigo-500/10 border border-indigo-500/30 rounded hover:bg-indigo-500/20 transition-colors"
+                                                title="Fiş fotoğrafını görüntüle"
+                                            >
+                                                <Receipt size={12} className="text-indigo-400 shrink-0" />
+                                                <span className="text-[10px] font-bold text-indigo-300">Fiş</span>
+                                            </a>
+                                        )}
                                     </div>
                                     
                                     {/* Actions / Status */}

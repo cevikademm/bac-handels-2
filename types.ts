@@ -132,4 +132,5 @@ export interface SalesLog {
     status: 'Bekliyor' | 'Onaylandı' | 'Reddedildi';
     createdAt: string;
     isOffShift?: boolean; // satış girişi anında kullanıcı vardiyada mıydı (false) yoksa evdeyken mi girdi (true)
+    receiptUrl?: string;  // fiş fotoğrafının Supabase Storage URL'i (sales_receipts bucket)
 }

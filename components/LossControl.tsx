@@ -400,8 +400,10 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
     const days = stockPeriod === 'week' ? 7 : 30;
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
+    // "Reddedildi" hariç tüm satışlar (Bekliyor + Onaylandı) stoktan düşer.
+    // Reddedilen satış gerçekleşmemiş demek olduğu için stoktan düşmez.
     salesData
-      .filter(s => s.status === 'Onaylandı' && s.sale_date >= since)
+      .filter(s => s.status !== 'Reddedildi' && s.sale_date >= since)
       .forEach(s => {
         const key = `${s.branch}|${s.product_name}`;
         const cur = map.get(key) || { branch: s.branch, product: s.product_name, stocked: 0, sold: 0 };
