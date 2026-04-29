@@ -4,6 +4,7 @@ import { Branch, Employee, Role } from '../types';
 import { Save, ChevronLeft, ChevronRight, Copy, Plus, Trash2, Loader2, AlertTriangle } from 'lucide-react';
 import { includeAsPersonnel } from '../constants';
 import { supabase } from '../lib/supabase';
+import { formatLocalDate } from '../lib/utils';
 import { GlowingEffect } from './ui/glowing-effect';
 
 
@@ -59,7 +60,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
   // Diğer şubelerdeki tüm atamalar - çakışma kontrolü için
   const [otherBranchSchedules, setOtherBranchSchedules] = useState<{ branch: string; timeLabel: string; assignments: string[] }[]>([]);
 
-  const weekKey = `${currentWeekStart.getFullYear()}-${String(currentWeekStart.getMonth() + 1).padStart(2, '0')}-${String(currentWeekStart.getDate()).padStart(2, '0')}`;
+  const weekKey = formatLocalDate(currentWeekStart);
   const currentWeekEnd = new Date(currentWeekStart);
   currentWeekEnd.setDate(currentWeekEnd.getDate() + 6);
 
@@ -247,7 +248,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
   const handleCopyNextWeek = async () => {
       if (!isAdmin) return;
       const nextWeekDate = new Date(currentWeekStart); nextWeekDate.setDate(nextWeekDate.getDate() + 7);
-      const nextWeekKey = `${nextWeekDate.getFullYear()}-${String(nextWeekDate.getMonth() + 1).padStart(2, '0')}-${String(nextWeekDate.getDate()).padStart(2, '0')}`;
+      const nextWeekKey = formatLocalDate(nextWeekDate);
       if (confirm(t('shift.copyConfirm').replace('{date}', formatDate(nextWeekDate)))) {
           setIsLoading(true);
           try {

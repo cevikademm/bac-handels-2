@@ -3,6 +3,7 @@ import { Branch, Employee, Role, CalendarEvent, Task } from '../types';
 import { Plus, X, Calendar as CalendarIcon, Clock, MapPin, Users, Save, Building2, CheckCircle2, AlignLeft, Trash2, ChevronLeft, ChevronRight, AlertTriangle, CheckSquare, Loader2, Rocket, ArrowRightLeft, CalendarRange, MoreHorizontal, Filter, List } from 'lucide-react';
 import { includeAsPersonnel } from '../constants';
 import { supabase } from '../lib/supabase';
+import { formatLocalDate } from '../lib/utils';
 import { useLanguage } from '../lib/i18n';
 import { GlowingEffect } from './ui/glowing-effect';
 
@@ -224,7 +225,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
 
   // --- CURRENT USER'S SHIFTS PER DAY (for notification badges) ---
   const myShiftsPerDay = useMemo((): Map<number, { slot: string; branch: string }[]> => {
-      const weekStartStr = currentWeekStart.toISOString().split('T')[0];
+      const weekStartStr = formatLocalDate(currentWeekStart);
       const dayMap = new Map<number, { slot: string; branch: string }[]>();
 
       shifts.forEach((schedule: any) => {
@@ -241,7 +242,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
 
   // --- SHIFT GRID (for Working Hours tab) ---
   const shiftGrid = useMemo((): { employee: Employee; days: Map<number, string[]> }[] => {
-      const weekStartStr = currentWeekStart.toISOString().split('T')[0];
+      const weekStartStr = formatLocalDate(currentWeekStart);
 
       // employeeId -> { dayIndex -> timeSlot[] }
       const employeeShiftMap = new Map<string, Map<number, string[]>>();
@@ -277,7 +278,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   // Bu hafta hiç vardiyası olmayan personeller
   const unassignedEmployees = useMemo(() => {
       if (currentUser.role !== Role.ADMIN) return [];
-      const weekStartStr = currentWeekStart.toISOString().split('T')[0];
+      const weekStartStr = formatLocalDate(currentWeekStart);
       const assignedIds = new Set<string>();
       shifts.forEach((schedule: any) => {
           if (schedule.week_start_date !== weekStartStr) return;
