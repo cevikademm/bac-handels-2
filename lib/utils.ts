@@ -51,6 +51,16 @@ export function isUserOnShiftAt(userId: string, now: Date, schedules: any[]): bo
   return false;
 }
 
+// Ondalık saat değerini "H:MM" string'ine çevir. Örn. 8.42 -> "8:25".
+// time_logs.total_hours bu formatta tutulur (2 ondalıklı), insan-okur biçimi.
+export function formatHoursAsHM(hours?: number | null): string {
+  if (hours == null || isNaN(hours) || hours <= 0) return '0:00';
+  const totalMinutes = Math.round(hours * 60);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${h}:${String(m).padStart(2, '0')}`;
+}
+
 // HH:mm formatı (yerel saat). created_at gibi ISO timestamp'ler için.
 export function formatTimeOfDay(iso?: string | null): string {
   if (!iso) return '';

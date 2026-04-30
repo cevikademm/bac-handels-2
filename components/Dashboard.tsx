@@ -1,11 +1,14 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, BarChart, Bar, Legend, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
-import { Bell, TrendingUp, Users, Clock, AlertCircle, Sparkles, CheckCircle2, Zap, Target, ArrowUpRight, Activity, ArrowRightLeft, Briefcase, CalendarCheck, Medal, AlertTriangle, DollarSign, MapPin, Coffee, Wallet, Timer, Filter, BarChart3, ListTodo, CheckSquare, PlusCircle, MessageSquare, ChevronRight, User, ShoppingBag, AlertOctagon, Tag, Trophy, Award, Upload, Loader2 } from 'lucide-react';
+import { Bell, TrendingUp, Users, Clock, AlertCircle, Sparkles, CheckCircle2, Zap, Target, ArrowUpRight, Activity, ArrowRightLeft, Briefcase, CalendarCheck, Medal, AlertTriangle, DollarSign, MapPin, Coffee, Wallet, Timer, Filter, BarChart3, ListTodo, CheckSquare, PlusCircle, MessageSquare, ChevronRight, User, ShoppingBag, AlertOctagon, Tag, Trophy, Award, Upload, Loader2, QrCode, X } from 'lucide-react';
 import { AppNotification, Employee, Role, CalendarEvent, Branch, Task, Message, SalesLog } from '../types';
 import { isDualRoleAdmin } from '../constants';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
 import { GlowingEffect } from './ui/glowing-effect';
+
+// QR scanner lazy: zxing/browser top-level import prod minify'da bozuluyor
+const QrCheckIn = lazy(() => import('./QrCheckIn'));
 
 
 interface DashboardProps {
@@ -41,6 +44,7 @@ const getRelativeTime = (dateString: string, lang: 'tr' | 'de' = 'tr') => {
 
 const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, onUpdateUser }) => {
   const [activeTransferEvent, setActiveTransferEvent] = useState<CalendarEvent | null>(null);
+  const [showQrModal, setShowQrModal] = useState(false);
   
   // Real Data States
   const [dashboardTasks, setDashboardTasks] = useState<Task[]>([]);
@@ -884,23 +888,24 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
           
           {/* COL 1: DAILY TIME ENTRY & SALES LEADERBOARD */}
           <div className="space-y-6">
-              {/* SAAT GİRİŞİ KARTI (YENİ) - VARDİYA GRAFİĞİ YERİNE */}
-              <div 
-                  onClick={() => navigateTo('payroll')}
-                  className="rounded-3xl border border-zinc-800 bg-gradient-to-br from-indigo-900/40 to-zinc-900 p-6 relative overflow-hidden group cursor-pointer hover:border-indigo-500/50 transition-all shadow-lg"
+              {/* QR İLE MESAİ GİRİŞİ — eski "Saat Girişi" kartının yerine.
+                  Tıklanınca payroll'a değil, doğrudan QR scanner modal'ı açılır. */}
+              <div
+                  onClick={() => setShowQrModal(true)}
+                  className="rounded-3xl border border-zinc-800 bg-gradient-to-br from-emerald-900/40 to-zinc-900 p-6 relative overflow-hidden group cursor-pointer hover:border-emerald-500/50 transition-all shadow-lg"
               >
 <GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} />
                   <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                      <Clock size={100} className="text-indigo-400" />
+                      <QrCode size={100} className="text-emerald-400" />
                   </div>
                   <div className="relative z-10">
-                      <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-900/50 mb-4 group-hover:scale-110 transition-transform">
-                          <PlusCircle size={24} />
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-900/50 mb-4 group-hover:scale-110 transition-transform">
+                          <QrCode size={24} />
                       </div>
-                      <h3 className="text-lg font-bold text-white mb-1">{t('dash.dailyEntry')}</h3>
-                      <p className="text-sm text-zinc-400 mb-4">{t('dash.dailyEntryDesc')}</p>
+                      <h3 className="text-lg font-bold text-white mb-1">QR ile Mesai</h3>
+                      <p className="text-sm text-zinc-400 mb-4">Şube QR'ını okutarak hızlıca giriş/çıkış yap.</p>
                       <button className="px-4 py-2 bg-zinc-950 border border-zinc-700 text-white text-xs font-bold rounded-lg group-hover:bg-white group-hover:text-black transition-colors">
-                          {t('dash.goToEntry')}
+                          QR Tara
                       </button>
                   </div>
               </div>
@@ -978,6 +983,34 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
               </div>
           </div>
       </div>
+
+      {/* QR MESAİ MODAL — Dashboard "QR ile Mesai" kartından açılır */}
+      {showQrModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
+              <div className="flex items-center gap-2 text-white font-semibold">
+                <QrCode size={18} className="text-emerald-400" />
+                QR ile Mesai
+              </div>
+              <button
+                onClick={() => setShowQrModal(false)}
+                className="text-zinc-400 hover:text-white"
+                aria-label="Kapat"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <Suspense fallback={
+              <div className="p-12 flex items-center justify-center text-zinc-400">
+                <Loader2 className="animate-spin mr-2" size={20}/> Yükleniyor...
+              </div>
+            }>
+              <QrCheckIn currentUser={currentUser} onComplete={() => setTimeout(() => setShowQrModal(false), 1500)} />
+            </Suspense>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

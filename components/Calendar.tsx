@@ -3,7 +3,7 @@ import { Branch, Employee, Role, CalendarEvent, Task } from '../types';
 import { Plus, X, Calendar as CalendarIcon, Clock, MapPin, Users, Save, Building2, CheckCircle2, AlignLeft, Trash2, ChevronLeft, ChevronRight, AlertTriangle, CheckSquare, Loader2, Rocket, ArrowRightLeft, CalendarRange, MoreHorizontal, Filter, List } from 'lucide-react';
 import { includeAsPersonnel } from '../constants';
 import { supabase } from '../lib/supabase';
-import { formatLocalDate } from '../lib/utils';
+import { formatLocalDate, formatHoursAsHM } from '../lib/utils';
 import { useLanguage } from '../lib/i18n';
 import { GlowingEffect } from './ui/glowing-effect';
 
@@ -43,6 +43,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [shifts, setShifts] = useState<any[]>([]); // New Shift State
+  const [timeLogs, setTimeLogs] = useState<any[]>([]); // Çalışma Saatleri sekmesi için gerçek giriş/çıkış kayıtları
   const [employees, setEmployees] = useState<Employee[]>([]); // New Employee State for Attendees
 
   // Modal & Selection
@@ -110,13 +111,24 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                 setTasks(dbTasks);
             }
 
-            // 3. Shifts (Vardiyalar)
+            // 3. Shifts (Vardiyalar) — vardiya planı saatleri (planlı), referans olarak tutulur.
             const { data: shiftData } = await supabase
                 .from('shift_schedules')
                 .select('*');
 
             if (shiftData) {
                 setShifts(shiftData);
+            }
+
+            // 3b. Time logs (Gerçek QR/manuel giriş-çıkış kayıtları) — Çalışma Saatleri sekmesi için.
+            // Personel kendi kayıtlarını, admin tüm personelinkini görsün.
+            let timeLogQuery = supabase.from('time_logs').select('*');
+            if (currentUser.role !== Role.ADMIN) {
+                timeLogQuery = timeLogQuery.eq('employee_id', currentUser.id);
+            }
+            const { data: timeLogData } = await timeLogQuery;
+            if (timeLogData) {
+                setTimeLogs(timeLogData);
             }
 
             // 4. Employees (For Attendees Selector) - çift rollü adminler (Apo, Malik) dahil
@@ -240,40 +252,73 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       return dayMap;
   }, [shifts, currentWeekStart, currentUser]);
 
-  // --- SHIFT GRID (for Working Hours tab) ---
-  const shiftGrid = useMemo((): { employee: Employee; days: Map<number, string[]> }[] => {
+  // --- SHIFT GRID (Çalışma Saatleri sekmesi) ---
+  // Vardiya planı saatlerini değil, time_logs'taki GERÇEK QR/manuel giriş-çıkış
+  // saatlerini gösterir. Vardiya planı saati ayrı bir sekmede (Vardiya Planı)
+  // tutulur. Hesaplama çıkış saatine göre yapılır (RPC v_hours alanı).
+  type WorkEntry = { startTime: string; endTime: string; totalHours: number; method: 'qr' | 'manual'; ongoing: boolean };
+  const shiftGrid = useMemo((): { employee: Employee; days: Map<number, WorkEntry[]> }[] => {
       const weekStartStr = formatLocalDate(currentWeekStart);
+      // Haftanın 7 günü için Y-M-D string'leri
+      const weekDates: string[] = [];
+      for (let i = 0; i < 7; i++) {
+          const d = new Date(currentWeekStart);
+          d.setDate(d.getDate() + i);
+          weekDates.push(formatLocalDate(d));
+      }
 
-      // employeeId -> { dayIndex -> timeSlot[] }
-      const employeeShiftMap = new Map<string, Map<number, string[]>>();
+      // employeeId -> dayIndex -> WorkEntry[]
+      const empMap = new Map<string, Map<number, WorkEntry[]>>();
 
-      shifts.forEach((schedule: any) => {
-          if (schedule.week_start_date !== weekStartStr) return;
+      timeLogs.forEach((log: any) => {
+          const dayIdx = weekDates.indexOf(log.date);
+          if (dayIdx === -1) return; // Hafta dışı
+          const empId = log.employee_id;
+          if (!empId) return;
+          if (currentUser.role !== Role.ADMIN && empId !== currentUser.id) return;
 
-          schedule.days.forEach((empId: string, dayIndex: number) => {
-              if (!empId) return;
-              if (currentUser.role !== Role.ADMIN && empId !== currentUser.id) return;
+          if (!empMap.has(empId)) empMap.set(empId, new Map());
+          const dayMap = empMap.get(empId)!;
+          if (!dayMap.has(dayIdx)) dayMap.set(dayIdx, []);
 
-              if (!employeeShiftMap.has(empId)) {
-                  employeeShiftMap.set(empId, new Map());
-              }
-              const dayMap = employeeShiftMap.get(empId)!;
-              if (!dayMap.has(dayIndex)) {
-                  dayMap.set(dayIndex, []);
-              }
-              dayMap.get(dayIndex)!.push(schedule.time_slot || '09:00-17:00');
+          const start = (log.start_time || '').slice(0, 5);
+          const end = (log.end_time || '').slice(0, 5);
+          const ongoing = log.entry_method === 'qr' && !log.check_out_at && !end;
+          dayMap.get(dayIdx)!.push({
+              startTime: start || '—',
+              endTime: ongoing ? '' : (end || '—'),
+              totalHours: Number(log.total_hours) || 0,
+              method: log.entry_method === 'qr' ? 'qr' : 'manual',
+              ongoing,
           });
       });
 
-      const result: { employee: Employee; days: Map<number, string[]> }[] = [];
-      employeeShiftMap.forEach((dayMap, empId) => {
+      const result: { employee: Employee; days: Map<number, WorkEntry[]> }[] = [];
+      empMap.forEach((dayMap, empId) => {
           const emp = employees.find(e => e.id === empId);
           if (!emp) return;
           result.push({ employee: emp, days: dayMap });
       });
 
+      // Hafta için vardiya planı atanmış ama henüz giriş yapmamış personeller de
+      // listede görünsün — admin perspektifinde "kim eksik" görmek lazım. Personel
+      // perspektifinde de kendi planlanmış günleri en azından görsün.
+      shifts.forEach((schedule: any) => {
+          if (schedule.week_start_date !== weekStartStr) return;
+          schedule.days.forEach((empId: string) => {
+              if (!empId) return;
+              if (currentUser.role !== Role.ADMIN && empId !== currentUser.id) return;
+              if (!empMap.has(empId)) {
+                  const emp = employees.find(e => e.id === empId);
+                  if (emp && !result.find(r => r.employee.id === emp.id)) {
+                      result.push({ employee: emp, days: new Map() });
+                  }
+              }
+          });
+      });
+
       return result;
-  }, [shifts, employees, currentWeekStart, currentUser]);
+  }, [timeLogs, shifts, employees, currentWeekStart, currentUser]);
 
   // Bu hafta hiç vardiyası olmayan personeller
   const unassignedEmployees = useMemo(() => {
@@ -736,14 +781,26 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                                                         </div>
                                                     </td>
                                                     {weekDays.map((day, dayIndex) => {
-                                                        const slots = days.get(dayIndex);
+                                                        const entries = days.get(dayIndex);
                                                         const isCurrent = isToday(day);
                                                         return (
                                                             <td key={dayIndex} className={`text-center px-2 py-3 ${isCurrent ? 'bg-indigo-950/20' : ''}`}>
-                                                                {slots ? (
-                                                                    slots.map((slot, si) => (
-                                                                        <div key={si} className="text-[11px] bg-indigo-500/15 text-indigo-300 rounded-md px-2 py-1 mb-0.5 font-mono whitespace-nowrap">
-                                                                            {slot}
+                                                                {entries && entries.length > 0 ? (
+                                                                    entries.map((e, si) => (
+                                                                        <div key={si} className={`mb-0.5 rounded-md px-2 py-1 ${e.method === 'qr' ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-indigo-500/15 border border-indigo-500/20'}`}>
+                                                                            <div className={`text-[11px] font-mono whitespace-nowrap ${e.method === 'qr' ? 'text-emerald-300' : 'text-indigo-300'}`}>
+                                                                                {e.startTime}{e.ongoing ? ' → …' : ` - ${e.endTime}`}
+                                                                            </div>
+                                                                            {!e.ongoing && e.totalHours > 0 && (
+                                                                                <div className="text-[10px] text-zinc-400 font-semibold mt-0.5">
+                                                                                    {formatHoursAsHM(e.totalHours)} saat
+                                                                                </div>
+                                                                            )}
+                                                                            {e.ongoing && (
+                                                                                <div className="text-[10px] text-amber-400 font-semibold mt-0.5">
+                                                                                    sürüyor
+                                                                                </div>
+                                                                            )}
                                                                         </div>
                                                                     ))
                                                                 ) : (

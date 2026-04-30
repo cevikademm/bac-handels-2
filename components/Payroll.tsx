@@ -1251,7 +1251,11 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                 </div>
                 <div className="flex gap-2 w-full md:w-auto">
                     <button onClick={() => setShowQrModal(true)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs md:text-sm font-medium rounded-lg"><QrCode size={16} /> <span className="inline">{t('qr.scanBtn')}</span></button>
-                    <button onClick={handleOpenTimeModal} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs md:text-sm font-medium rounded-lg"><Plus size={16} /> <span className="inline">{t('pay.addHours')}</span></button>
+                    {/* Manuel "Saat Ekle" sadece TAM admin (Cevik) için. Personel ve
+                        kısıtlı admin (Apo/Malik) yalnızca QR ile mesai açar/kapar. */}
+                    {currentUser.role === Role.ADMIN && !isRestrictedAdmin(currentUser) && (
+                        <button onClick={handleOpenTimeModal} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs md:text-sm font-medium rounded-lg"><Plus size={16} /> <span className="inline">{t('pay.addHours')}</span></button>
+                    )}
                 </div>
             </div>
             <div className="flex-1 overflow-hidden flex flex-col md:flex-row">

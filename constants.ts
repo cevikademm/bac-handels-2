@@ -24,6 +24,16 @@ export const includeAsPersonnel = (profile: any): boolean => {
     return isDualRoleAdmin({ name, role });
 };
 
+// "Kısıtlanmış admin": Admin yetkisi var ama personel listesinde sadece
+// kendi verilerini görür (Apo, Malik gibi şube sorumluları).
+// isDualRoleAdmin ile aynı listeyi paylaşır — Dual-role olanlar otomatik kısıtlıdır.
+export const isRestrictedAdmin = (user: { name?: string | null; email?: string | null; role?: Role | string | null } | null | undefined): boolean => {
+    if (!user) return false;
+    if (user.role !== Role.ADMIN && user.role !== 'Admin') return false;
+    const name = (user.name || '').toLowerCase();
+    return DUAL_ROLE_ADMIN_NAMES.some(n => name.includes(n.toLowerCase()));
+};
+
 export const MOCK_EMPLOYEES: Employee[] = [];
 
 // NOTE: Titles and descriptions use i18n keys (e.g., task.mock.1.title) to support dynamic translation
