@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
 import { Employee, Branch, Role, TimeLog, AppNotification } from '../types';
 import { Search, Plus, Filter, Calculator, Save, Trash2, Phone, Mail, X, MapPin, Briefcase, Link as LinkIcon, ThumbsUp, ThumbsDown, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Wallet, Banknote, Map as MapIcon, Timer, Edit2, Loader2, ArrowRightLeft, Building2, CalendarRange, Lock, Rocket, PieChart, Upload, Shield, AlertTriangle, QrCode } from 'lucide-react';
-import { includeAsPersonnel, isDualRoleAdmin } from '../constants';
+import { includeAsPersonnel, isDualRoleAdmin, isRestrictedAdmin } from '../constants';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
 import { GlowingEffect } from './ui/glowing-effect';
@@ -163,9 +163,10 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
 
         // 2. Zaman Loglarını Çek
         let logQuery = supabase.from('time_logs').select('*');
-        
-        // GÜVENLİK: Admin değilse sadece kendi loglarını gör
-        if (currentUser.role !== Role.ADMIN) {
+
+        // GÜVENLİK: Admin değilse VEYA kısıtlanmış admin (Apo, Malik) ise
+        // sadece kendi loglarını gör.
+        if (currentUser.role !== Role.ADMIN || isRestrictedAdmin(currentUser)) {
              logQuery = logQuery.eq('employee_id', currentUser.id);
         }
 
@@ -228,8 +229,8 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
 
   // --- HESAPLAMALAR ---
   const filteredEmployees = useMemo(() => {
-    // KURAL: Eğer Admin değilse, listede sadece kendisini görmeli.
-    if (currentUser.role !== Role.ADMIN) {
+    // KURAL: Admin değilse VEYA kısıtlanmış admin (Apo, Malik) ise sadece kendisini görür.
+    if (currentUser.role !== Role.ADMIN || isRestrictedAdmin(currentUser)) {
         return employees.filter(e => e.id === currentUser.id);
     }
     // Tüm personel havuzda - sadece arama filtresi
@@ -250,7 +251,11 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
       });
   }, [employees, adminEmployees]);
 
-  const targetEmployeeId = selectedEmployeeId || (currentUser.role === Role.ADMIN ? null : currentUser.id);
+  // Kısıtlanmış admin (Apo, Malik) seçim yapamaz; daima kendi id'sine sabitlenir.
+  const restricted = isRestrictedAdmin(currentUser);
+  const targetEmployeeId = restricted
+    ? currentUser.id
+    : (selectedEmployeeId || (currentUser.role === Role.ADMIN ? null : currentUser.id));
   const targetEmployee = allEmployees.find(e => e.id === targetEmployeeId);
 
   const selectedEmployeeForDetail = selectedEmployeeId === 'NEW'
@@ -279,11 +284,46 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
 
   const monthlyLogs = useMemo(() => {
     if (!targetEmployeeId) return [];
-    return timeLogs.filter(log => 
-        log.employeeId === targetEmployeeId && 
+    return timeLogs.filter(log =>
+        log.employeeId === targetEmployeeId &&
         log.date.startsWith(currentMonth)
     ).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [timeLogs, targetEmployeeId, currentMonth]);
+
+  // === TELEFON ÇAKIŞMASI TESPİTİ ===
+  // Her kullanıcının QR girişlerinden cihaz frekanslarını çıkar. ≥3 kez
+  // kullanılan en sık cihaz "baskın cihaz" sayılır. Yeni bir kayıt baskın
+  // cihazdan farklıysa "Telefon çakışması" — başkasının şifresiyle başka
+  // telefondan giriş yapılmış olabilir, manuel inceleme gerekir.
+  const deviceConflicts = useMemo(() => {
+    const userDeviceCounts = new Map<string, Map<string, number>>();
+    timeLogs.forEach(log => {
+      if (log.method !== 'qr' || !log.deviceInfo) return;
+      if (!userDeviceCounts.has(log.employeeId)) userDeviceCounts.set(log.employeeId, new Map());
+      const counts = userDeviceCounts.get(log.employeeId)!;
+      counts.set(log.deviceInfo, (counts.get(log.deviceInfo) || 0) + 1);
+    });
+
+    const dominant = new Map<string, string>();
+    userDeviceCounts.forEach((counts, userId) => {
+      const sorted = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+      // Min 3 kayıt + diğer cihazlardan en az 2 kat fazla → "alışılmış cihaz"
+      if (sorted[0] && sorted[0][1] >= 3) {
+        const second = sorted[1]?.[1] || 0;
+        if (sorted[0][1] >= second * 2 || second === 0) dominant.set(userId, sorted[0][0]);
+      }
+    });
+
+    const conflicts = new Map<string, { expected: string }>();
+    timeLogs.forEach(log => {
+      if (log.method !== 'qr' || !log.deviceInfo) return;
+      const expected = dominant.get(log.employeeId);
+      if (expected && expected !== log.deviceInfo) {
+        conflicts.set(log.id, { expected });
+      }
+    });
+    return conflicts;
+  }, [timeLogs]);
 
   const payrollStats = useMemo(() => {
       const totalHours = monthlyLogs.reduce((acc, log) => acc + (log.totalHours || 0), 0);
@@ -1109,9 +1149,19 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                           <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">Manuel</span>
                                       )}
                                       {log.method === 'qr' && log.deviceInfo && canSeeDeviceInfo(currentUser.email) && (
-                                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700" title="Cihaz markası — sadece yetkili adminler görür">
-                                              {log.deviceInfo}
-                                          </span>
+                                          <>
+                                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700" title="Cihaz markası — sadece yetkili adminler görür">
+                                                  {log.deviceInfo}
+                                              </span>
+                                              {deviceConflicts.has(log.id) && (
+                                                  <span
+                                                      className="text-[9px] px-1.5 py-0.5 rounded bg-red-900/40 text-red-300 border border-red-600/60 font-black uppercase tracking-wider animate-pulse"
+                                                      title={`⚠️ Bu personelin alışılmış cihazı: ${deviceConflicts.get(log.id)?.expected}\nFarklı bir telefondan giriş — şifre paylaşımı şüphesi.`}
+                                                  >
+                                                      ⚠ Telefon Çakışması
+                                                  </span>
+                                              )}
+                                          </>
                                       )}
                                   </div>
                                   <div className="flex items-center gap-2 text-xs text-zinc-400 mt-1 flex-wrap">
@@ -1237,9 +1287,19 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                                             <span className="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-emerald-900/40 text-emerald-300 border border-emerald-800/60">QR</span>
                                                         )}
                                                         {log.method === 'qr' && log.deviceInfo && canSeeDeviceInfo(currentUser.email) && (
-                                                            <span className="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700" title="Cihaz markası — sadece yetkili adminler görür">
-                                                                {log.deviceInfo}
-                                                            </span>
+                                                            <>
+                                                                <span className="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700" title="Cihaz markası — sadece yetkili adminler görür">
+                                                                    {log.deviceInfo}
+                                                                </span>
+                                                                {deviceConflicts.has(log.id) && (
+                                                                    <span
+                                                                        className="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-red-900/40 text-red-300 border border-red-600/60 font-black uppercase tracking-wider animate-pulse"
+                                                                        title={`⚠️ Alışılmış cihazı: ${deviceConflicts.get(log.id)?.expected}\nFarklı telefondan giriş — şifre paylaşımı şüphesi.`}
+                                                                    >
+                                                                        ⚠ Telefon Çakışması
+                                                                    </span>
+                                                                )}
+                                                            </>
                                                         )}
                                                         {log.checkInLat != null && log.checkInLng != null && (
                                                             <a
