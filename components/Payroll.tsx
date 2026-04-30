@@ -1120,9 +1120,9 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                           </>
                                       )}
                                   </div>
-                                  <div className="flex items-center gap-2 text-[11px] text-zinc-500 mt-1 flex-wrap">
+                                  <div className={`flex items-center gap-2 text-[11px] mt-1 flex-wrap ${log.method === 'qr' ? 'text-emerald-400' : 'text-zinc-500'}`}>
                                       <MapPin size={10} />
-                                      <span>{log.branch || 'Şube yok'}</span>
+                                      <span className={log.method === 'qr' ? 'font-semibold' : ''}>{log.branch || 'Şube yok'}</span>
                                       {log.checkInLat != null && log.checkInLng != null && (
                                           <a
                                               href={`https://maps.google.com/?q=${log.checkInLat},${log.checkInLng}`}
@@ -1223,9 +1223,9 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                                     )}
                                                 </div>
                                                 {log.branch && (
-                                                    <div className="flex items-center gap-2 text-[10px] text-zinc-500">
+                                                    <div className={`flex items-center gap-2 text-[10px] ${log.method === 'qr' ? 'text-emerald-400' : 'text-zinc-500'}`}>
                                                         <MapPin size={10} />
-                                                        <span>{log.branch}</span>
+                                                        <span className={log.method === 'qr' ? 'font-semibold' : ''}>{log.branch}</span>
                                                         {log.method === 'qr' && (
                                                             <span className="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-emerald-900/40 text-emerald-300 border border-emerald-800/60">QR</span>
                                                         )}
@@ -1234,10 +1234,10 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                                                 href={`https://maps.google.com/?q=${log.checkInLat},${log.checkInLng}`}
                                                                 target="_blank"
                                                                 rel="noopener noreferrer"
-                                                                className="inline-flex items-center text-emerald-400 hover:text-emerald-300"
+                                                                className="inline-flex items-center gap-0.5 text-emerald-400 hover:text-emerald-300 font-semibold"
                                                                 title={`${log.checkInLat}, ${log.checkInLng}`}
                                                             >
-                                                                <MapPin size={10} />
+                                                                Konum <MapPin size={10} />
                                                             </a>
                                                         )}
                                                     </div>

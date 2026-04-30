@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
 import { formatLocalDate, isUserOnShiftAt, formatTimeOfDay, canSeeOffShiftAlerts, compressImageToJpeg } from '../lib/utils';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
-import { Trophy, TrendingUp, ShoppingBag, MapPin, Award, Medal, Calendar, Package, Activity, BarChart3, ListTodo, User, Lock, EyeOff, Filter, ChevronDown, Clock, Tag, Send, Loader2, CheckCircle2, XCircle, Trash2, X, Star, Zap, Crown, Percent, Settings, AlertTriangle, Camera, Receipt } from 'lucide-react';
+import { Trophy, TrendingUp, ShoppingBag, MapPin, Award, Medal, Calendar, Package, Activity, BarChart3, ListTodo, User, Lock, EyeOff, Filter, ChevronDown, Clock, Tag, Send, Loader2, CheckCircle2, XCircle, Trash2, X, Star, Zap, Crown, Percent, Settings, AlertTriangle, Camera, Receipt, Upload } from 'lucide-react';
 import { GlowingEffect } from './ui/glowing-effect';
 import { notifyEvent } from '../lib/notifyEvent';
 
@@ -185,10 +185,14 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
         }
     };
 
-    // Fiş fotoğrafı için file input ref — submit, kamera/dosya seçiciyi tetikler
-    const receiptInputRef = useRef<HTMLInputElement>(null);
+    // Fiş fotoğrafı için iki ayrı file input — kamera ve galeri
+    const cameraInputRef = useRef<HTMLInputElement>(null);
+    const galleryInputRef = useRef<HTMLInputElement>(null);
 
-    // 1. ADIM: form gönderilince validate + kamera/dosya açılır.
+    // Kaynak seçim modal'ı
+    const [showSourceModal, setShowSourceModal] = useState(false);
+
+    // 1. ADIM: form gönderilince validate + kaynak seçim modal'ı aç.
     const handleSaveSale = (e: React.FormEvent) => {
         e.preventDefault();
         if (isSaving) return;
@@ -204,10 +208,18 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
             return;
         }
 
-        // Kamera / dosya seçiciyi tetikle
-        if (receiptInputRef.current) {
-            receiptInputRef.current.value = '';
-            receiptInputRef.current.click();
+        // Kaynak seçim modal'ını aç
+        setShowSourceModal(true);
+    };
+
+    // Modal'dan seçim sonrası kamera veya galeri input'unu tetikle
+    const triggerSourceInput = (source: 'camera' | 'gallery') => {
+        setShowSourceModal(false);
+        const ref = source === 'camera' ? cameraInputRef : galleryInputRef;
+        if (ref.current) {
+            ref.current.value = '';
+            // Modal kapanma animasyonu için micro-delay
+            setTimeout(() => ref.current?.click(), 50);
         }
     };
 
@@ -651,10 +663,10 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                                 {isSaving ? t('common.loading') : t('sales.takeReceiptAdd')}
                             </button>
                         </div>
-                        {/* Gizli file input — submit butonu kamera/dosya seçiciyi açar.
-                            capture="environment" mobilde arka kamerayı tetikler. */}
+                        {/* Gizli file inputlar — modal'dan tetiklenir.
+                            capture="environment" → arka kamera; capture yok → galeri/dosya */}
                         <input
-                            ref={receiptInputRef}
+                            ref={cameraInputRef}
                             type="file"
                             accept="image/*"
                             capture="environment"
@@ -663,9 +675,76 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                             tabIndex={-1}
                             aria-hidden="true"
                         />
+                        <input
+                            ref={galleryInputRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={handleReceiptSelected}
+                            className="sr-only"
+                            tabIndex={-1}
+                            aria-hidden="true"
+                        />
                     </form>
                 </div>
             </div>
+
+            {/* KAYNAK SEÇİM MODAL'I — Kamera mı, Galeri mi? */}
+            {showSourceModal && (
+                <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden">
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
+                            <div className="flex items-center gap-2 text-white font-semibold">
+                                <Receipt size={18} className="text-orange-400" />
+                                Fiş Fotoğrafı
+                            </div>
+                            <button
+                                onClick={() => setShowSourceModal(false)}
+                                className="text-zinc-400 hover:text-white"
+                                aria-label="Kapat"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <div className="p-5 space-y-3">
+                            <p className="text-sm text-zinc-300 mb-4">
+                                Fişi nasıl eklemek istersin?
+                            </p>
+                            <button
+                                onClick={() => triggerSourceInput('camera')}
+                                className="w-full flex items-center gap-4 p-4 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-orange-500/40 rounded-xl transition-all group"
+                            >
+                                <div className="w-12 h-12 rounded-xl bg-orange-500/20 border border-orange-500/30 flex items-center justify-center text-orange-400 group-hover:scale-110 transition-transform shrink-0">
+                                    <Camera size={22} />
+                                </div>
+                                <div className="text-left flex-1">
+                                    <div className="text-white font-semibold text-sm">Kamera ile Çek</div>
+                                    <div className="text-xs text-zinc-500 mt-0.5">Fişi şu an kamerayla fotoğrafla</div>
+                                </div>
+                            </button>
+                            <button
+                                onClick={() => triggerSourceInput('gallery')}
+                                className="w-full flex items-center gap-4 p-4 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-indigo-500/40 rounded-xl transition-all group"
+                            >
+                                <div className="w-12 h-12 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 group-hover:scale-110 transition-transform shrink-0">
+                                    <Upload size={22} />
+                                </div>
+                                <div className="text-left flex-1">
+                                    <div className="text-white font-semibold text-sm">Galeriden Yükle</div>
+                                    <div className="text-xs text-zinc-500 mt-0.5">Ekran görüntüsü veya kayıtlı fotoğraf seç</div>
+                                </div>
+                            </button>
+                        </div>
+                        <div className="px-5 py-3 border-t border-zinc-800 flex justify-end">
+                            <button
+                                onClick={() => setShowSourceModal(false)}
+                                className="px-4 py-2 text-sm text-zinc-400 hover:text-white"
+                            >
+                                İptal
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Quick Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
