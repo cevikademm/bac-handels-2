@@ -161,13 +161,14 @@ const NotificationCenter: React.FC<Props> = ({ currentUserId, currentUserEmail, 
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="relative p-2 text-zinc-400 hover:text-white transition-colors"
+        className="relative p-1.5 md:p-2 text-zinc-400 hover:text-white transition-colors"
         title="Bildirimler"
         aria-label="Bildirimler"
       >
-        <Bell size={20} />
+        <Bell size={18} className="md:hidden" />
+        <Bell size={20} className="hidden md:block" />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-zinc-950">
+          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-zinc-950">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}

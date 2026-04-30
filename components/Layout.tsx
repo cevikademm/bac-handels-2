@@ -73,49 +73,50 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
     <div className="app-shell relative w-full bg-zinc-950 text-zinc-200 font-sans overflow-hidden flex flex-col md:flex-row">
       
       {/* --- MOBILE HEADER (Visible only on mobile) --- */}
-      <header className="md:hidden h-[calc(4rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] bg-zinc-950 border-b border-zinc-800 flex items-center justify-between px-4 shrink-0 z-30 relative shadow-sm">
-          <div 
-            className="flex items-center gap-3"
+      <header className="md:hidden h-[calc(4rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] bg-zinc-950 border-b border-zinc-800 flex items-center justify-between px-3 shrink-0 z-30 relative shadow-sm">
+          <div
+            className="flex items-center gap-2 min-w-0"
             onClick={() => setActiveTab('dashboard')}
           >
-              <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-900 border border-zinc-800 flex items-center justify-center shadow-lg shadow-red-900/10">
+              <div className="w-9 h-9 rounded-lg overflow-hidden bg-zinc-900 border border-zinc-800 flex items-center justify-center shadow-lg shadow-red-900/10 shrink-0">
                  <img src={BAC_LOGO_URL} alt="BAC Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
               </div>
-              <h1 className="text-lg font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
-                BAC Handels
+              {/* BAC Handels yazısı çok dar ekranda gizlenir, butonlara yer açar */}
+              <h1 className="hidden xs:block text-base font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent truncate">
+                BAC
               </h1>
           </div>
-          
-          <div className="flex items-center gap-2">
+
+          <div className="flex items-center gap-1">
               <button
                 onClick={() => setLanguage(language === 'tr' ? 'de' : 'tr')}
-                className="flex items-center justify-center h-9 px-2 bg-zinc-900/50 border border-zinc-800 rounded-lg text-xs font-bold text-zinc-400 hover:text-white transition-colors"
+                className="flex items-center justify-center h-8 px-1.5 bg-zinc-900/50 border border-zinc-800 rounded-lg text-[11px] font-bold text-zinc-400 hover:text-white transition-colors"
               >
                   {language === 'tr' ? '🇹🇷' : '🇩🇪'}
               </button>
               <button
                 onClick={() => setActiveTab('loss-control')}
-                className={`flex items-center justify-center h-9 w-9 rounded-lg border transition-colors ${
+                className={`flex items-center justify-center h-8 w-8 rounded-lg border transition-colors ${
                   activeTab === 'loss-control'
                     ? 'bg-red-600/20 text-red-400 border-red-600/40'
                     : 'bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:text-red-400'
                 }`}
                 title={canAccessLossControl(userEmail) ? t('nav.lossControl') : t('nav.stock')}
               >
-                <ShieldAlert size={18} />
+                <ShieldAlert size={16} />
               </button>
               <NotificationCenter currentUserId={userId} currentUserEmail={userEmail} onNavigate={setActiveTab} />
               <button
                 onClick={() => setActiveTab('settings')}
-                className={`p-2 rounded-full transition-colors ${activeTab === 'settings' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white'}`}
+                className={`p-1.5 rounded-full transition-colors ${activeTab === 'settings' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white'}`}
               >
-                  <SettingsIcon size={20} />
+                  <SettingsIcon size={18} />
               </button>
               <button
                 onClick={onLogout}
-                className="p-2 text-zinc-400 hover:text-red-400 transition-colors"
+                className="p-1.5 text-zinc-400 hover:text-red-400 transition-colors"
               >
-                  <LogOut size={20} />
+                  <LogOut size={18} />
               </button>
           </div>
       </header>
