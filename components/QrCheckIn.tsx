@@ -9,6 +9,7 @@ import { Employee } from '../types';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
 import { notifyEvent } from '../lib/notifyEvent';
+import { detectDeviceInfo } from '../lib/utils';
 
 type Phase = 'idle' | 'scanning' | 'posting' | 'result' | 'error';
 type ScanAction = 'in' | 'out';
@@ -218,6 +219,7 @@ const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
         p_lat: lat,
         p_lng: lng,
         p_action: actionRef.current,
+        p_device_info: detectDeviceInfo(),
       });
       if (error) throw error;
 

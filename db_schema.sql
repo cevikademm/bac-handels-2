@@ -492,20 +492,24 @@ ALTER TABLE public.time_logs ADD COLUMN IF NOT EXISTS check_in_lng  NUMERIC(9,6)
 ALTER TABLE public.time_logs ADD COLUMN IF NOT EXISTS check_out_lat NUMERIC(9,6);
 ALTER TABLE public.time_logs ADD COLUMN IF NOT EXISTS check_out_lng NUMERIC(9,6);
 ALTER TABLE public.time_logs ADD COLUMN IF NOT EXISTS entry_method  TEXT NOT NULL DEFAULT 'manual';
+-- QR girişinde tespit edilen cihaz bilgisi (marka + model). Sadece izinli adminler UI'da görür.
+ALTER TABLE public.time_logs ADD COLUMN IF NOT EXISTS device_info   TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_time_logs_open_qr
   ON public.time_logs (employee_id, branch, date)
   WHERE check_out_at IS NULL AND entry_method = 'qr';
 
 -- 11. QR Giriş/Çıkış RPC (p_action ile açık niyet: 'in' | 'out' | 'auto')
--- Eski 4-param imzayı temizle (yeni imza: 5 param dahil p_action)
+-- Eski imzaları temizle (yeni imza: 6 param — p_device_info dahil)
 DROP FUNCTION IF EXISTS public.qr_check_in_out(TEXT, TEXT, NUMERIC, NUMERIC);
+DROP FUNCTION IF EXISTS public.qr_check_in_out(TEXT, TEXT, NUMERIC, NUMERIC, TEXT);
 CREATE OR REPLACE FUNCTION public.qr_check_in_out(
     p_employee_id TEXT,
     p_qr_token    TEXT,
     p_lat         NUMERIC DEFAULT NULL,
     p_lng         NUMERIC DEFAULT NULL,
-    p_action      TEXT    DEFAULT 'auto'
+    p_action      TEXT    DEFAULT 'auto',
+    p_device_info TEXT    DEFAULT NULL
 ) RETURNS JSONB AS $$
 DECLARE
     v_loc     public.branch_locations;
@@ -558,12 +562,12 @@ BEGIN
         INSERT INTO public.time_logs(
           employee_id, date, start_time, end_time, break_duration,
           total_hours, status, branch, entry_method,
-          check_in_at, check_in_lat, check_in_lng)
+          check_in_at, check_in_lat, check_in_lng, device_info)
         VALUES (
           p_employee_id, v_today,
           to_char(v_now AT TIME ZONE 'Europe/Berlin', 'HH24:MI'), '',
           0, 0, v_status, v_loc.branch, 'qr',
-          v_now, p_lat, p_lng)
+          v_now, p_lat, p_lng, p_device_info)
         RETURNING * INTO v_open;
 
         RETURN jsonb_build_object('ok', true, 'action', 'in', 'status', v_status,
@@ -590,7 +594,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-GRANT EXECUTE ON FUNCTION public.qr_check_in_out(TEXT, TEXT, NUMERIC, NUMERIC, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.qr_check_in_out(TEXT, TEXT, NUMERIC, NUMERIC, TEXT, TEXT) TO anon, authenticated;
 -- Eski imza (4 param) kaldırıldı; yeni clientler p_action gönderir, default 'auto' ile eski davranış korunur.
 
 -- 12. Şube seed — gerçek koordinatlar

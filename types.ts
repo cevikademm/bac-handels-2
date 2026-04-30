@@ -44,6 +44,7 @@ export interface TimeLog {
   checkInLng?: number;
   checkOutLat?: number;
   checkOutLng?: number;
+  deviceInfo?: string; // QR girişinde tespit edilen cihaz markası/modeli (sadece izinli adminler görür)
 }
 
 export interface Task {

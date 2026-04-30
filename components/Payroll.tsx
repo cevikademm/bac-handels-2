@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
 import { GlowingEffect } from './ui/glowing-effect';
 import { notifyEvent } from '../lib/notifyEvent';
+import { canSeeDeviceInfo } from '../lib/utils';
 
 // QR sayfa yuklenirken patlamasin diye lazy yukleniyor (zxing/browser
 // production minify'da top-level import edilince mangled constructor hatasi veriyordu).
@@ -209,6 +210,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                 checkInLng: l.check_in_lng != null ? Number(l.check_in_lng) : undefined,
                 checkOutLat: l.check_out_lat != null ? Number(l.check_out_lat) : undefined,
                 checkOutLng: l.check_out_lng != null ? Number(l.check_out_lng) : undefined,
+                deviceInfo: l.device_info || undefined,
             };
         });
         
@@ -1106,6 +1108,11 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                       ) : (
                                           <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">Manuel</span>
                                       )}
+                                      {log.method === 'qr' && log.deviceInfo && canSeeDeviceInfo(currentUser.email) && (
+                                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700" title="Cihaz markası — sadece yetkili adminler görür">
+                                              {log.deviceInfo}
+                                          </span>
+                                      )}
                                   </div>
                                   <div className="flex items-center gap-2 text-xs text-zinc-400 mt-1 flex-wrap">
                                       <CalendarIcon size={11} />
@@ -1228,6 +1235,11 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                                         <span className={log.method === 'qr' ? 'font-semibold' : ''}>{log.branch}</span>
                                                         {log.method === 'qr' && (
                                                             <span className="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-emerald-900/40 text-emerald-300 border border-emerald-800/60">QR</span>
+                                                        )}
+                                                        {log.method === 'qr' && log.deviceInfo && canSeeDeviceInfo(currentUser.email) && (
+                                                            <span className="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700" title="Cihaz markası — sadece yetkili adminler görür">
+                                                                {log.deviceInfo}
+                                                            </span>
                                                         )}
                                                         {log.checkInLat != null && log.checkInLng != null && (
                                                             <a

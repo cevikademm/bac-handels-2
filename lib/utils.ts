@@ -64,6 +64,45 @@ export const OFF_SHIFT_ALERT_EMAILS = ['cevikademm@gmail.com', 'gurcan@bac.de'];
 export const canSeeOffShiftAlerts = (email?: string | null): boolean =>
   !!email && OFF_SHIFT_ALERT_EMAILS.includes(email.trim().toLowerCase());
 
+// QR girişinde kaydedilen cihaz marka/modelini sadece bu adminler görebilir.
+// Amaç: Bir personelin kendi şifresini başka birine verip QR okutmasını
+// fark etmek — geçmişte "Apple iPhone" gösterirken aniden "Samsung SM-…"
+// görünürse şüpheli durum yakalanır. Personeller bu bilgiyi göremez.
+export const DEVICE_INFO_VISIBLE_EMAILS = [
+  'cevikademm@gmail.com',
+  'gurcan@bac.de',
+  'hakan@bac.de',
+  'seda@bac.de',
+];
+export const canSeeDeviceInfo = (email?: string | null): boolean =>
+  !!email && DEVICE_INFO_VISIBLE_EMAILS.includes(email.trim().toLowerCase());
+
+// QR check-in anında tarayıcının User-Agent'ından kısa bir cihaz etiketi üretir.
+// "Apple iPhone (iOS 17.0)", "Samsung SM-S918B", "Xiaomi Redmi Note 11" gibi.
+// Kütüphanesiz, izin gerektirmez. UA reduction altında bile marka kelimeleri
+// (iPhone, SM-…, Pixel, Redmi, OnePlus) korunduğu için yeterince güvenilir.
+export function detectDeviceInfo(): string {
+  const ua = (typeof navigator !== 'undefined' ? navigator.userAgent : '') || '';
+  if (/iPad/i.test(ua)) return 'Apple iPad';
+  if (/iPhone/i.test(ua)) {
+    const m = ua.match(/iPhone OS (\d+)[_.](\d+)/i);
+    return m ? `Apple iPhone (iOS ${m[1]}.${m[2]})` : 'Apple iPhone';
+  }
+  const android = ua.match(/Android[^;]*;\s*([^;)]+?)(?:\s+Build|\))/i);
+  if (android) {
+    const model = android[1].trim();
+    if (/^SM-/i.test(model)) return `Samsung ${model}`;
+    if (/Pixel/i.test(model)) return `Google ${model}`;
+    if (/Mi |Redmi|POCO/i.test(model)) return `Xiaomi ${model}`;
+    if (/HUAWEI|HONOR/i.test(model)) return `Huawei ${model}`;
+    if (/OnePlus/i.test(model)) return `OnePlus ${model}`;
+    return model || 'Android cihaz';
+  }
+  if (/Windows/i.test(ua)) return 'Windows PC';
+  if (/Macintosh/i.test(ua)) return 'Mac';
+  return 'Bilinmeyen cihaz';
+}
+
 // Fiş fotoğrafı için kanvas tabanlı sıkıştırma. Mobilde ham foto 3-5 MB
 // olabiliyor — okunaklı kalan 800px genişlik + JPEG q=0.6 ~30-80 KB üretir.
 // EXIF orientation 'from-image' ile otomatik düzeltilir (modern Chrome/Safari).
