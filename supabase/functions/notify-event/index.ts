@@ -127,6 +127,24 @@ serve(async (req) => {
   const notif = buildNotification(body);
   const sendUrl = `${SUPABASE_URL}/functions/v1/send-push`;
 
+  // 2a) Bildirim merkezine log kaydı (yetkili kullanıcılar dropdown'dan görür)
+  await admin.from('notification_log').insert({
+    type: body.type,
+    title: notif.title,
+    body: notif.body,
+    url: notif.url,
+    tag: notif.tag,
+    meta: {
+      employee_id: body.employee_id || null,
+      employee_name: body.employee_name || null,
+      branch: body.branch || null,
+      product_name: body.product_name || null,
+      quantity: body.quantity ?? null,
+      action: body.action || null,
+      at: body.at || null,
+    },
+  });
+
   const resp = await fetch(sendUrl, {
     method: 'POST',
     headers: {

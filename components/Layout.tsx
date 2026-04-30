@@ -17,12 +17,14 @@ import { useLanguage } from '../lib/i18n';
 import { Role } from '../types';
 import { GlowingEffect } from './ui/glowing-effect';
 import { canAccessLossControl } from './LossControl';
+import NotificationCenter from './NotificationCenter';
 
 
 interface LayoutProps {
   children: React.ReactNode;
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  userId?: string;
   userRole: string;
   userName: string;
   userAvatar?: string;
@@ -62,7 +64,7 @@ const MobileNavItem = ({ icon: Icon, label, id, active, onClick }: any) => (
   </button>
 );
 
-const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, userRole, userName, userAvatar, userEmail, onLogout }) => {
+const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, userId, userRole, userName, userAvatar, userEmail, onLogout }) => {
   const { t, language, setLanguage } = useLanguage();
   
   const isAdmin = userRole.includes('Admin');
@@ -102,13 +104,14 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
               >
                 <ShieldAlert size={18} />
               </button>
+              <NotificationCenter currentUserId={userId} currentUserEmail={userEmail} onNavigate={setActiveTab} />
               <button
                 onClick={() => setActiveTab('settings')}
                 className={`p-2 rounded-full transition-colors ${activeTab === 'settings' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white'}`}
               >
                   <SettingsIcon size={20} />
               </button>
-              <button 
+              <button
                 onClick={onLogout}
                 className="p-2 text-zinc-400 hover:text-red-400 transition-colors"
               >
@@ -119,20 +122,23 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
 
       {/* --- DESKTOP SIDEBAR (Hidden on mobile) --- */}
       <div className="hidden md:flex z-40 h-full w-64 bg-zinc-950 border-r border-zinc-800 flex-col transition-all duration-300">
-        <div
-            className="p-6 border-b border-zinc-900/50 cursor-pointer group flex items-center gap-3"
+        <div className="p-6 border-b border-zinc-900/50 flex items-center gap-3 relative">
+          <div
+            className="cursor-pointer group flex items-center gap-3 flex-1 min-w-0"
             onClick={() => setActiveTab('dashboard')}
             title={t('layout.backToHome')}
-        >
-          <div className="w-12 h-12 rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 flex items-center justify-center shadow-lg shadow-red-900/20 group-hover:scale-105 transition-transform">
-             <img src={BAC_LOGO_URL} alt="BAC Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+          >
+            <div className="w-12 h-12 rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 flex items-center justify-center shadow-lg shadow-red-900/20 group-hover:scale-105 transition-transform">
+               <img src={BAC_LOGO_URL} alt="BAC Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-600 bg-clip-text text-transparent group-hover:opacity-80 transition-opacity">
+                  BAC Handels
+              </h1>
+              <p className="text-[10px] text-zinc-500 mt-0.5">{t('layout.subtitle')}</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-600 bg-clip-text text-transparent group-hover:opacity-80 transition-opacity">
-                BAC Handels
-            </h1>
-            <p className="text-[10px] text-zinc-500 mt-0.5">{t('layout.subtitle')}</p>
-          </div>
+          <NotificationCenter currentUserId={userId} currentUserEmail={userEmail} onNavigate={setActiveTab} />
         </div>
 
         <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto custom-scrollbar">

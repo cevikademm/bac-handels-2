@@ -773,6 +773,7 @@ const AppContent: React.FC = () => {
       <Layout
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        userId={currentUser?.id}
         userRole={currentUser?.role === Role.ADMIN ? t('app.adminTitle') : t('app.staffTitle')}
         userName={currentUser?.name || t('app.unnamedUser')}
         userAvatar={currentUser?.avatarUrl}

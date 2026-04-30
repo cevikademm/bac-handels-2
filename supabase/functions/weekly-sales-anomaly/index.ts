@@ -149,6 +149,16 @@ serve(async (req) => {
     requireInteraction: true,
   };
 
+  // Bildirim merkezi log kaydı
+  await admin.from('notification_log').insert({
+    type: 'weekly_sales_anomaly',
+    title: pushBody.title,
+    body: pushBody.body,
+    url: pushBody.url,
+    tag: pushBody.tag,
+    meta: { threshold, total: anomalies.length, top },
+  });
+
   const resp = await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
     method: 'POST',
     headers: {

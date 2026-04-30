@@ -34,6 +34,18 @@ export const isRestrictedAdmin = (user: { name?: string | null; email?: string |
     return DUAL_ROLE_ADMIN_NAMES.some(n => name.includes(n.toLowerCase()));
 };
 
+// Bildirim Merkezi yetkisi — header'daki Bell ikonunu ve dropdown'u
+// yalnızca bu e-posta listesindekiler görür.
+export const NOTIFICATION_CENTER_ALLOWED_EMAILS: string[] = [
+    'cevikademm@gmail.com',
+    'gurcan@bac.de',
+    'hakan@bac.de',
+    'seda@bac.de',
+];
+
+export const canSeeNotificationCenter = (email?: string | null): boolean =>
+    !!email && NOTIFICATION_CENTER_ALLOWED_EMAILS.includes(email.trim().toLowerCase());
+
 export const MOCK_EMPLOYEES: Employee[] = [];
 
 // NOTE: Titles and descriptions use i18n keys (e.g., task.mock.1.title) to support dynamic translation
