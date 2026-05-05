@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Bell, X, ShoppingBag, Clock, FileText, BarChart3, CheckCheck, Loader2, Inbox } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { canSeeNotificationCenter } from '../constants';
@@ -56,6 +57,50 @@ const NotificationCenter: React.FC<Props> = ({ currentUserId, currentUserEmail, 
   const [loading, setLoading] = useState(false);
   const [routeUrl, setRouteUrl] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  // Popup pozisyonu hem mobil hem desktop için JS'te hesaplanır.
+  // Tailwind CDN üzerinde calc() + env() arbitrary value'ları her tarayıcıda
+  // güvenli üretilemediği için inline style kullanıyoruz.
+  const [popupStyle, setPopupStyle] = useState<React.CSSProperties | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      setPopupStyle(null);
+      return;
+    }
+    const compute = () => {
+      const isDesktop = window.matchMedia('(min-width: 768px)').matches;
+      if (isDesktop && buttonRef.current) {
+        const r = buttonRef.current.getBoundingClientRect();
+        setPopupStyle({
+          position: 'fixed',
+          top: r.bottom + 6,
+          right: Math.max(8, window.innerWidth - r.right),
+          width: '24rem',
+          maxWidth: 'min(28rem, calc(100vw - 1rem))',
+          zIndex: 1000,
+        });
+        return;
+      }
+      // Mobil: header altı (header = 4rem + safe-area-top), ekran kenarına 8px margin,
+      // bottom nav (h-16 + safe-area-bottom) için 96px tampon bırak.
+      // Inline style olduğu için calc() doğrudan tarayıcıya gider — Tailwind CDN'in
+      // arbitrary value JIT'inden bağımsız çalışır.
+      setPopupStyle({
+        position: 'fixed',
+        top: 'calc(env(safe-area-inset-top, 0px) + 4rem + 4px)',
+        left: 8,
+        right: 8,
+        maxHeight:
+          'calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 4rem - 96px)',
+        zIndex: 1000,
+      });
+    };
+    compute();
+    window.addEventListener('resize', compute);
+    return () => window.removeEventListener('resize', compute);
+  }, [open]);
 
   // Hash route handler — bildirime tıklanınca tab değiştir
   useEffect(() => {
@@ -103,16 +148,25 @@ const NotificationCenter: React.FC<Props> = ({ currentUserId, currentUserEmail, 
     };
   }, [allowed]);
 
-  // Dropdown dışına tıklayınca kapat
+  // Dropdown dışına tıklayınca kapat — popup portal'a alındığı için
+  // hem buton (dropdownRef) hem de portal içeriği (popupRef) ayrı kontrol edilir.
   useEffect(() => {
     if (!open) return;
-    const onClick = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+    const onClick = (e: Event) => {
+      const target = e.target as Node;
+      const inButton = dropdownRef.current?.contains(target);
+      const inPopup = popupRef.current?.contains(target);
+      if (!inButton && !inPopup) setOpen(false);
     };
-    setTimeout(() => document.addEventListener('mousedown', onClick), 0);
-    return () => document.removeEventListener('mousedown', onClick);
+    const id = setTimeout(() => {
+      document.addEventListener('mousedown', onClick);
+      document.addEventListener('touchstart', onClick);
+    }, 0);
+    return () => {
+      clearTimeout(id);
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('touchstart', onClick);
+    };
   }, [open]);
 
   const unreadCount = useMemo(() => {
@@ -160,6 +214,7 @@ const NotificationCenter: React.FC<Props> = ({ currentUserId, currentUserEmail, 
   return (
     <div className="relative" ref={dropdownRef}>
       <button
+        ref={buttonRef}
         onClick={() => setOpen((o) => !o)}
         className="relative p-1.5 md:p-2 text-zinc-400 hover:text-white transition-colors"
         title="Bildirimler"
@@ -174,8 +229,12 @@ const NotificationCenter: React.FC<Props> = ({ currentUserId, currentUserEmail, 
         )}
       </button>
 
-      {open && (
-        <div className="fixed md:absolute right-2 md:right-0 top-14 md:top-12 w-[calc(100vw-1rem)] md:w-96 max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl z-[100] overflow-hidden">
+      {open && popupStyle && createPortal(
+        <div
+          ref={popupRef}
+          style={popupStyle}
+          className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+        >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
             <div className="flex items-center gap-2 text-white font-semibold">
@@ -207,8 +266,8 @@ const NotificationCenter: React.FC<Props> = ({ currentUserId, currentUserEmail, 
             </div>
           </div>
 
-          {/* Liste */}
-          <div className="max-h-[60vh] md:max-h-[500px] overflow-y-auto custom-scrollbar">
+          {/* Liste — parent flex-col + maxHeight olduğundan flex-1 ile genişler */}
+          <div className="flex-1 min-h-0 md:max-h-[500px] overflow-y-auto custom-scrollbar">
             {loading && items.length === 0 ? (
               <div className="flex items-center justify-center py-12 text-zinc-400 text-sm gap-2">
                 <Loader2 size={16} className="animate-spin" /> Yükleniyor...
@@ -266,7 +325,8 @@ const NotificationCenter: React.FC<Props> = ({ currentUserId, currentUserEmail, 
               Son 90 gün — toplam {items.length} bildirim
             </div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
