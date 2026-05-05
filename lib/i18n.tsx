@@ -495,6 +495,8 @@ const translations: Record<Language, Record<string, string>> = {
     'qr.diagSecureNeeded': 'HTTPS veya localhost gerekli',
     'qr.diagCameraApi': 'Kamera API',
     'qr.diagLocationApi': 'Konum API',
+    'qr.deviceLabel': 'Cihaz',
+    'qr.deviceUnknown': 'Cihaz tespit edilemedi',
 
     // Settings (App.tsx)
     'set.profilePhoto': 'Profil Fotoğrafı',
@@ -1215,6 +1217,8 @@ const translations: Record<Language, Record<string, string>> = {
     'qr.diagSecureNeeded': 'HTTPS oder localhost erforderlich',
     'qr.diagCameraApi': 'Kamera-API',
     'qr.diagLocationApi': 'Standort-API',
+    'qr.deviceLabel': 'Gerät',
+    'qr.deviceUnknown': 'Gerät nicht erkannt',
 
     // Settings (App.tsx)
     'set.profilePhoto': 'Profilbild',

@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   QrCode, Camera, MapPin, CheckCircle, AlertTriangle, XCircle, Loader2, LogIn, LogOut,
-  ShieldCheck, ShieldAlert
+  ShieldCheck, ShieldAlert, Smartphone
 } from 'lucide-react';
 import { BrowserQRCodeReader, IScannerControls } from '@zxing/browser';
 import { Employee } from '../types';
@@ -219,7 +219,7 @@ const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
         p_lat: lat,
         p_lng: lng,
         p_action: actionRef.current,
-        p_device_info: detectDeviceInfo(),
+        p_device_info: deviceLabel,
       });
       if (error) throw error;
 
@@ -290,6 +290,11 @@ const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
       default: return t('qr.networkError');
     }
   };
+
+  // Tarayıcının User-Agent'ından cihaz markası+modelini çöz. Kullanıcının
+  // kendi telefonu olduğu için herkes görür (admin filtresi yok); QR
+  // taramadan önce hangi cihaz bilgisinin RPC'ye gideceği şeffaf olsun diye.
+  const deviceLabel = useMemo(() => detectDeviceInfo(), []);
 
   // Environment diagnostics (pre-scan)
   const diag = (() => {
@@ -397,6 +402,10 @@ const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
                   <li>Secure context: <span className={diag.secure ? 'text-emerald-400' : 'text-red-400'}>{diag.secure ? '✓' : `✗ (${t('qr.diagSecureNeeded')})`}</span></li>
                   <li>{t('qr.diagCameraApi')}: <span className={diag.hasCamera ? 'text-emerald-400' : 'text-red-400'}>{diag.hasCamera ? '✓' : '✗'}</span></li>
                   <li>{t('qr.diagLocationApi')}: <span className={diag.hasGeo ? 'text-emerald-400' : 'text-red-400'}>{diag.hasGeo ? '✓' : '✗'}</span></li>
+                  <li className="flex items-start gap-1.5 pt-1 border-t border-zinc-800/60 mt-1">
+                    <Smartphone size={11} className="mt-0.5 text-zinc-400 shrink-0" />
+                    <span>{t('qr.deviceLabel')}: <span className="text-zinc-100 font-semibold">{deviceLabel || t('qr.deviceUnknown')}</span></span>
+                  </li>
                 </ul>
                 {!diag.secure && !diag.isLocalhost && (
                   <p className="mt-2 text-amber-200 text-[11px]">
@@ -421,7 +430,7 @@ const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
         )}
 
         {phase === 'result' && result && (
-          <ResultCard result={result} onClose={reset} t={t} />
+          <ResultCard result={result} onClose={reset} t={t} deviceLabel={deviceLabel} />
         )}
 
         {phase === 'error' && (
@@ -457,7 +466,7 @@ const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
   );
 };
 
-const ResultCard: React.FC<{ result: RpcResponse; onClose: () => void; t: (k: string) => string }> = ({ result, onClose, t }) => {
+const ResultCard: React.FC<{ result: RpcResponse; onClose: () => void; t: (k: string) => string; deviceLabel: string }> = ({ result, onClose, t, deviceLabel }) => {
   const isCheckin = result.action === 'in';
   const isApproved = result.status === 'Onaylandı';
   const outOfRange = result.in_range === false;
@@ -494,6 +503,13 @@ const ResultCard: React.FC<{ result: RpcResponse; onClose: () => void; t: (k: st
           <div>
             <span className="text-zinc-400">{t('qr.totalHours')}:</span>{' '}
             <span className="font-semibold">{result.total_hours.toFixed(2)} {t('qr.hours')}</span>
+          </div>
+        )}
+        {deviceLabel && (
+          <div className="pt-2 mt-2 border-t border-zinc-800/60 flex items-center justify-center gap-1.5 text-xs text-zinc-400">
+            <Smartphone size={12} />
+            <span>{t('qr.deviceLabel')}:</span>
+            <span className="text-zinc-200 font-medium">{deviceLabel}</span>
           </div>
         )}
       </div>

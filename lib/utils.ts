@@ -87,30 +87,119 @@ export const DEVICE_INFO_VISIBLE_EMAILS = [
 export const canSeeDeviceInfo = (email?: string | null): boolean =>
   !!email && DEVICE_INFO_VISIBLE_EMAILS.includes(email.trim().toLowerCase());
 
+// Samsung SM-kodlarını insan-okur "Galaxy …" pazarlama adına çevirir.
+// Eşleşme bölge eki ('B', 'U', 'N', 'F', '/DS' vb.) önemsemeden yapılır,
+// böylece SM-S918B / SM-S918U / SM-S918N hepsi "Galaxy S23 Ultra" döner.
+// Liste sadece sahada en sık karşılaşılan modelleri kapsar; eşleşme yoksa
+// ham SM-kodu olduğu gibi gösterilir (bilgi kaybı olmasın diye).
+const SAMSUNG_MODEL_MAP: Record<string, string> = {
+  // Galaxy S serisi
+  'S901': 'Galaxy S22', 'S906': 'Galaxy S22+', 'S908': 'Galaxy S22 Ultra',
+  'S911': 'Galaxy S23', 'S916': 'Galaxy S23+', 'S918': 'Galaxy S23 Ultra',
+  'S711': 'Galaxy S23 FE',
+  'S921': 'Galaxy S24', 'S926': 'Galaxy S24+', 'S928': 'Galaxy S24 Ultra',
+  'S931': 'Galaxy S25', 'S936': 'Galaxy S25+', 'S938': 'Galaxy S25 Ultra',
+  // Galaxy A serisi (orta segment, en sık)
+  'A146': 'Galaxy A14', 'A156': 'Galaxy A15', 'A166': 'Galaxy A16',
+  'A256': 'Galaxy A25', 'A266': 'Galaxy A26',
+  'A346': 'Galaxy A34', 'A356': 'Galaxy A35', 'A366': 'Galaxy A36',
+  'A526': 'Galaxy A52', 'A536': 'Galaxy A53', 'A546': 'Galaxy A54',
+  'A556': 'Galaxy A55', 'A566': 'Galaxy A56',
+  'A736': 'Galaxy A73',
+  // Galaxy Z (katlanabilir)
+  'F711': 'Galaxy Z Flip3', 'F721': 'Galaxy Z Flip4', 'F731': 'Galaxy Z Flip5',
+  'F741': 'Galaxy Z Flip6', 'F761': 'Galaxy Z Flip7',
+  'F926': 'Galaxy Z Fold3', 'F936': 'Galaxy Z Fold4', 'F946': 'Galaxy Z Fold5',
+  'F956': 'Galaxy Z Fold6', 'F966': 'Galaxy Z Fold7',
+  // Note serisi (eski ama hâlâ sahada)
+  'N970': 'Galaxy Note 10', 'N975': 'Galaxy Note 10+',
+  'N980': 'Galaxy Note 20', 'N985': 'Galaxy Note 20 Ultra',
+};
+
+function samsungMarketingName(rawModel: string): string {
+  // SM-S918B/DS, SM-S918B, SM-A546B → "S918", "S918", "A546"
+  const m = rawModel.match(/^SM-([A-Z]\d{3})/i);
+  if (m) {
+    const friendly = SAMSUNG_MODEL_MAP[m[1].toUpperCase()];
+    if (friendly) return `Samsung ${friendly}`;
+  }
+  return `Samsung ${rawModel}`;
+}
+
+// Tarayıcıda üretilip localStorage'a yazılan, MAC adresi formatında kalıcı
+// cihaz kimliği. Web platformu gerçek hardware MAC/IMEI'ye erişemediği için
+// (iOS Safari/Chrome/FF privacy nedeniyle blokluyor), random 6 byte üretip
+// MAC görünümünde saklıyoruz. Aynı tarayıcı + aynı domain'de stabil; kullanıcı
+// site verilerini silerse yenilenir — bu kabul edilebilir, çünkü amaç:
+//   "Bu personel hep aynı cihazdan mı giriş yapıyor?" sorusuna cevap vermek.
+// Birinci oktette locally-administered bit set ediliyor (gerçek üretici OUI
+// ile karışmasın diye standart yaklaşım: bit 1 = 1, bit 0 = 0 → 'X2', 'X6',
+// 'XA', 'XE' başlangıç).
+const DEVICE_ID_KEY = 'bac_device_id';
+
+function generatePseudoMac(): string {
+  const bytes = new Uint8Array(6);
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < 6; i++) bytes[i] = Math.floor(Math.random() * 256);
+  }
+  // locally-administered + unicast: ilk oktetin alt 2 biti '10' olsun
+  bytes[0] = (bytes[0] | 0x02) & 0xFE;
+  return Array.from(bytes, b => b.toString(16).padStart(2, '0').toUpperCase()).join(':');
+}
+
+export function getOrCreateDeviceId(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    const existing = window.localStorage.getItem(DEVICE_ID_KEY);
+    if (existing && /^[0-9A-F]{2}(:[0-9A-F]{2}){5}$/.test(existing)) return existing;
+    const fresh = generatePseudoMac();
+    window.localStorage.setItem(DEVICE_ID_KEY, fresh);
+    return fresh;
+  } catch {
+    // Private mode / storage disabled — kalıcı ID üretemeyiz.
+    return '';
+  }
+}
+
 // QR check-in anında tarayıcının User-Agent'ından kısa bir cihaz etiketi üretir.
-// "Apple iPhone (iOS 17.0)", "Samsung SM-S918B", "Xiaomi Redmi Note 11" gibi.
-// Kütüphanesiz, izin gerektirmez. UA reduction altında bile marka kelimeleri
-// (iPhone, SM-…, Pixel, Redmi, OnePlus) korunduğu için yeterince güvenilir.
+// "Apple iPhone · A3:F7:C2:D1:B2:94", "Samsung Galaxy S23 Ultra · 5E:11:08:…"
+// formatında — marka/model + tarayıcıya özel kalıcı MAC-benzeri kimlik.
+// Kimlik localStorage'da saklanır; aynı kullanıcı aynı cihazdan tekrar
+// tarayınca aynı ID döner. Şifre paylaşımı tespiti: ID değişirse (cihaz
+// fiziksel olarak farklı veya kullanıcı verileri sildi) admin uyarı görür.
 export function detectDeviceInfo(): string {
+  const id = getOrCreateDeviceId();
+  const idSuffix = id ? ` · ${id}` : '';
   const ua = (typeof navigator !== 'undefined' ? navigator.userAgent : '') || '';
-  if (/iPad/i.test(ua)) return 'Apple iPad';
-  if (/iPhone/i.test(ua)) {
-    const m = ua.match(/iPhone OS (\d+)[_.](\d+)/i);
-    return m ? `Apple iPhone (iOS ${m[1]}.${m[2]})` : 'Apple iPhone';
-  }
-  const android = ua.match(/Android[^;]*;\s*([^;)]+?)(?:\s+Build|\))/i);
-  if (android) {
-    const model = android[1].trim();
-    if (/^SM-/i.test(model)) return `Samsung ${model}`;
-    if (/Pixel/i.test(model)) return `Google ${model}`;
-    if (/Mi |Redmi|POCO/i.test(model)) return `Xiaomi ${model}`;
-    if (/HUAWEI|HONOR/i.test(model)) return `Huawei ${model}`;
-    if (/OnePlus/i.test(model)) return `OnePlus ${model}`;
-    return model || 'Android cihaz';
-  }
-  if (/Windows/i.test(ua)) return 'Windows PC';
-  if (/Macintosh/i.test(ua)) return 'Mac';
-  return 'Bilinmeyen cihaz';
+
+  const base = (() => {
+    if (/iPad/i.test(ua)) return 'Apple iPad';
+    if (/iPhone/i.test(ua)) return 'Apple iPhone';
+    const android = ua.match(/Android[^;]*;\s*([^;)]+?)(?:\s+Build|\))/i);
+    if (android) {
+      const model = android[1].trim();
+      if (/^SM-/i.test(model)) return samsungMarketingName(model);
+      if (/^Pixel/i.test(model)) return `Google ${model}`;
+      if (/^(Mi |Redmi|POCO|2\d{3}\w+)/i.test(model)) return `Xiaomi ${model}`;
+      if (/HUAWEI|HONOR|^(ALP|EVA|VOG|ELS|NOH|LIO|TAS|ANA|JNY|MAR|JAD)-/i.test(model)) {
+        return /HUAWEI|HONOR/i.test(model) ? model : `Huawei ${model}`;
+      }
+      if (/OnePlus|^(LE|GM|HD|IN|KB|CPH)\d{4}/i.test(model)) return `OnePlus ${model}`;
+      if (/^(SO-|SOG|XQ-)/i.test(model)) return `Sony ${model}`;
+      if (/^(RMX|realme)/i.test(model)) return `Realme ${model}`;
+      if (/^(V\d{4}|vivo)/i.test(model)) return `vivo ${model}`;
+      if (/^(CPH|OPPO)/i.test(model)) return `OPPO ${model}`;
+      if (/^(Nokia|TA-)/i.test(model)) return `Nokia ${model}`;
+      return model || 'Android cihaz';
+    }
+    if (/Windows/i.test(ua)) return 'Windows PC';
+    if (/Macintosh/i.test(ua)) return 'Mac';
+    return 'Bilinmeyen cihaz';
+  })();
+
+  return `${base}${idSuffix}`;
 }
 
 // Fiş fotoğrafı için kanvas tabanlı sıkıştırma. Mobilde ham foto 3-5 MB
