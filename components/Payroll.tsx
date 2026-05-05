@@ -384,7 +384,10 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
       if (!targetEmployeeId) return [] as { date: string; branch: string; slot: string; hours: number }[];
       const result: { date: string; branch: string; slot: string; hours: number }[] = [];
       shiftSchedules.forEach((s: any) => {
-          const wkStart = new Date(s.week_start_date);
+          // week_start_date "YYYY-MM-DD" — UTC kaydırması olmaması için lokal tarih kur.
+          const parts = String(s.week_start_date || '').split('-').map(Number);
+          if (parts.length !== 3 || parts.some(isNaN)) return;
+          const wkStart = new Date(parts[0], parts[1] - 1, parts[2]);
           const days: string[] = Array.isArray(s.days) ? s.days : [];
           days.forEach((empId, idx) => {
               if (empId !== targetEmployeeId) return;
@@ -884,6 +887,31 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                   <span className="text-sm font-bold text-zinc-500 uppercase tracking-widest">{t('pay.totalGross')}</span>
                                   <span className="text-4xl font-bold text-white tracking-tight">€{(plannedPayrollStats.grossPay || 0).toFixed(2)}</span>
                               </div>
+                          </div>
+
+                          {/* Vardiya plan dökümü — kullanıcı hesabın gerçekten plan üzerinden geldiğini görsün */}
+                          <div className="pt-4">
+                              <div className="text-[11px] uppercase tracking-wider text-zinc-500 mb-2 font-bold">
+                                  {t('pay.shiftBreakdown')} · {monthlyPlannedShifts.length} {t('pay.shiftsLower')}
+                              </div>
+                              {monthlyPlannedShifts.length === 0 ? (
+                                  <div className="p-4 bg-zinc-900/40 rounded-lg border border-zinc-800 text-xs text-zinc-500 text-center italic">
+                                      {t('pay.noPlannedShifts')}
+                                  </div>
+                              ) : (
+                                  <div className="rounded-xl border border-zinc-800 bg-zinc-950/40 overflow-hidden divide-y divide-zinc-800/60 max-h-[260px] overflow-y-auto custom-scrollbar">
+                                      {monthlyPlannedShifts.map((s: { date: string; branch: string; slot: string; hours: number }, i: number) => (
+                                          <div key={`${s.date}-${i}`} className="flex items-center justify-between px-4 py-2 text-xs">
+                                              <div className="flex items-center gap-3 min-w-0">
+                                                  <span className="text-zinc-300 font-medium tabular-nums w-20">{formatDate(s.date, { day: '2-digit', month: 'short' })}</span>
+                                                  <span className="text-indigo-400 font-mono">{s.slot || '—'}</span>
+                                                  <span className="text-zinc-500 truncate">{s.branch}</span>
+                                              </div>
+                                              <span className="text-emerald-400 font-bold tabular-nums shrink-0 ml-3">{s.hours.toFixed(1)} s</span>
+                                          </div>
+                                      ))}
+                                  </div>
+                              )}
                           </div>
                       </div>
                   </div>
