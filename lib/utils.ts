@@ -61,6 +61,16 @@ export function formatHoursAsHM(hours?: number | null): string {
   return `${h}:${String(m).padStart(2, '0')}`;
 }
 
+// Ondalık saati TR insan-okur kısa formata çevir. Örn. 7.87 -> "7sa 52dk".
+// Bordro UI'sinde kullanıcılar "7.87 saat" diye okuyamıyordu (87 dakika sanıyorlardı).
+export function formatHoursHumanTR(hours?: number | null): string {
+  if (hours == null || isNaN(hours) || hours <= 0) return '0sa 00dk';
+  const totalMinutes = Math.round(hours * 60);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${h}sa ${String(m).padStart(2, '0')}dk`;
+}
+
 // HH:mm formatı (yerel saat). created_at gibi ISO timestamp'ler için.
 export function formatTimeOfDay(iso?: string | null): string {
   if (!iso) return '';

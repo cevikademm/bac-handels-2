@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
 import { GlowingEffect } from './ui/glowing-effect';
 import { notifyEvent } from '../lib/notifyEvent';
-import { canSeeDeviceInfo } from '../lib/utils';
+import { canSeeDeviceInfo, formatHoursHumanTR } from '../lib/utils';
 
 // QR sayfa yuklenirken patlamasin diye lazy yukleniyor (zxing/browser
 // production minify'da top-level import edilince mangled constructor hatasi veriyordu).
@@ -1299,7 +1299,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                       {typeof log.totalHours === 'number' && log.totalHours > 0 && (
                                           <>
                                               <span className="text-zinc-700">•</span>
-                                              <span className="text-white font-medium">{log.totalHours} sa</span>
+                                              <span className="text-white font-medium">{formatHoursHumanTR(log.totalHours)}</span>
                                           </>
                                       )}
                                   </div>
@@ -1406,7 +1406,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                                             <Loader2 size={10} className="animate-spin" /> Sürüyor
                                                         </span>
                                                     ) : (
-                                                        <span className="text-white font-medium">{log.totalHours} Saat</span>
+                                                        <span className="text-white font-medium">{formatHoursHumanTR(log.totalHours)}</span>
                                                     )}
                                                 </div>
                                                 {log.branch && (
