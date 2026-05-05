@@ -376,28 +376,37 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
       return arr;
   }, [currentWeekStart]);
 
-  // Seçili haftada targetEmployee için ONAYLANAN time_log kayıtları (ödeme hesabı bunun üzerinden)
-  const weeklyApprovedLogs = useMemo(() => {
+  // targetEmployee'in TÜM kayıtları (Onaylandı + Bekliyor + Reddedildi) — alt listede gösterilir.
+  const allEmployeeLogs = useMemo(() => {
       if (!targetEmployeeId) return [] as TimeLog[];
       return timeLogs
-          .filter(l => l.employeeId === targetEmployeeId && l.status === 'Onaylandı' && weekDates.includes(l.date))
-          .sort((a, b) => a.date.localeCompare(b.date));
-  }, [timeLogs, targetEmployeeId, weekDates]);
-
-  // Tüm onaylanmış kayıtlar (alt liste için — kullanıcı bütün onaylı günleri tek bakışta görsün)
-  const allApprovedLogs = useMemo(() => {
-      if (!targetEmployeeId) return [] as TimeLog[];
-      return timeLogs
-          .filter(l => l.employeeId === targetEmployeeId && l.status === 'Onaylandı')
+          .filter(l => l.employeeId === targetEmployeeId)
           .sort((a, b) => b.date.localeCompare(a.date)); // en yeni üstte
   }, [timeLogs, targetEmployeeId]);
+
+  // Onaylanmış alt küme (toplama dahil olanlar)
+  const allApprovedLogs = useMemo(
+      () => allEmployeeLogs.filter(l => l.status === 'Onaylandı'),
+      [allEmployeeLogs]
+  );
+
+  // Seçili haftadaki onaylanmış kayıtlar (haftalık ödeme stat kartı için)
+  const weeklyApprovedLogs = useMemo(
+      () => allApprovedLogs.filter(l => weekDates.includes(l.date)),
+      [allApprovedLogs, weekDates]
+  );
+
+  // Bekleyen kayıt sayısı — kullanıcının onay bekleyen iş yüküne dair bilgi (uyarı şeridi).
+  const pendingLogsCount = useMemo(
+      () => allEmployeeLogs.filter(l => l.status !== 'Onaylandı' && l.status !== 'Reddedildi').length,
+      [allEmployeeLogs]
+  );
 
   const plannedPayrollStats = useMemo(() => {
       const approvedHours = weeklyApprovedLogs.reduce((acc, l) => acc + (l.totalHours || 0), 0);
       const shiftCount = weeklyApprovedLogs.length;
       const hourlyRate = targetEmployee?.hourlyRate || 0;
       const grossPay = approvedHours * hourlyRate;
-      // Tüm zamanlar toplamı (ek bilgi olarak gösterilir)
       const totalApprovedHours = allApprovedLogs.reduce((acc, l) => acc + (l.totalHours || 0), 0);
       const totalApprovedGross = totalApprovedHours * hourlyRate;
       return { approvedHours, shiftCount, grossPay, totalApprovedHours, totalApprovedGross, totalApprovedCount: allApprovedLogs.length };
@@ -870,18 +879,28 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                           </button>
                       </div>
 
-                      {/* Stats Grid — Vardiya Planı bazlı (time_logs değil) */}
+                      {/* Stats Grid — Bordro'da onaylanan saatler */}
                       <div className="space-y-6">
                           <div className="grid grid-cols-2 gap-4">
                               <div className="p-4 bg-emerald-900/10 rounded-xl border border-emerald-500/20">
                                   <p className="text-xs text-emerald-400/80 mb-1">{t('pay.approvedHoursWeek')}</p>
-                                  <p className="text-xl font-bold text-emerald-300">{(plannedPayrollStats.approvedHours || 0).toFixed(1)} s</p>
+                                  <p className="text-xl font-bold text-emerald-300">{formatHoursHumanTR(plannedPayrollStats.approvedHours)}</p>
                               </div>
                               <div className="p-4 bg-zinc-900/50 rounded-xl border border-zinc-800">
                                   <p className="text-xs text-zinc-500 mb-1">{t('pay.shiftCount')}</p>
                                   <p className="text-xl font-bold text-white">{plannedPayrollStats.shiftCount}</p>
                               </div>
                           </div>
+
+                          {/* Onay bekleyen kayıt uyarısı — admin onaylayınca otomatik toplama dahil olur */}
+                          {pendingLogsCount > 0 && (
+                              <div className="p-3 bg-amber-900/10 border border-amber-500/30 rounded-xl flex items-center gap-2 text-xs text-amber-300">
+                                  <AlertTriangle size={14} className="shrink-0" />
+                                  <span>
+                                      {t('pay.pendingNotice').replace('{count}', String(pendingLogsCount))}
+                                  </span>
+                              </div>
+                          )}
 
                           <div className="p-5 bg-zinc-900/30 rounded-xl border border-zinc-800 space-y-3">
                               <div className="flex justify-between items-center text-sm">
@@ -902,39 +921,55 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                               {plannedPayrollStats.totalApprovedCount > 0 && (
                                   <div className="flex justify-between items-center mt-2 text-[11px] text-zinc-500">
                                       <span>{t('pay.totalApprovedAllTime')}</span>
-                                      <span className="font-medium tabular-nums">{(plannedPayrollStats.totalApprovedHours || 0).toFixed(1)} s · €{(plannedPayrollStats.totalApprovedGross || 0).toFixed(2)}</span>
+                                      <span className="font-medium tabular-nums">{formatHoursHumanTR(plannedPayrollStats.totalApprovedHours)} · €{(plannedPayrollStats.totalApprovedGross || 0).toFixed(2)}</span>
                                   </div>
                               )}
                           </div>
 
-                          {/* TÜM onaylanmış kayıtların dökümü — kullanıcı her onaylı günü görsün */}
+                          {/* Tüm çalışma kayıtları — onaylı, bekleyen, reddedilen tek liste; toplama yalnızca 'Onaylandı' girer. */}
                           <div className="pt-4">
                               <div className="text-[11px] uppercase tracking-wider text-zinc-500 mb-2 font-bold flex items-center justify-between">
-                                  <span>{t('pay.approvedBreakdownAll')} · {allApprovedLogs.length} {t('pay.shiftsLower')}</span>
+                                  <span>{t('pay.workHistoryAll')} · {allEmployeeLogs.length}</span>
+                                  <span className="text-emerald-400/80 normal-case font-medium">{allApprovedLogs.length} {t('pay.approvedLower')}</span>
                               </div>
-                              {allApprovedLogs.length === 0 ? (
+                              {allEmployeeLogs.length === 0 ? (
                                   <div className="p-4 bg-zinc-900/40 rounded-lg border border-zinc-800 text-xs text-zinc-500 text-center italic">
-                                      {t('pay.noApprovedLogsAll')}
+                                      {t('pay.noLogsAtAll')}
                                   </div>
                               ) : (
-                                  <div className="rounded-xl border border-zinc-800 bg-zinc-950/40 overflow-hidden divide-y divide-zinc-800/60 max-h-[320px] overflow-y-auto custom-scrollbar">
-                                      {allApprovedLogs.map((l: TimeLog, i: number) => {
+                                  <div className="rounded-xl border border-zinc-800 bg-zinc-950/40 overflow-hidden divide-y divide-zinc-800/60 max-h-[360px] overflow-y-auto custom-scrollbar">
+                                      {allEmployeeLogs.map((l: TimeLog, i: number) => {
                                           const inCurrentWeek = weekDates.includes(l.date);
+                                          const isApproved = l.status === 'Onaylandı';
+                                          const isRejected = l.status === 'Reddedildi';
+                                          // Approved + bu hafta → yeşil vurgu (haftalık ödemeye giren)
+                                          // Approved + diğer hafta → nötr ama tutar yeşil
+                                          // Bekleyen → genel sönük + amber badge
+                                          // Reddedilen → kırmızı badge, üstü çizili
+                                          const rowBg = isApproved && inCurrentWeek ? 'bg-emerald-900/10' : !isApproved && !isRejected ? 'bg-amber-900/5' : '';
+                                          const dateColor = isApproved && inCurrentWeek ? 'text-emerald-300' : isRejected ? 'text-zinc-600 line-through' : isApproved ? 'text-zinc-300' : 'text-zinc-400';
+                                          const hourColor = !isApproved ? 'text-zinc-500' : (inCurrentWeek ? 'text-emerald-300' : 'text-emerald-400/80');
                                           return (
-                                              <div key={`${l.id}-${i}`} className={`flex items-center justify-between px-4 py-2 text-xs ${inCurrentWeek ? 'bg-emerald-900/10' : ''}`}>
-                                                  <div className="flex items-center gap-3 min-w-0">
-                                                      <span className={`font-medium tabular-nums w-24 ${inCurrentWeek ? 'text-emerald-300' : 'text-zinc-300'}`}>{formatDate(l.date, { weekday: 'short', day: '2-digit', month: 'short' })}</span>
-                                                      <span className="text-indigo-400 font-mono">{l.startTime || '—'}–{l.endTime || '—'}</span>
+                                              <div key={`${l.id}-${i}`} className={`flex items-center justify-between px-3 py-2 text-xs gap-2 ${rowBg}`}>
+                                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                      <span className={`font-medium tabular-nums w-20 shrink-0 ${dateColor}`}>{formatDate(l.date, { weekday: 'short', day: '2-digit', month: 'short' })}</span>
+                                                      <span className="text-indigo-400 font-mono shrink-0">{l.startTime || '—'}–{l.endTime || '—'}</span>
                                                       <span className="text-zinc-500 truncate">{l.branch}</span>
+                                                      {/* Status badge */}
+                                                      <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wide shrink-0 ${
+                                                          isApproved ? 'bg-emerald-900/30 text-emerald-400 border border-emerald-700/50'
+                                                          : isRejected ? 'bg-red-900/20 text-red-400 border border-red-700/40'
+                                                          : 'bg-amber-900/20 text-amber-400 border border-amber-700/40'
+                                                      }`}>{l.status}</span>
                                                   </div>
-                                                  <span className={`font-bold tabular-nums shrink-0 ml-3 ${inCurrentWeek ? 'text-emerald-300' : 'text-emerald-400/80'}`}>{(l.totalHours || 0).toFixed(1)} s</span>
+                                                  <span className={`font-bold tabular-nums shrink-0 ${hourColor}`}>{formatHoursHumanTR(l.totalHours)}</span>
                                               </div>
                                           );
                                       })}
                                   </div>
                               )}
                               <div className="text-[10px] text-zinc-600 mt-2 italic">
-                                  {t('pay.currentWeekHighlight')}
+                                  {t('pay.totalsApprovedOnly')}
                               </div>
                           </div>
                       </div>
