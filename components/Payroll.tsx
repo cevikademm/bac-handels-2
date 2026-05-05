@@ -333,10 +333,10 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
     return conflicts;
   }, [timeLogs]);
 
-  // === FİNANSAL ÖZET — VARDİYA PLANI ÜZERİNDEN HAFTALIK HESAPLAMA ===
-  // Personel haftalık ödendiği için bu sekme haftalık periyot kullanır
-  // (Vardiya Planı sekmesindeki gibi Pzt → Paz). Hesap shift_schedules.days[]
-  // arrayinden gelir; time_logs (gerçek QR/manuel) ödemeyi etkilemez.
+  // === FİNANSAL ÖZET — BORDRO'DA ONAYLANAN SAATLER ÜZERİNDEN HAFTALIK HESAP ===
+  // Ödeme: time_logs.status === 'Onaylandı' kayıtları baz alınır.
+  // Bekliyor / Reddedildi durumundaki saatler hesaba dahil edilmez.
+  // Periyot: Pzt → Paz (Vardiya Planı sekmesindeki ile aynı haftalık model).
   const getMonday = (d: Date): Date => {
       const date = new Date(d);
       const day = date.getDay();
@@ -349,7 +349,6 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => getMonday(new Date()));
   const fmtDate = (d: Date) =>
       `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  const weekKey = useMemo(() => fmtDate(currentWeekStart), [currentWeekStart]);
   const currentWeekEnd = useMemo(() => {
       const e = new Date(currentWeekStart);
       e.setDate(e.getDate() + 6);
@@ -366,70 +365,32 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
       setCurrentWeekStart(getMonday(next));
   };
 
-  const [shiftSchedules, setShiftSchedules] = useState<any[]>([]);
+  // Haftanın 7 günü için "YYYY-MM-DD" string'leri (filtre için)
+  const weekDates = useMemo(() => {
+      const arr: string[] = [];
+      for (let i = 0; i < 7; i++) {
+          const d = new Date(currentWeekStart);
+          d.setDate(d.getDate() + i);
+          arr.push(fmtDate(d));
+      }
+      return arr;
+  }, [currentWeekStart]);
 
-  useEffect(() => {
-      if (!targetEmployeeId) { setShiftSchedules([]); return; }
-      let cancelled = false;
-      const fetchShifts = async () => {
-          const { data, error } = await supabase
-              .from('shift_schedules')
-              .select('week_start_date, branch, time_slot, days')
-              .eq('week_start_date', weekKey);
-          if (cancelled) return;
-          if (error) { console.error('[Payroll] shift_schedules fetch error:', error); return; }
-          setShiftSchedules(data || []);
-      };
-      fetchShifts();
-
-      const channel = supabase.channel('payroll-shifts-' + targetEmployeeId)
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'shift_schedules' }, () => fetchShifts())
-          .subscribe();
-      return () => { cancelled = true; supabase.removeChannel(channel); };
-  }, [targetEmployeeId, weekKey]);
-
-  // "09:00-17:00" / "9-17" / "9:30-17:00" → saat (gece vardiyası için 24h taşması)
-  const parseShiftHours = (label: string): number => {
-      if (!label) return 0;
-      const m = label.match(/(\d{1,2}):?(\d{2})?\s*[-–]\s*(\d{1,2}):?(\d{2})?/);
-      if (!m) return 0;
-      const startMin = parseInt(m[1], 10) * 60 + parseInt(m[2] || '0', 10);
-      const endMin = parseInt(m[3], 10) * 60 + parseInt(m[4] || '0', 10);
-      let diff = endMin - startMin;
-      if (diff < 0) diff += 24 * 60;
-      return diff / 60;
-  };
-
-  // Seçili haftadaki targetEmployee için planlı vardiyalar (Pzt=0 … Paz=6)
-  const weeklyPlannedShifts = useMemo(() => {
-      if (!targetEmployeeId) return [] as { date: string; branch: string; slot: string; hours: number; dayIdx: number }[];
-      const result: { date: string; branch: string; slot: string; hours: number; dayIdx: number }[] = [];
-      shiftSchedules.forEach((s: any) => {
-          if (s.week_start_date !== weekKey) return;
-          const days: string[] = Array.isArray(s.days) ? s.days : [];
-          days.forEach((empId, idx) => {
-              if (empId !== targetEmployeeId) return;
-              const d = new Date(currentWeekStart);
-              d.setDate(d.getDate() + idx);
-              result.push({
-                  date: fmtDate(d),
-                  branch: s.branch || '',
-                  slot: s.time_slot || '',
-                  hours: parseShiftHours(s.time_slot || ''),
-                  dayIdx: idx,
-              });
-          });
-      });
-      return result.sort((a, b) => a.dayIdx - b.dayIdx);
-  }, [shiftSchedules, targetEmployeeId, weekKey, currentWeekStart]);
+  // Seçili haftada targetEmployee için ONAYLANAN time_log kayıtları
+  const weeklyApprovedLogs = useMemo(() => {
+      if (!targetEmployeeId) return [] as TimeLog[];
+      return timeLogs
+          .filter(l => l.employeeId === targetEmployeeId && l.status === 'Onaylandı' && weekDates.includes(l.date))
+          .sort((a, b) => a.date.localeCompare(b.date));
+  }, [timeLogs, targetEmployeeId, weekDates]);
 
   const plannedPayrollStats = useMemo(() => {
-      const plannedHours = weeklyPlannedShifts.reduce((acc, s) => acc + s.hours, 0);
-      const shiftCount = weeklyPlannedShifts.length;
+      const approvedHours = weeklyApprovedLogs.reduce((acc, l) => acc + (l.totalHours || 0), 0);
+      const shiftCount = weeklyApprovedLogs.length;
       const hourlyRate = targetEmployee?.hourlyRate || 0;
-      const grossPay = plannedHours * hourlyRate;
-      return { plannedHours, shiftCount, grossPay };
-  }, [weeklyPlannedShifts, targetEmployee]);
+      const grossPay = approvedHours * hourlyRate;
+      return { approvedHours, shiftCount, grossPay };
+  }, [weeklyApprovedLogs, targetEmployee]);
 
 
   // --- CRUD İŞLEMLERİ ---
@@ -901,9 +862,9 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                       {/* Stats Grid — Vardiya Planı bazlı (time_logs değil) */}
                       <div className="space-y-6">
                           <div className="grid grid-cols-2 gap-4">
-                              <div className="p-4 bg-indigo-900/10 rounded-xl border border-indigo-500/20">
-                                  <p className="text-xs text-indigo-400/80 mb-1">{t('pay.plannedHoursWeek')}</p>
-                                  <p className="text-xl font-bold text-indigo-300">{(plannedPayrollStats.plannedHours || 0).toFixed(1)} s</p>
+                              <div className="p-4 bg-emerald-900/10 rounded-xl border border-emerald-500/20">
+                                  <p className="text-xs text-emerald-400/80 mb-1">{t('pay.approvedHoursWeek')}</p>
+                                  <p className="text-xl font-bold text-emerald-300">{(plannedPayrollStats.approvedHours || 0).toFixed(1)} s</p>
                               </div>
                               <div className="p-4 bg-zinc-900/50 rounded-xl border border-zinc-800">
                                   <p className="text-xs text-zinc-500 mb-1">{t('pay.shiftCount')}</p>
@@ -917,7 +878,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                   <span className="text-white font-medium">€{(targetEmployee.hourlyRate || 0).toFixed(2)}</span>
                               </div>
                               <div className="text-[11px] text-zinc-500 italic pt-1 border-t border-zinc-800/60">
-                                  {t('pay.basedOnShiftPlanWeekly')}
+                                  {t('pay.basedOnApprovedLogs')}
                               </div>
                           </div>
 
@@ -928,25 +889,25 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                               </div>
                           </div>
 
-                          {/* Vardiya plan dökümü — kullanıcı hesabın gerçekten plan üzerinden geldiğini görsün */}
+                          {/* Onaylanan kayıt dökümü — Bordro'da onaylanmış time_log'lar */}
                           <div className="pt-4">
                               <div className="text-[11px] uppercase tracking-wider text-zinc-500 mb-2 font-bold">
-                                  {t('pay.shiftBreakdown')} · {weeklyPlannedShifts.length} {t('pay.shiftsLower')}
+                                  {t('pay.approvedBreakdown')} · {weeklyApprovedLogs.length} {t('pay.shiftsLower')}
                               </div>
-                              {weeklyPlannedShifts.length === 0 ? (
+                              {weeklyApprovedLogs.length === 0 ? (
                                   <div className="p-4 bg-zinc-900/40 rounded-lg border border-zinc-800 text-xs text-zinc-500 text-center italic">
-                                      {t('pay.noPlannedShiftsWeek')}
+                                      {t('pay.noApprovedLogsWeek')}
                                   </div>
                               ) : (
                                   <div className="rounded-xl border border-zinc-800 bg-zinc-950/40 overflow-hidden divide-y divide-zinc-800/60">
-                                      {weeklyPlannedShifts.map((s: { date: string; branch: string; slot: string; hours: number; dayIdx: number }, i: number) => (
-                                          <div key={`${s.date}-${i}`} className="flex items-center justify-between px-4 py-2 text-xs">
+                                      {weeklyApprovedLogs.map((l: TimeLog, i: number) => (
+                                          <div key={`${l.id}-${i}`} className="flex items-center justify-between px-4 py-2 text-xs">
                                               <div className="flex items-center gap-3 min-w-0">
-                                                  <span className="text-zinc-300 font-medium tabular-nums w-24">{formatDate(s.date, { weekday: 'short', day: '2-digit', month: 'short' })}</span>
-                                                  <span className="text-indigo-400 font-mono">{s.slot || '—'}</span>
-                                                  <span className="text-zinc-500 truncate">{s.branch}</span>
+                                                  <span className="text-zinc-300 font-medium tabular-nums w-24">{formatDate(l.date, { weekday: 'short', day: '2-digit', month: 'short' })}</span>
+                                                  <span className="text-indigo-400 font-mono">{l.startTime || '—'}–{l.endTime || '—'}</span>
+                                                  <span className="text-zinc-500 truncate">{l.branch}</span>
                                               </div>
-                                              <span className="text-emerald-400 font-bold tabular-nums shrink-0 ml-3">{s.hours.toFixed(1)} s</span>
+                                              <span className="text-emerald-400 font-bold tabular-nums shrink-0 ml-3">{(l.totalHours || 0).toFixed(1)} s</span>
                                           </div>
                                       ))}
                                   </div>
