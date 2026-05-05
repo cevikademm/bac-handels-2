@@ -756,6 +756,11 @@ const AppContent: React.FC = () => {
       case 'sales':
         return <SalesDashboard currentUser={currentUser || MOCK_EMPLOYEES[0]} />;
       case 'loss-control':
+        // Kayıp Önleme yalnızca admin rolüne açık. Personel doğrudan
+        // hash ile gelse bile dashboard'a düşürülür.
+        if (currentUser?.role !== Role.ADMIN) {
+          return <Dashboard notifications={notifications} currentUser={currentUser || MOCK_EMPLOYEES[0]} onUpdateUser={setCurrentUser} />;
+        }
         return <LossControl currentUser={currentUser || MOCK_EMPLOYEES[0]} />;
       case 'settings':
         return <Settings currentUser={currentUser} onUpdateUser={setCurrentUser} />;

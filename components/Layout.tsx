@@ -94,17 +94,19 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
               >
                   {language === 'tr' ? '🇹🇷' : '🇩🇪'}
               </button>
-              <button
-                onClick={() => setActiveTab('loss-control')}
-                className={`flex items-center justify-center h-8 w-8 rounded-lg border transition-colors ${
-                  activeTab === 'loss-control'
-                    ? 'bg-red-600/20 text-red-400 border-red-600/40'
-                    : 'bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:text-red-400'
-                }`}
-                title={canAccessLossControl(userEmail) ? t('nav.lossControl') : t('nav.stock')}
-              >
-                <ShieldAlert size={16} />
-              </button>
+              {isAdmin && (
+                <button
+                  onClick={() => setActiveTab('loss-control')}
+                  className={`flex items-center justify-center h-8 w-8 rounded-lg border transition-colors ${
+                    activeTab === 'loss-control'
+                      ? 'bg-red-600/20 text-red-400 border-red-600/40'
+                      : 'bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:text-red-400'
+                  }`}
+                  title={canAccessLossControl(userEmail) ? t('nav.lossControl') : t('nav.stock')}
+                >
+                  <ShieldAlert size={16} />
+                </button>
+              )}
               <NotificationCenter currentUserId={userId} currentUserEmail={userEmail} onNavigate={setActiveTab} />
               <button
                 onClick={() => setActiveTab('settings')}
@@ -156,19 +158,21 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
         </nav>
 
         <div className="mt-auto">
-            <div className="px-4 pb-2">
-              <button
-                onClick={() => setActiveTab('loss-control')}
-                className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-bold transition-all border ${
-                  activeTab === 'loss-control'
-                    ? 'bg-red-600/20 text-red-400 border-red-600/40'
-                    : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-red-400 hover:border-red-600/30'
-                }`}
-              >
-                <ShieldAlert size={16} />
-                <span>{canAccessLossControl(userEmail) ? t('nav.lossControl') : t('nav.stock')}</span>
-              </button>
-            </div>
+            {isAdmin && (
+              <div className="px-4 pb-2">
+                <button
+                  onClick={() => setActiveTab('loss-control')}
+                  className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-bold transition-all border ${
+                    activeTab === 'loss-control'
+                      ? 'bg-red-600/20 text-red-400 border-red-600/40'
+                      : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-red-400 hover:border-red-600/30'
+                  }`}
+                >
+                  <ShieldAlert size={16} />
+                  <span>{canAccessLossControl(userEmail) ? t('nav.lossControl') : t('nav.stock')}</span>
+                </button>
+              </div>
+            )}
             <div className="px-4 pb-4">
                 <div className="flex bg-zinc-900 rounded-lg p-1 border border-zinc-800">
                     <button
