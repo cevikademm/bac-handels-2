@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Bell, X, ShoppingBag, Clock, FileText, BarChart3, CheckCheck, Loader2, Inbox } from 'lucide-react';
+import { Bell, X, ShoppingBag, Clock, FileText, BarChart3, CheckCheck, Loader2, Inbox, AlarmClockOff } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { canSeeNotificationCenter } from '../constants';
 
@@ -15,7 +15,7 @@ import { canSeeNotificationCenter } from '../constants';
 
 interface NotificationRow {
   id: string;
-  type: 'off_shift_sale' | 'off_shift_qr' | 'non_kiosk_check' | 'weekly_sales_anomaly' | string;
+  type: 'off_shift_sale' | 'off_shift_qr' | 'non_kiosk_check' | 'weekly_sales_anomaly' | 'auto_closed_shift' | string;
   title: string;
   body: string | null;
   url: string | null;
@@ -36,6 +36,7 @@ const ICON_BY_TYPE: Record<string, { icon: React.ComponentType<{ size?: number; 
   off_shift_qr: { icon: Clock, color: 'text-amber-400 bg-amber-500/10 border-amber-500/30' },
   non_kiosk_check: { icon: FileText, color: 'text-blue-400 bg-blue-500/10 border-blue-500/30' },
   weekly_sales_anomaly: { icon: BarChart3, color: 'text-purple-400 bg-purple-500/10 border-purple-500/30' },
+  auto_closed_shift: { icon: AlarmClockOff, color: 'text-rose-400 bg-rose-500/10 border-rose-500/30' },
 };
 
 const formatRelative = (iso: string): string => {
@@ -309,7 +310,7 @@ const NotificationCenter: React.FC<Props> = ({ currentUserId, currentUserEmail, 
                           )}
                         </div>
                         {n.body && (
-                          <div className="text-xs text-zinc-400 mt-0.5 line-clamp-2">{n.body}</div>
+                          <div className="text-xs text-zinc-400 mt-0.5 line-clamp-2 whitespace-pre-line">{n.body}</div>
                         )}
                         <div className="text-[10px] text-zinc-500 mt-1">{formatRelative(n.created_at)}</div>
                       </div>
