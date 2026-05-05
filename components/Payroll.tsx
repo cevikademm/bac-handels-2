@@ -376,7 +376,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
       return arr;
   }, [currentWeekStart]);
 
-  // Seçili haftada targetEmployee için ONAYLANAN time_log kayıtları
+  // Seçili haftada targetEmployee için ONAYLANAN time_log kayıtları (ödeme hesabı bunun üzerinden)
   const weeklyApprovedLogs = useMemo(() => {
       if (!targetEmployeeId) return [] as TimeLog[];
       return timeLogs
@@ -384,13 +384,24 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
           .sort((a, b) => a.date.localeCompare(b.date));
   }, [timeLogs, targetEmployeeId, weekDates]);
 
+  // Tüm onaylanmış kayıtlar (alt liste için — kullanıcı bütün onaylı günleri tek bakışta görsün)
+  const allApprovedLogs = useMemo(() => {
+      if (!targetEmployeeId) return [] as TimeLog[];
+      return timeLogs
+          .filter(l => l.employeeId === targetEmployeeId && l.status === 'Onaylandı')
+          .sort((a, b) => b.date.localeCompare(a.date)); // en yeni üstte
+  }, [timeLogs, targetEmployeeId]);
+
   const plannedPayrollStats = useMemo(() => {
       const approvedHours = weeklyApprovedLogs.reduce((acc, l) => acc + (l.totalHours || 0), 0);
       const shiftCount = weeklyApprovedLogs.length;
       const hourlyRate = targetEmployee?.hourlyRate || 0;
       const grossPay = approvedHours * hourlyRate;
-      return { approvedHours, shiftCount, grossPay };
-  }, [weeklyApprovedLogs, targetEmployee]);
+      // Tüm zamanlar toplamı (ek bilgi olarak gösterilir)
+      const totalApprovedHours = allApprovedLogs.reduce((acc, l) => acc + (l.totalHours || 0), 0);
+      const totalApprovedGross = totalApprovedHours * hourlyRate;
+      return { approvedHours, shiftCount, grossPay, totalApprovedHours, totalApprovedGross, totalApprovedCount: allApprovedLogs.length };
+  }, [weeklyApprovedLogs, allApprovedLogs, targetEmployee]);
 
 
   // --- CRUD İŞLEMLERİ ---
@@ -887,31 +898,44 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                   <span className="text-sm font-bold text-zinc-500 uppercase tracking-widest">{t('pay.weeklyGross')}</span>
                                   <span className="text-4xl font-bold text-white tracking-tight">€{(plannedPayrollStats.grossPay || 0).toFixed(2)}</span>
                               </div>
-                          </div>
-
-                          {/* Onaylanan kayıt dökümü — Bordro'da onaylanmış time_log'lar */}
-                          <div className="pt-4">
-                              <div className="text-[11px] uppercase tracking-wider text-zinc-500 mb-2 font-bold">
-                                  {t('pay.approvedBreakdown')} · {weeklyApprovedLogs.length} {t('pay.shiftsLower')}
-                              </div>
-                              {weeklyApprovedLogs.length === 0 ? (
-                                  <div className="p-4 bg-zinc-900/40 rounded-lg border border-zinc-800 text-xs text-zinc-500 text-center italic">
-                                      {t('pay.noApprovedLogsWeek')}
-                                  </div>
-                              ) : (
-                                  <div className="rounded-xl border border-zinc-800 bg-zinc-950/40 overflow-hidden divide-y divide-zinc-800/60">
-                                      {weeklyApprovedLogs.map((l: TimeLog, i: number) => (
-                                          <div key={`${l.id}-${i}`} className="flex items-center justify-between px-4 py-2 text-xs">
-                                              <div className="flex items-center gap-3 min-w-0">
-                                                  <span className="text-zinc-300 font-medium tabular-nums w-24">{formatDate(l.date, { weekday: 'short', day: '2-digit', month: 'short' })}</span>
-                                                  <span className="text-indigo-400 font-mono">{l.startTime || '—'}–{l.endTime || '—'}</span>
-                                                  <span className="text-zinc-500 truncate">{l.branch}</span>
-                                              </div>
-                                              <span className="text-emerald-400 font-bold tabular-nums shrink-0 ml-3">{(l.totalHours || 0).toFixed(1)} s</span>
-                                          </div>
-                                      ))}
+                              {/* Tüm zamanlar onaylı toplamı — kıyas için */}
+                              {plannedPayrollStats.totalApprovedCount > 0 && (
+                                  <div className="flex justify-between items-center mt-2 text-[11px] text-zinc-500">
+                                      <span>{t('pay.totalApprovedAllTime')}</span>
+                                      <span className="font-medium tabular-nums">{(plannedPayrollStats.totalApprovedHours || 0).toFixed(1)} s · €{(plannedPayrollStats.totalApprovedGross || 0).toFixed(2)}</span>
                                   </div>
                               )}
+                          </div>
+
+                          {/* TÜM onaylanmış kayıtların dökümü — kullanıcı her onaylı günü görsün */}
+                          <div className="pt-4">
+                              <div className="text-[11px] uppercase tracking-wider text-zinc-500 mb-2 font-bold flex items-center justify-between">
+                                  <span>{t('pay.approvedBreakdownAll')} · {allApprovedLogs.length} {t('pay.shiftsLower')}</span>
+                              </div>
+                              {allApprovedLogs.length === 0 ? (
+                                  <div className="p-4 bg-zinc-900/40 rounded-lg border border-zinc-800 text-xs text-zinc-500 text-center italic">
+                                      {t('pay.noApprovedLogsAll')}
+                                  </div>
+                              ) : (
+                                  <div className="rounded-xl border border-zinc-800 bg-zinc-950/40 overflow-hidden divide-y divide-zinc-800/60 max-h-[320px] overflow-y-auto custom-scrollbar">
+                                      {allApprovedLogs.map((l: TimeLog, i: number) => {
+                                          const inCurrentWeek = weekDates.includes(l.date);
+                                          return (
+                                              <div key={`${l.id}-${i}`} className={`flex items-center justify-between px-4 py-2 text-xs ${inCurrentWeek ? 'bg-emerald-900/10' : ''}`}>
+                                                  <div className="flex items-center gap-3 min-w-0">
+                                                      <span className={`font-medium tabular-nums w-24 ${inCurrentWeek ? 'text-emerald-300' : 'text-zinc-300'}`}>{formatDate(l.date, { weekday: 'short', day: '2-digit', month: 'short' })}</span>
+                                                      <span className="text-indigo-400 font-mono">{l.startTime || '—'}–{l.endTime || '—'}</span>
+                                                      <span className="text-zinc-500 truncate">{l.branch}</span>
+                                                  </div>
+                                                  <span className={`font-bold tabular-nums shrink-0 ml-3 ${inCurrentWeek ? 'text-emerald-300' : 'text-emerald-400/80'}`}>{(l.totalHours || 0).toFixed(1)} s</span>
+                                              </div>
+                                          );
+                                      })}
+                                  </div>
+                              )}
+                              <div className="text-[10px] text-zinc-600 mt-2 italic">
+                                  {t('pay.currentWeekHighlight')}
+                              </div>
                           </div>
                       </div>
                   </div>
