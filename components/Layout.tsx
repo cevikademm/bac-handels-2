@@ -127,6 +127,19 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
                   <ShieldAlert size={16} />
                 </button>
               )}
+              {canSeeMap(userEmail, userRole) && (
+                <button
+                  onClick={() => setActiveTab('map')}
+                  className={`flex items-center justify-center h-8 w-8 rounded-lg border transition-colors ${
+                    activeTab === 'map'
+                      ? 'bg-indigo-600/20 text-indigo-400 border-indigo-600/40'
+                      : 'bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:text-indigo-400'
+                  }`}
+                  title={t('nav.map')}
+                >
+                  <MapIcon size={16} />
+                </button>
+              )}
               <NotificationCenter currentUserId={userId} currentUserEmail={userEmail} onNavigate={setActiveTab} />
               <button
                 onClick={() => setActiveTab('settings')}
@@ -250,15 +263,19 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
 
       {/* --- MOBILE BOTTOM NAVIGATION ---
           - paddingBottom env() Apple'da homebar boşluğunu, Samsung/diğerlerinde
-            12px varsayılan boşluğu garanti eder. -mb-6 kaldırıldı çünkü
-            safe-area-inset-bottom = 0 olan Samsung'ta nav viewport dışına kayıyordu.
-          - keyboardOpen ise (mesaj/arama input focused) nav'ı tamamen gizle. */}
+            12px varsayılan boşluğu garanti eder.
+          - Mesajlar sekmesindeyken nav komple gizlenir (yazma alanı kapanmasın).
+          - Diğer sekmelerde klavye açılınca nav fade-out olur (VisualViewport).
+          - Bazı cihazlarda VisualViewport sinyali güvenilmez olduğundan
+            mesajlar için ayrı sabit bir gizleme kuralı kullanıyoruz. */}
       <div
         className={`md:hidden fixed bottom-0 left-0 right-0 z-50 px-4 pb-3 pointer-events-none transition-all duration-200 ${
-          keyboardOpen ? 'opacity-0 translate-y-full pointer-events-none' : 'opacity-100 translate-y-0'
+          activeTab === 'messages' || keyboardOpen
+            ? 'opacity-0 translate-y-full pointer-events-none'
+            : 'opacity-100 translate-y-0'
         }`}
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}
-        aria-hidden={keyboardOpen}
+        aria-hidden={activeTab === 'messages' || keyboardOpen}
       >
         <nav className="w-full h-16 bg-zinc-900/90 backdrop-blur-xl border border-zinc-800/60 rounded-2xl flex justify-around items-center px-1 shadow-[0_8px_30px_rgba(0,0,0,0.6)] pointer-events-auto">
             <MobileNavItem icon={LayoutDashboard} label={t('nav.dashboard')} id="dashboard" active={activeTab === 'dashboard'} onClick={setActiveTab} />
@@ -267,9 +284,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
             <MobileNavItem icon={Table} label={t('nav.shifts')} id="shifts" active={activeTab === 'shifts'} onClick={setActiveTab} />
             <MobileNavItem icon={CheckSquare} label={t('nav.tasks')} id="tasks" active={activeTab === 'tasks'} onClick={setActiveTab} />
             <MobileNavItem icon={Users} label={t('nav.payroll')} id="payroll" active={activeTab === 'payroll'} onClick={setActiveTab} />
-            {canSeeMap(userEmail, userRole) && (
-              <MobileNavItem icon={MapIcon} label={t('nav.map')} id="map" active={activeTab === 'map'} onClick={setActiveTab} />
-            )}
         </nav>
       </div>
 
