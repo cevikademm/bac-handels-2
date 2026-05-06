@@ -43,7 +43,6 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [shifts, setShifts] = useState<any[]>([]); // New Shift State
-  const [timeLogs, setTimeLogs] = useState<any[]>([]); // Çalışma Saatleri sekmesi için gerçek giriş/çıkış kayıtları
   const [employees, setEmployees] = useState<Employee[]>([]); // New Employee State for Attendees
 
   // Modal & Selection
@@ -118,17 +117,6 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
 
             if (shiftData) {
                 setShifts(shiftData);
-            }
-
-            // 3b. Time logs (Gerçek QR/manuel giriş-çıkış kayıtları) — Çalışma Saatleri sekmesi için.
-            // Personel kendi kayıtlarını, admin tüm personelinkini görsün.
-            let timeLogQuery = supabase.from('time_logs').select('*');
-            if (currentUser.role !== Role.ADMIN) {
-                timeLogQuery = timeLogQuery.eq('employee_id', currentUser.id);
-            }
-            const { data: timeLogData } = await timeLogQuery;
-            if (timeLogData) {
-                setTimeLogs(timeLogData);
             }
 
             // 4. Employees (For Attendees Selector) - çift rollü adminler (Apo, Malik) dahil
@@ -253,43 +241,53 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   }, [shifts, currentWeekStart, currentUser]);
 
   // --- SHIFT GRID (Çalışma Saatleri sekmesi) ---
-  // Vardiya planı saatlerini değil, time_logs'taki GERÇEK QR/manuel giriş-çıkış
-  // saatlerini gösterir. Vardiya planı saati ayrı bir sekmede (Vardiya Planı)
-  // tutulur. Hesaplama çıkış saatine göre yapılır (RPC v_hours alanı).
-  type WorkEntry = { startTime: string; endTime: string; totalHours: number; method: 'qr' | 'manual'; ongoing: boolean };
+  // SADECE vardiya planı saatlerini gösterir (shift_schedules tablosu).
+  // Gerçek QR/manuel giriş-çıkış kayıtları (time_logs) burada gösterilmez —
+  // o veriler Bordro / Çalışma Geçmişi sekmesinde kullanıcı bazında listelenir.
+  // Plan: bir hücre = personelin o gün için planlanmış vardiya time_slot'u
+  // (örn. "07:00-15:00"). Aynı personel aynı gün birden fazla satırda yer
+  // alabilir (split shift) — hepsi ayrı entry olarak gösterilir.
+  type WorkEntry = { startTime: string; endTime: string; totalHours: number };
+
+  // "07:00-15:00" / "9-17" / "07:00 – 15:00" gibi formatları HH:MM/HH:MM'ye normalize
+  const parseTimeSlot = (slot: string | null | undefined): { startTime: string; endTime: string; totalHours: number } | null => {
+      if (!slot) return null;
+      const m = slot.match(/(\d{1,2})(?::(\d{2}))?\s*[-–]\s*(\d{1,2})(?::(\d{2}))?/);
+      if (!m) return null;
+      const sH = parseInt(m[1], 10);
+      const sM = m[2] ? parseInt(m[2], 10) : 0;
+      const eH = parseInt(m[3], 10);
+      const eM = m[4] ? parseInt(m[4], 10) : 0;
+      const startTime = `${String(sH).padStart(2, '0')}:${String(sM).padStart(2, '0')}`;
+      const endTime = `${String(eH).padStart(2, '0')}:${String(eM).padStart(2, '0')}`;
+      let mins = (eH * 60 + eM) - (sH * 60 + sM);
+      if (mins < 0) mins += 24 * 60; // gece geçişi
+      return { startTime, endTime, totalHours: Number((mins / 60).toFixed(2)) };
+  };
+
   const shiftGrid = useMemo((): { employee: Employee; days: Map<number, WorkEntry[]> }[] => {
       const weekStartStr = formatLocalDate(currentWeekStart);
-      // Haftanın 7 günü için Y-M-D string'leri
-      const weekDates: string[] = [];
-      for (let i = 0; i < 7; i++) {
-          const d = new Date(currentWeekStart);
-          d.setDate(d.getDate() + i);
-          weekDates.push(formatLocalDate(d));
-      }
-
-      // employeeId -> dayIndex -> WorkEntry[]
       const empMap = new Map<string, Map<number, WorkEntry[]>>();
 
-      timeLogs.forEach((log: any) => {
-          const dayIdx = weekDates.indexOf(log.date);
-          if (dayIdx === -1) return; // Hafta dışı
-          const empId = log.employee_id;
-          if (!empId) return;
-          if (currentUser.role !== Role.ADMIN && empId !== currentUser.id) return;
+      shifts.forEach((schedule: any) => {
+          if (schedule.week_start_date !== weekStartStr) return;
+          const parsed = parseTimeSlot(schedule.time_slot);
+          if (!parsed) return; // time_slot okunamadıysa atla
 
-          if (!empMap.has(empId)) empMap.set(empId, new Map());
-          const dayMap = empMap.get(empId)!;
-          if (!dayMap.has(dayIdx)) dayMap.set(dayIdx, []);
-
-          const start = (log.start_time || '').slice(0, 5);
-          const end = (log.end_time || '').slice(0, 5);
-          const ongoing = log.entry_method === 'qr' && !log.check_out_at && !end;
-          dayMap.get(dayIdx)!.push({
-              startTime: start || '—',
-              endTime: ongoing ? '' : (end || '—'),
-              totalHours: Number(log.total_hours) || 0,
-              method: log.entry_method === 'qr' ? 'qr' : 'manual',
-              ongoing,
+          (schedule.days || []).forEach((cell: any, dayIdx: number) => {
+              if (!cell) return;
+              // Hücre tek bir empId olabilir veya CSV ("id1,id2"). Her ikisini de destekle.
+              const empIds = String(cell)
+                  .split(',')
+                  .map(s => s.trim())
+                  .filter(Boolean);
+              empIds.forEach(empId => {
+                  if (currentUser.role !== Role.ADMIN && empId !== currentUser.id) return;
+                  if (!empMap.has(empId)) empMap.set(empId, new Map());
+                  const dayMap = empMap.get(empId)!;
+                  if (!dayMap.has(dayIdx)) dayMap.set(dayIdx, []);
+                  dayMap.get(dayIdx)!.push(parsed);
+              });
           });
       });
 
@@ -300,25 +298,8 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
           result.push({ employee: emp, days: dayMap });
       });
 
-      // Hafta için vardiya planı atanmış ama henüz giriş yapmamış personeller de
-      // listede görünsün — admin perspektifinde "kim eksik" görmek lazım. Personel
-      // perspektifinde de kendi planlanmış günleri en azından görsün.
-      shifts.forEach((schedule: any) => {
-          if (schedule.week_start_date !== weekStartStr) return;
-          schedule.days.forEach((empId: string) => {
-              if (!empId) return;
-              if (currentUser.role !== Role.ADMIN && empId !== currentUser.id) return;
-              if (!empMap.has(empId)) {
-                  const emp = employees.find(e => e.id === empId);
-                  if (emp && !result.find(r => r.employee.id === emp.id)) {
-                      result.push({ employee: emp, days: new Map() });
-                  }
-              }
-          });
-      });
-
       return result;
-  }, [timeLogs, shifts, employees, currentWeekStart, currentUser]);
+  }, [shifts, employees, currentWeekStart, currentUser]);
 
   // Bu hafta hiç vardiyası olmayan personeller
   const unassignedEmployees = useMemo(() => {
@@ -787,18 +768,13 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                                                             <td key={dayIndex} className={`text-center px-2 py-3 ${isCurrent ? 'bg-indigo-950/20' : ''}`}>
                                                                 {entries && entries.length > 0 ? (
                                                                     entries.map((e, si) => (
-                                                                        <div key={si} className={`mb-0.5 rounded-md px-2 py-1 ${e.method === 'qr' ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-indigo-500/15 border border-indigo-500/20'}`}>
-                                                                            <div className={`text-[11px] font-mono whitespace-nowrap ${e.method === 'qr' ? 'text-emerald-300' : 'text-indigo-300'}`}>
-                                                                                {e.startTime}{e.ongoing ? ' → …' : ` - ${e.endTime}`}
+                                                                        <div key={si} className="mb-0.5 rounded-md px-2 py-1 bg-indigo-500/15 border border-indigo-500/20">
+                                                                            <div className="text-[11px] font-mono whitespace-nowrap text-indigo-300">
+                                                                                {e.startTime} - {e.endTime}
                                                                             </div>
-                                                                            {!e.ongoing && e.totalHours > 0 && (
+                                                                            {e.totalHours > 0 && (
                                                                                 <div className="text-[10px] text-zinc-400 font-semibold mt-0.5">
                                                                                     {formatHoursAsHM(e.totalHours)} saat
-                                                                                </div>
-                                                                            )}
-                                                                            {e.ongoing && (
-                                                                                <div className="text-[10px] text-amber-400 font-semibold mt-0.5">
-                                                                                    sürüyor
                                                                                 </div>
                                                                             )}
                                                                         </div>
