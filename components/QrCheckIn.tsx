@@ -10,6 +10,7 @@ import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
 import { notifyEvent } from '../lib/notifyEvent';
 import { detectDeviceInfo } from '../lib/utils';
+import { setShiftActive, clearShiftActive } from '../lib/geofence';
 
 type Phase = 'idle' | 'scanning' | 'posting' | 'result' | 'error';
 type ScanAction = 'in' | 'out';
@@ -245,6 +246,14 @@ const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
       setPhase('result');
       // Notify parent (Payroll) so list refreshes immediately on mobile
       onComplete?.();
+
+      // Canlı konum tracker'ı aç/kapat — Harita sekmesi için.
+      // 'in' başarılıysa flag aktif, 'out' başarılıysa silinir.
+      if (actionRef.current === 'in') {
+        setShiftActive(currentUser.id);
+      } else if (actionRef.current === 'out') {
+        clearShiftActive();
+      }
 
       // Vardiya saati dışı QR ise admin'e push (edge function shift kontrolü yapar)
       notifyEvent({

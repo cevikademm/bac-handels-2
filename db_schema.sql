@@ -621,8 +621,9 @@ GRANT EXECUTE ON FUNCTION public.qr_check_in_out(TEXT, TEXT, NUMERIC, NUMERIC, T
 -- Eski imza (4 param) kaldırıldı; yeni clientler p_action gönderir, default 'auto' ile eski davranış korunur.
 
 -- 12. Şube seed — gerçek koordinatlar
+-- NOT: 'Dom' = "BAC Kiosk" gerçek lokasyonu (kullanıcı doğruladı: 50.94032..., 6.93964...).
 INSERT INTO public.branch_locations (branch, latitude, longitude) VALUES
-  ('Dom',       50.94033516713386,  6.939726768801454),
+  ('Dom',       50.94032812642508,  6.939643179081483),
   ('Backaffee', 50.9403056233978,   6.939539275732692),
   ('Ringe',     50.93968838730243,  6.9400543539197255),
   ('Mülheim',   50.96208006232153,  7.0054699260591295),
@@ -631,6 +632,13 @@ INSERT INTO public.branch_locations (branch, latitude, longitude) VALUES
   -- Şu an QR mesai kullanılmıyor, enum'a eklenmeyecek. İlerde aktif edilmek
   -- istenirse: types.ts Branch enum'una BAC_HANDELS ekle, bir satır daha aç.
 ON CONFLICT (branch) DO NOTHING;
+
+-- Var olan veritabanında Dom koordinatlarını güncelle (idempotent).
+UPDATE public.branch_locations
+   SET latitude = 50.94032812642508,
+       longitude = 6.939643179081483,
+       updated_at = NOW()
+ WHERE branch = 'Dom';
 
 -- ============================================================
 -- 13. QR Kayıtları İçin Saat Bütünlüğü

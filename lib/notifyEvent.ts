@@ -11,7 +11,9 @@ const ANON = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 export type NotifyEventType =
   | 'off_shift_sale'
   | 'off_shift_qr'
-  | 'non_kiosk_check';
+  | 'non_kiosk_check'
+  | 'geofence_enter'
+  | 'geofence_exit';
 
 export interface NotifyEventPayload {
   type: NotifyEventType;
@@ -22,6 +24,9 @@ export interface NotifyEventPayload {
   quantity?: number;
   action?: 'in' | 'out';
   at?: string;
+  lat?: number;
+  lng?: number;
+  distance_m?: number;
 }
 
 export const notifyEvent = (payload: NotifyEventPayload): void => {

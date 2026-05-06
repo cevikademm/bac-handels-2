@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Bell, AlertTriangle, ShoppingBag, Clock, FileText, Loader2, RefreshCw, CheckCircle2, BarChart3 } from 'lucide-react';
+import { Bell, AlertTriangle, ShoppingBag, Clock, FileText, Loader2, RefreshCw, CheckCircle2, BarChart3, MapPin, DoorOpen } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Employee, Role } from '../types';
 import { useLanguage } from '../lib/i18n';
@@ -17,6 +17,8 @@ interface NotificationPrefs {
   weekly_sales_anomaly: boolean;
   off_shift_qr: boolean;
   non_kiosk_check: boolean;
+  geofence_enter: boolean;
+  geofence_exit: boolean;
 }
 
 const DEFAULT_PREFS: NotificationPrefs = {
@@ -24,6 +26,8 @@ const DEFAULT_PREFS: NotificationPrefs = {
   weekly_sales_anomaly: true,
   off_shift_qr: true,
   non_kiosk_check: true,
+  geofence_enter: true,
+  geofence_exit: true,
 };
 
 const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || '').replace(/\/$/, '');
@@ -68,6 +72,20 @@ const TOGGLES: ToggleItem[] = [
     descKey: 'notif.nonKioskDesc',
     icon: FileText,
     color: 'text-blue-400',
+  },
+  {
+    key: 'geofence_enter',
+    titleKey: 'notif.geofenceEnterTitle',
+    descKey: 'notif.geofenceEnterDesc',
+    icon: MapPin,
+    color: 'text-emerald-400',
+  },
+  {
+    key: 'geofence_exit',
+    titleKey: 'notif.geofenceExitTitle',
+    descKey: 'notif.geofenceExitDesc',
+    icon: DoorOpen,
+    color: 'text-rose-400',
   },
 ];
 

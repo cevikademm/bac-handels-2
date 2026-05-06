@@ -45,6 +45,14 @@ export interface TimeLog {
   checkOutLat?: number;
   checkOutLng?: number;
   deviceInfo?: string; // QR girişinde tespit edilen cihaz markası/modeli (sadece izinli adminler görür)
+  // Otomatik kapatma: auto_close_open_shifts() tarafından doldurulur
+  autoClosedAt?: string;
+  // Personelin bildirdiği fazla mesai (dakika) — admin onayına 'Bekliyor' olarak döner
+  overtimeMinutes?: number;
+  overtimeRequestedAt?: string;
+  // Saat doğrulayıcı (validate_time_log trigger): tutarsızlık metni + farkın dakikası
+  validationWarning?: string;
+  validationDiffMin?: number;
 }
 
 export interface Task {

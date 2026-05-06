@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   LayoutDashboard,
   MessageSquare,
@@ -11,12 +11,14 @@ import {
   Table,
   ShoppingBag,
   QrCode,
-  ShieldAlert
+  ShieldAlert,
+  Map as MapIcon
 } from 'lucide-react';
 import { useLanguage } from '../lib/i18n';
 import { Role } from '../types';
 import { GlowingEffect } from './ui/glowing-effect';
 import { canAccessLossControl } from './LossControl';
+import { canSeeMap } from '../lib/geofence';
 import NotificationCenter from './NotificationCenter';
 
 
@@ -66,8 +68,26 @@ const MobileNavItem = ({ icon: Icon, label, id, active, onClick }: any) => (
 
 const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, userId, userRole, userName, userAvatar, userEmail, onLogout }) => {
   const { t, language, setLanguage } = useLanguage();
-  
+
   const isAdmin = userRole.includes('Admin');
+
+  // Mobile klavye açık mı? Açıksa bottom nav'ı gizle (mesaj yazarken,
+  // arama yaparken vs. nav klavyenin üstünde durmasın). VisualViewport
+  // API kullanır — klavye viewport.height'i küçültür, innerHeight ile
+  // farkı kontrol ederiz. Eşik: 150px (klavye genelde 250-350px).
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const onResize = () => {
+      const diff = window.innerHeight - vv.height;
+      setKeyboardOpen(diff > 150);
+    };
+    vv.addEventListener('resize', onResize);
+    onResize();
+    return () => vv.removeEventListener('resize', onResize);
+  }, []);
 
   return (
     <div className="app-shell relative w-full bg-zinc-950 text-zinc-200 font-sans overflow-hidden flex flex-col md:flex-row">
@@ -152,6 +172,9 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
           <SidebarItem icon={CheckSquare} label={t('nav.tasks')} id="tasks" active={activeTab === 'tasks'} onClick={setActiveTab} />
           <SidebarItem icon={ShoppingBag} label={t('nav.sales')} id="sales" active={activeTab === 'sales'} onClick={setActiveTab} />
           <SidebarItem icon={Users} label={t('nav.payroll')} id="payroll" active={activeTab === 'payroll'} onClick={setActiveTab} />
+          {canSeeMap(userEmail, userRole) && (
+            <SidebarItem icon={MapIcon} label={t('nav.map')} id="map" active={activeTab === 'map'} onClick={setActiveTab} />
+          )}
           <div className="pt-4 mt-4 border-t border-zinc-900">
              <SidebarItem icon={SettingsIcon} label={t('nav.settings')} id="settings" active={activeTab === 'settings'} onClick={setActiveTab} />
           </div>
@@ -228,10 +251,14 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
       {/* --- MOBILE BOTTOM NAVIGATION ---
           - paddingBottom env() Apple'da homebar boşluğunu, Samsung/diğerlerinde
             12px varsayılan boşluğu garanti eder. -mb-6 kaldırıldı çünkü
-            safe-area-inset-bottom = 0 olan Samsung'ta nav viewport dışına kayıyordu. */}
+            safe-area-inset-bottom = 0 olan Samsung'ta nav viewport dışına kayıyordu.
+          - keyboardOpen ise (mesaj/arama input focused) nav'ı tamamen gizle. */}
       <div
-        className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-4 pb-3 pointer-events-none"
+        className={`md:hidden fixed bottom-0 left-0 right-0 z-50 px-4 pb-3 pointer-events-none transition-all duration-200 ${
+          keyboardOpen ? 'opacity-0 translate-y-full pointer-events-none' : 'opacity-100 translate-y-0'
+        }`}
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}
+        aria-hidden={keyboardOpen}
       >
         <nav className="w-full h-16 bg-zinc-900/90 backdrop-blur-xl border border-zinc-800/60 rounded-2xl flex justify-around items-center px-1 shadow-[0_8px_30px_rgba(0,0,0,0.6)] pointer-events-auto">
             <MobileNavItem icon={LayoutDashboard} label={t('nav.dashboard')} id="dashboard" active={activeTab === 'dashboard'} onClick={setActiveTab} />
@@ -240,6 +267,9 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
             <MobileNavItem icon={Table} label={t('nav.shifts')} id="shifts" active={activeTab === 'shifts'} onClick={setActiveTab} />
             <MobileNavItem icon={CheckSquare} label={t('nav.tasks')} id="tasks" active={activeTab === 'tasks'} onClick={setActiveTab} />
             <MobileNavItem icon={Users} label={t('nav.payroll')} id="payroll" active={activeTab === 'payroll'} onClick={setActiveTab} />
+            {canSeeMap(userEmail, userRole) && (
+              <MobileNavItem icon={MapIcon} label={t('nav.map')} id="map" active={activeTab === 'map'} onClick={setActiveTab} />
+            )}
         </nav>
       </div>
 

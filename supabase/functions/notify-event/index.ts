@@ -44,7 +44,12 @@ const json = (s: number, p: unknown) =>
   });
 
 interface EventBody {
-  type: 'off_shift_sale' | 'off_shift_qr' | 'non_kiosk_check';
+  type:
+    | 'off_shift_sale'
+    | 'off_shift_qr'
+    | 'non_kiosk_check'
+    | 'geofence_enter'
+    | 'geofence_exit';
   employee_name?: string;
   employee_id?: string;
   branch?: string;
@@ -52,7 +57,33 @@ interface EventBody {
   quantity?: number;
   action?: 'in' | 'out';
   at?: string;
+  lat?: number;
+  lng?: number;
+  distance_m?: number;
 }
+
+// Bildirim gövdesi formatı: "SS, HH:MM, DD.MM.YYYY" (Europe/Berlin)
+const formatBerlin = (at?: string): string => {
+  const d = at ? new Date(at) : new Date();
+  const fmt = new Intl.DateTimeFormat('de-DE', {
+    timeZone: 'Europe/Berlin',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+  const parts = fmt.formatToParts(d).reduce<Record<string, string>>((acc, p) => {
+    acc[p.type] = p.value;
+    return acc;
+  }, {});
+  const ss = parts.second ?? '00';
+  const hhmm = `${parts.hour ?? '00'}:${parts.minute ?? '00'}`;
+  const ddmmyyyy = `${parts.day ?? '01'}.${parts.month ?? '01'}.${parts.year ?? '2000'}`;
+  return `${ss}, ${hhmm}, ${ddmmyyyy}`;
+};
 
 const buildNotification = (e: EventBody): { title: string; body: string; url: string; tag: string } => {
   switch (e.type) {
@@ -77,6 +108,24 @@ const buildNotification = (e: EventBody): { title: string; body: string; url: st
         url: '/payroll',
         tag: 'non-kiosk-check',
       };
+    case 'geofence_enter': {
+      const t = formatBerlin(e.at);
+      return {
+        title: '📍 Şube girişi',
+        body: `${e.employee_name || 'Personel'} (${e.branch || '-'}) — ${t}`,
+        url: '/map',
+        tag: `geofence-enter-${e.employee_id || ''}`,
+      };
+    }
+    case 'geofence_exit': {
+      const t = formatBerlin(e.at);
+      return {
+        title: '🚪 Şube çıkışı',
+        body: `${e.employee_name || 'Personel'} (${e.branch || '-'}) — ${t}`,
+        url: '/map',
+        tag: `geofence-exit-${e.employee_id || ''}`,
+      };
+    }
     default:
       return { title: 'BAC Handels', body: '', url: '/dashboard', tag: 'event' };
   }
@@ -142,6 +191,9 @@ serve(async (req) => {
       quantity: body.quantity ?? null,
       action: body.action || null,
       at: body.at || null,
+      lat: body.lat ?? null,
+      lng: body.lng ?? null,
+      distance_m: body.distance_m ?? null,
     },
   });
 

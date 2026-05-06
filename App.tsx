@@ -9,8 +9,11 @@ import Payroll from './components/Payroll';
 import Login from './components/Login';
 import SalesDashboard from './components/SalesDashboard';
 import LossControl from './components/LossControl';
+import Map from './components/Map';
+import LiveLocationTracker from './components/LiveLocationTracker';
 import PWAInstallBanner, { PushSubscriptionCard } from './components/PWAInstallBanner';
 import NotificationPreferencesCard from './components/NotificationPreferencesCard';
+import { canSeeMap } from './lib/geofence';
 
 // Lazy: zxing/browser top-level import'u prod minify'da bozuluyordu
 const QrCheckIn = lazy(() => import('./components/QrCheckIn'));
@@ -762,6 +765,12 @@ const AppContent: React.FC = () => {
           return <Dashboard notifications={notifications} currentUser={currentUser || MOCK_EMPLOYEES[0]} onUpdateUser={setCurrentUser} />;
         }
         return <LossControl currentUser={currentUser || MOCK_EMPLOYEES[0]} />;
+      case 'map':
+        // Harita admin'ler + canSeeMap whitelist'indeki email'lere açık.
+        if (!canSeeMap(currentUser?.email, currentUser?.role)) {
+          return <Dashboard notifications={notifications} currentUser={currentUser || MOCK_EMPLOYEES[0]} onUpdateUser={setCurrentUser} />;
+        }
+        return <Map currentUser={currentUser || MOCK_EMPLOYEES[0]} />;
       case 'settings':
         return <Settings currentUser={currentUser} onUpdateUser={setCurrentUser} />;
       default:
@@ -788,6 +797,7 @@ const AppContent: React.FC = () => {
         {renderContent()}
       </Layout>
       <PWAInstallBanner userId={currentUser?.id} />
+      <LiveLocationTracker currentUser={currentUser} />
     </>
   );
 };

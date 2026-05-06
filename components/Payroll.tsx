@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
 import { Employee, Branch, Role, TimeLog, AppNotification } from '../types';
-import { Search, Plus, Filter, Calculator, Save, Trash2, Phone, Mail, X, MapPin, Briefcase, Link as LinkIcon, ThumbsUp, ThumbsDown, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Wallet, Banknote, Map as MapIcon, Timer, Edit2, Loader2, ArrowRightLeft, Building2, CalendarRange, Lock, Rocket, PieChart, Upload, Shield, AlertTriangle, QrCode } from 'lucide-react';
+import { Search, Plus, Filter, Calculator, Save, Trash2, Phone, Mail, X, MapPin, Briefcase, Link as LinkIcon, ThumbsUp, ThumbsDown, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Wallet, Banknote, Map as MapIcon, Timer, Edit2, Loader2, ArrowRightLeft, Building2, CalendarRange, Lock, Rocket, PieChart, Upload, Shield, AlertTriangle, QrCode, AlarmClockOff, Zap } from 'lucide-react';
 import { includeAsPersonnel, isDualRoleAdmin, isRestrictedAdmin } from '../constants';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
@@ -60,6 +60,9 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
 
   const [showTimeModal, setShowTimeModal] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
+  // editingLogId: null → yeni saat ekleme, dolu → mevcut kaydı düzeltme.
+  // Admin saat aralığını değiştirdiğinde total_hours otomatik tekrar hesaplanır.
+  const [editingLogId, setEditingLogId] = useState<string | null>(null);
   const [timeForm, setTimeForm] = useState({
       date: new Date().toISOString().split('T')[0],
       startTime: '09:00',
@@ -77,6 +80,11 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
   // Admin personel listesi
   const [adminEmployees, setAdminEmployees] = useState<Employee[]>([]);
   const [showAdminList, setShowAdminList] = useState(false);
+
+  // "Fazla Mesai Bildir" modal — sadece auto-close edilmiş kendi vardiyası için
+  const [overtimeLogId, setOvertimeLogId] = useState<string | null>(null);
+  const [overtimeMinutes, setOvertimeMinutes] = useState<number>(60);
+  const [overtimeSubmitting, setOvertimeSubmitting] = useState(false);
 
   // --- SUPABASE VERİ ÇEKME & REALTIME ---
   useEffect(() => {
@@ -215,6 +223,11 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                 checkOutLat: l.check_out_lat != null ? Number(l.check_out_lat) : undefined,
                 checkOutLng: l.check_out_lng != null ? Number(l.check_out_lng) : undefined,
                 deviceInfo: l.device_info || undefined,
+                autoClosedAt: l.auto_closed_at || undefined,
+                overtimeMinutes: l.overtime_minutes != null ? Number(l.overtime_minutes) : undefined,
+                overtimeRequestedAt: l.overtime_requested_at || undefined,
+                validationWarning: l.validation_warning || undefined,
+                validationDiffMin: l.validation_diff_min != null ? Number(l.validation_diff_min) : undefined,
             };
         });
         
@@ -265,13 +278,16 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
     ? (editForm as Employee)
     : allEmployees.find(e => e.id === selectedEmployeeId);
 
-  // Tüm personeller için bekleyen kayıtlar — sadece SUPER_ADMIN için doldurulur
+  // Tüm personeller için bekleyen kayıtlar — sadece SUPER_ADMIN için doldurulur.
+  // Filtre, Finansal Özet'teki "onay bekleyen kayıt" uyarısıyla aynı mantığı kullanır:
+  // 'Onaylandı' veya 'Reddedildi' DIŞINDAKİ her şey (Bekliyor + eski kayıtlardaki
+  // 'Otomatik Kapatıldı (Vardiya)' gibi statüler) bu listeye girer.
   const pendingApprovals = useMemo(() => {
       if (currentUser.email !== SUPER_ADMIN_EMAIL) return [];
       const empById = new Map(allEmployees.map(e => [e.id, e]));
       const q = approvalsSearch.trim().toLowerCase();
       return timeLogs
-          .filter(l => l.status === 'Bekliyor')
+          .filter(l => l.status !== 'Onaylandı' && l.status !== 'Reddedildi')
           .map(l => ({ log: l, emp: empById.get(l.employeeId) }))
           .filter(({ emp }) => {
               if (!q) return true;
@@ -697,16 +713,63 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
       if (!targetEmployeeId) return;
 
       setIsLoading(true);
-      
-      // Calculate Hours
+
+      // Saatler değiştiğinde total_hours otomatik yeniden hesaplanır.
       const start = new Date(`1970-01-01T${timeForm.startTime}:00`);
       const end = new Date(`1970-01-01T${timeForm.endTime}:00`);
       let diffMs = end.getTime() - start.getTime();
       if (diffMs < 0) diffMs += 24 * 60 * 60 * 1000;
       const diffMins = Math.floor(diffMs / 60000);
-      const netMins = diffMins - timeForm.breakDuration;
+      const netMins = diffMins - (timeForm.breakDuration || 0);
       const totalHours = Math.max(0, Number((netMins / 60).toFixed(2)));
 
+      // --- DÜZELTME MODU: Mevcut kaydı güncelle ---
+      if (editingLogId) {
+          const existing = timeLogs.find(l => l.id === editingLogId);
+          // QR kaydında check_out_at boşsa "Sürüyor" rozeti gösteriliyor.
+          // Admin manuel saat girince vardiyayı kapanmış sayalım: check_out_at'i de set et.
+          let checkOutAtUpdate: string | undefined;
+          if (existing && existing.method === 'qr' && !existing.checkOutAt) {
+              const synth = new Date(`${timeForm.date}T${timeForm.endTime}:00`);
+              if (!isNaN(synth.getTime())) checkOutAtUpdate = synth.toISOString();
+          }
+
+          const updates: Record<string, unknown> = {
+              date: timeForm.date,
+              start_time: timeForm.startTime,
+              end_time: timeForm.endTime,
+              break_duration: timeForm.breakDuration || 0,
+              total_hours: totalHours,
+              branch: timeForm.branch,
+          };
+          if (checkOutAtUpdate) updates.check_out_at = checkOutAtUpdate;
+
+          try {
+              const { error } = await supabase.from('time_logs').update(updates).eq('id', editingLogId);
+              if (error) throw error;
+          } catch (err) {
+              console.warn('Saat güncelleme hatası (yerel güncelleme yapılıyor):', err);
+              alert(t('pay.dbErrorLocal'));
+          }
+
+          // Optimistic local update — realtime event de gelecek ama UI'yi anında tazelemek için.
+          setTimeLogs(prev => prev.map(log => log.id === editingLogId ? {
+              ...log,
+              date: timeForm.date,
+              startTime: timeForm.startTime,
+              endTime: timeForm.endTime,
+              breakDuration: timeForm.breakDuration || 0,
+              totalHours,
+              branch: timeForm.branch,
+              checkOutAt: checkOutAtUpdate || log.checkOutAt,
+          } : log));
+          setShowTimeModal(false);
+          setEditingLogId(null);
+          setIsLoading(false);
+          return;
+      }
+
+      // --- YENİ KAYIT MODU ---
       try {
           const newLogDb = {
               employee_id: targetEmployeeId,
@@ -750,7 +813,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
           }
       } catch (err: any) {
            console.warn("Saat kaydetme hatası (Yerel Mod Devrede):", err);
-           
+
            // --- FALLBACK: Foreign Key veya Ağ Hatasında Yerel Ekleme ---
            const newLogFrontend: TimeLog = {
                 id: `local_log_${Date.now()}`,
@@ -765,7 +828,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
            };
            setTimeLogs([newLogFrontend, ...timeLogs]);
            setShowTimeModal(false);
-           
+
            // Özel Hata Mesajı: Foreign Key Violation
            if (err.code === '23503') {
                alert(t('pay.demoWarning'));
@@ -788,6 +851,68 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
     }
   };
 
+  // === FAZLA MESAİ BİLDİR ===
+  // Personel sadece kendi auto-close edilmiş vardiyasına ek dakika
+  // bildirebilir. RPC: request_overtime(log_id, minutes).
+  const handleOpenOvertimeModal = (log: TimeLog) => {
+      if (!log.autoClosedAt) {
+          alert(t('pay.overtimeOnlyForAutoClosed') || 'Sadece otomatik kapatılan vardiyalar için bildirim yapılabilir.');
+          return;
+      }
+      if (log.employeeId !== currentUser.id) {
+          alert(t('pay.overtimeOwnRecordOnly') || 'Sadece kendi kaydınız için bildirim yapabilirsiniz.');
+          return;
+      }
+      setOvertimeLogId(log.id);
+      setOvertimeMinutes(60);
+  };
+
+  const handleSubmitOvertime = async () => {
+      if (!overtimeLogId) return;
+      if (!Number.isFinite(overtimeMinutes) || overtimeMinutes < 1 || overtimeMinutes > 720) {
+          alert(t('pay.overtimeRangeError') || 'Süre 1 ile 720 dakika arasında olmalı.');
+          return;
+      }
+      setOvertimeSubmitting(true);
+      try {
+          const { data, error } = await supabase.rpc('request_overtime', {
+              p_log_id: overtimeLogId,
+              p_minutes: overtimeMinutes,
+          });
+          if (error) throw error;
+
+          // Optimistic UI: dakika ekle, status='Bekliyor', total_hours güncelle
+          setTimeLogs(prev => prev.map(log => {
+              if (log.id !== overtimeLogId) return log;
+              const newTotal = (data as any)?.new_total_hours ?? log.totalHours;
+              const newCheckOut = (data as any)?.new_check_out_at ?? log.checkOutAt;
+              const endLocal = newCheckOut
+                  ? new Date(newCheckOut).toLocaleTimeString('de-DE', {
+                        hour: '2-digit', minute: '2-digit',
+                        timeZone: 'Europe/Berlin', hour12: false,
+                    })
+                  : log.endTime;
+              return {
+                  ...log,
+                  status: 'Bekliyor',
+                  totalHours: Number(newTotal) || log.totalHours,
+                  checkOutAt: newCheckOut,
+                  endTime: endLocal,
+                  overtimeMinutes: (log.overtimeMinutes || 0) + overtimeMinutes,
+                  overtimeRequestedAt: new Date().toISOString(),
+              };
+          }));
+
+          alert(t('pay.overtimeSubmitted') || 'Fazla mesai bildirimi adminin onayına gönderildi.');
+          setOvertimeLogId(null);
+      } catch (err: any) {
+          console.error('[overtime] hata:', err);
+          alert((t('pay.overtimeError') || 'Fazla mesai bildirimi başarısız') + ': ' + (err?.message || ''));
+      } finally {
+          setOvertimeSubmitting(false);
+      }
+  };
+
   const handleDeleteTimeLog = async (logId: string) => {
     try {
         const { error } = await supabase.from('time_logs').delete().eq('id', logId);
@@ -805,6 +930,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
           alert(t('pay.selectStaffFirst'));
           return;
       }
+      setEditingLogId(null);
       setTimeForm({
           date: new Date().toISOString().split('T')[0],
           startTime: '09:00',
@@ -815,6 +941,29 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
       setShowTimeModal(true);
   };
 
+  // Admin → mevcut bir mesai kaydını düzeltmek için modal açar.
+  // Saatler değiştirilince kaydet sırasında total_hours otomatik yeniden hesaplanır.
+  const handleOpenEditTimeLog = (log: TimeLog) => {
+      // Düzenlenen kaydın personeline odaklan ki targetEmployeeId tutarlı olsun.
+      if (log.employeeId && log.employeeId !== selectedEmployeeId) {
+          setSelectedEmployeeId(log.employeeId);
+      }
+      setEditingLogId(log.id);
+      setTimeForm({
+          date: log.date || new Date().toISOString().split('T')[0],
+          startTime: log.startTime || '09:00',
+          endTime: log.endTime || '17:00',
+          breakDuration: log.breakDuration || 0,
+          branch: (log.branch as Branch) || Branch.DOM,
+      });
+      setShowTimeModal(true);
+  };
+
+  const handleCloseTimeModal = () => {
+      setShowTimeModal(false);
+      setEditingLogId(null);
+  };
+
   // --- RENDERERS ---
 
   // 1. FINANCIAL CONTENT (NEW TAB)
@@ -823,7 +972,8 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
       
       return (
           // MODIFIED: Changed justify-start md:justify-center to justify-start and items-stretch to force full width
-          <div className="h-full flex flex-col items-stretch justify-start p-4 md:p-6 bg-zinc-950 overflow-y-auto">
+          // Mobil: alt nav bar (h-16 + güvenli alan) içeriği örtmesin diye pb-28 verildi.
+          <div className="h-full flex flex-col items-stretch justify-start p-4 pb-28 md:p-6 md:pb-6 bg-zinc-950 overflow-y-auto overscroll-contain">
               {/* MODIFIED: Removed max-w-lg to allow full width */}
               <div className="w-full bg-gradient-to-br from-zinc-900 to-black border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden relative">
                   {/* Decorative Background */}
@@ -908,19 +1058,19 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                               )}
                           </div>
 
-                          {/* Tüm çalışma kayıtları — onaylı, bekleyen, reddedilen tek liste; toplama yalnızca 'Onaylandı' girer. */}
+                          {/* Sadece seçili haftadaki kayıtlar — onaylı, bekleyen, reddedilen tek liste; toplama yalnızca 'Onaylandı' girer. */}
                           <div className="pt-4">
                               <div className="text-[11px] uppercase tracking-wider text-zinc-500 mb-2 font-bold flex items-center justify-between">
-                                  <span>{t('pay.workHistoryAll')} · {allEmployeeLogs.length}</span>
-                                  <span className="text-emerald-400/80 normal-case font-medium">{allApprovedLogs.length} {t('pay.approvedLower')}</span>
+                                  <span>{t('pay.workHistoryAll')} · {weeklyLogs.length}</span>
+                                  <span className="text-emerald-400/80 normal-case font-medium">{weeklyApprovedLogs.length} {t('pay.approvedLower')}</span>
                               </div>
-                              {allEmployeeLogs.length === 0 ? (
+                              {weeklyLogs.length === 0 ? (
                                   <div className="p-4 bg-zinc-900/40 rounded-lg border border-zinc-800 text-xs text-zinc-500 text-center italic">
                                       {t('pay.noLogsAtAll')}
                                   </div>
                               ) : (
-                                  <div className="rounded-xl border border-zinc-800 bg-zinc-950/40 overflow-hidden divide-y divide-zinc-800/60 max-h-[360px] overflow-y-auto custom-scrollbar">
-                                      {allEmployeeLogs.map((l: TimeLog, i: number) => {
+                                  <div className="rounded-xl border border-zinc-800 bg-zinc-950/40 divide-y divide-zinc-800/60 md:max-h-[360px] md:overflow-y-auto md:custom-scrollbar">
+                                      {weeklyLogs.map((l: TimeLog, i: number) => {
                                           const inCurrentWeek = weekDates.includes(l.date);
                                           const isApproved = l.status === 'Onaylandı';
                                           const isRejected = l.status === 'Reddedildi';
@@ -1276,6 +1426,30 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                       ) : (
                                           <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">Manuel</span>
                                       )}
+                                      {log.autoClosedAt && (
+                                          <span
+                                              className="text-[9px] px-1.5 py-0.5 rounded bg-rose-900/40 text-rose-300 border border-rose-700/60 inline-flex items-center gap-1"
+                                              title={t('pay.autoClosedTooltip')}
+                                          >
+                                              <AlarmClockOff size={10} /> {t('pay.autoClosedShort')}
+                                          </span>
+                                      )}
+                                      {log.overtimeMinutes && log.overtimeMinutes > 0 && (
+                                          <span
+                                              className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-900/40 text-indigo-300 border border-indigo-700/60 inline-flex items-center gap-1"
+                                              title={t('pay.overtimeReportedTooltip')}
+                                          >
+                                              <Zap size={10} /> {t('pay.overtimeBadge')} +{log.overtimeMinutes} dk
+                                          </span>
+                                      )}
+                                      {log.validationWarning && (
+                                          <span
+                                              className="text-[9px] px-1.5 py-0.5 rounded bg-red-900/40 text-red-300 border border-red-600/60 font-bold inline-flex items-center gap-1"
+                                              title={log.validationWarning}
+                                          >
+                                              <AlertTriangle size={10} /> {t('pay.timeMismatchShort')}
+                                          </span>
+                                      )}
                                       {log.method === 'qr' && log.deviceInfo && canSeeDeviceInfo(currentUser.email) && (
                                           <>
                                               <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700" title="Cihaz markası — sadece yetkili adminler görür">
@@ -1334,6 +1508,13 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                   className="flex-1 px-3 py-2 bg-zinc-900 hover:bg-red-600 text-zinc-200 hover:text-white text-xs font-medium rounded-lg flex items-center justify-center gap-1.5 transition-colors border border-zinc-800 hover:border-red-500"
                               >
                                   <ThumbsDown size={14} /> Reddet
+                              </button>
+                              <button
+                                  onClick={() => handleOpenEditTimeLog(log)}
+                                  className="px-3 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-500 hover:text-indigo-400 rounded-lg border border-zinc-800"
+                                  title={t('pay.editHours')}
+                              >
+                                  <Edit2 size={14} />
                               </button>
                               <button
                                   onClick={() => { if (confirm('Bu kaydı silmek istediğinizden emin misiniz?')) handleDeleteTimeLog(log.id); }}
@@ -1409,7 +1590,8 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                                     <Clock size={12} />
                                                     <span className="font-mono">{log.startTime || '—'} - {log.endTime || '—'}</span>
                                                     <span className="text-zinc-600">•</span>
-                                                    {log.method === 'qr' && !log.checkOutAt ? (
+                                                    {/* Sürüyor: QR kaydı, henüz kapanmamış (check_out_at boş) VE manuel düzeltme de yapılmamış (end_time boş). */}
+                                                    {log.method === 'qr' && !log.checkOutAt && !log.endTime ? (
                                                         <span className="text-amber-300 font-semibold text-[11px] px-1.5 py-0.5 rounded bg-amber-900/30 border border-amber-800/60 inline-flex items-center gap-1">
                                                             <Loader2 size={10} className="animate-spin" /> Sürüyor
                                                         </span>
@@ -1455,15 +1637,61 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                             </div>
                                         </div>
                                         <div className="flex flex-col items-end gap-2">
-                                            <span className={`text-[10px] px-2 py-1 rounded ${log.status==='Onaylandı'?'bg-green-900/20 text-green-400':log.status==='Reddedildi'?'bg-red-900/20 text-red-400':'bg-amber-900/20 text-amber-400'}`}>{log.status}</span>
+                                            <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                                                {/* Saat doğrulayıcı uyarısı (validation_warning) */}
+                                                {log.validationWarning && (
+                                                    <span
+                                                        className="text-[10px] px-1.5 py-0.5 rounded bg-red-900/30 text-red-300 border border-red-700/50 inline-flex items-center gap-1"
+                                                        title={log.validationWarning}
+                                                    >
+                                                        <AlertTriangle size={10} /> {t('pay.timeMismatchShort')}
+                                                    </span>
+                                                )}
+                                                {/* Otomatik kapatıldı işareti — onay bekleniyor */}
+                                                {log.autoClosedAt && log.status === 'Bekliyor' && (
+                                                    <span
+                                                        className="text-[10px] px-1.5 py-0.5 rounded bg-rose-900/30 text-rose-300 border border-rose-700/50 inline-flex items-center gap-1"
+                                                        title={t('pay.autoClosedTooltip')}
+                                                    >
+                                                        <AlarmClockOff size={10} /> {t('pay.autoClosedShort')}
+                                                    </span>
+                                                )}
+                                                {/* Personelin bildirdiği fazla mesai */}
+                                                {log.overtimeMinutes && log.overtimeMinutes > 0 && (
+                                                    <span
+                                                        className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-900/30 text-indigo-300 border border-indigo-700/50 inline-flex items-center gap-1"
+                                                        title={t('pay.overtimeReportedTooltip')}
+                                                    >
+                                                        <Zap size={10} /> +{log.overtimeMinutes} dk
+                                                    </span>
+                                                )}
+                                                <span className={`text-[10px] px-2 py-1 rounded ${log.status==='Onaylandı'?'bg-green-900/20 text-green-400':log.status==='Reddedildi'?'bg-red-900/20 text-red-400':'bg-amber-900/20 text-amber-400'}`}>{log.status}</span>
+                                            </div>
                                             {currentUser.role === Role.ADMIN && (
-                                                <button onClick={() => handleDeleteTimeLog(log.id)} className="text-zinc-500 hover:text-red-400 p-1 rounded-md transition-colors" title="Sil">
-                                                    <Trash2 size={18} />
-                                                </button>
+                                                <div className="flex items-center gap-1">
+                                                    <button onClick={() => handleOpenEditTimeLog(log)} className="text-zinc-500 hover:text-indigo-400 p-1 rounded-md transition-colors" title={t('pay.editHours')}>
+                                                        <Edit2 size={16} />
+                                                    </button>
+                                                    <button onClick={() => handleDeleteTimeLog(log.id)} className="text-zinc-500 hover:text-red-400 p-1 rounded-md transition-colors" title="Sil">
+                                                        <Trash2 size={18} />
+                                                    </button>
+                                                </div>
                                             )}
                                         </div>
                                     </div>
-                                    {currentUser.role === Role.ADMIN && log.status === 'Bekliyor' && (
+                                    {/* Personel: kendi auto-close edilmiş kaydına fazla mesai bildirebilir */}
+                                    {log.employeeId === currentUser.id && log.autoClosedAt && log.status === 'Bekliyor' && (
+                                        <div className="mt-3 pt-3 border-t border-zinc-800/50 flex justify-end">
+                                            <button
+                                                onClick={() => handleOpenOvertimeModal(log)}
+                                                className="px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white text-xs font-medium rounded-lg flex items-center gap-1.5 border border-indigo-700/40 hover:border-indigo-500 transition-colors"
+                                                title={t('pay.overtimeBtnTooltip')}
+                                            >
+                                                <Zap size={14} /> {t('pay.overtimeBtn')}
+                                            </button>
+                                        </div>
+                                    )}
+                                    {currentUser.role === Role.ADMIN && log.status !== 'Onaylandı' && log.status !== 'Reddedildi' && (
                                         <div className="mt-3 pt-3 border-t border-zinc-800/50 flex justify-end gap-2">
                                             <button onClick={()=>handleStatusChange(log.id,'Reddedildi')} className="p-1.5 hover:bg-red-900/20 text-zinc-500 hover:text-red-400 rounded"><ThumbsDown size={14}/></button>
                                             <button onClick={()=>handleStatusChange(log.id,'Onaylandı')} className="px-3 py-1.5 bg-zinc-800 hover:bg-green-600 hover:text-white text-zinc-300 text-xs rounded flex gap-1"><ThumbsUp size={14}/> Onayla</button>
@@ -1714,6 +1942,126 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
             );
         })()}
 
+        {/* FAZLA MESAİ BİLDİR MODAL — sadece personelin kendi auto-close kaydı için */}
+        {overtimeLogId && (() => {
+            const log = timeLogs.find(l => l.id === overtimeLogId);
+            const presets = [15, 30, 60, 90, 120];
+            const safeMin = Number.isFinite(overtimeMinutes) ? overtimeMinutes : 0;
+            const newTotalPreview = log
+                ? Math.max(0, (log.totalHours || 0) + safeMin / 60)
+                : 0;
+            return (
+                <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+                    <div className="bg-gradient-to-b from-zinc-900 to-zinc-950 border border-indigo-700/40 rounded-2xl shadow-[0_0_60px_rgba(99,102,241,0.15)] w-full max-w-md overflow-hidden">
+                        <div className="relative">
+                            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-500"></div>
+                            <div className="p-5 flex justify-between items-center border-b border-zinc-800">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center">
+                                        <Zap size={20} className="text-indigo-300" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-base font-bold text-white">{t('pay.overtimeModalTitle')}</h3>
+                                        <p className="text-[11px] text-zinc-400 mt-0.5">{t('pay.overtimeModalSubtitle')}</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setOvertimeLogId(null)}
+                                    className="text-zinc-500 hover:text-white p-1.5 rounded-lg hover:bg-zinc-800"
+                                    disabled={overtimeSubmitting}
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="p-5 space-y-4">
+                            {log && (
+                                <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs">
+                                    <div className="flex justify-between items-center text-zinc-400 mb-1">
+                                        <span>{formatDate(log.date, { day: 'numeric', month: 'long', weekday: 'long' })}</span>
+                                        <span className="font-mono text-zinc-300">{log.startTime} - {log.endTime}</span>
+                                    </div>
+                                    <div className="text-zinc-500 text-[11px]">
+                                        {t('pay.overtimeCurrentTotal')}: <span className="text-white font-semibold">{formatHoursHumanTR(log.totalHours)}</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div>
+                                <label className="text-xs font-medium text-zinc-400 mb-2 block">{t('pay.overtimePresets')}</label>
+                                <div className="grid grid-cols-5 gap-1.5">
+                                    {presets.map(min => (
+                                        <button
+                                            key={min}
+                                            type="button"
+                                            onClick={() => setOvertimeMinutes(min)}
+                                            disabled={overtimeSubmitting}
+                                            className={`py-2 text-xs font-semibold rounded-lg border transition-all ${
+                                                overtimeMinutes === min
+                                                    ? 'bg-indigo-600 text-white border-indigo-500'
+                                                    : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:bg-zinc-800 hover:text-white'
+                                            }`}
+                                        >
+                                            +{min}dk
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-medium text-zinc-400 mb-2 block">{t('pay.overtimeCustom')}</label>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        max={720}
+                                        step={1}
+                                        value={overtimeMinutes}
+                                        onChange={e => setOvertimeMinutes(parseInt(e.target.value, 10) || 0)}
+                                        disabled={overtimeSubmitting}
+                                        className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-indigo-500 font-mono"
+                                    />
+                                    <span className="text-xs text-zinc-500">{t('pay.minutes')}</span>
+                                </div>
+                            </div>
+
+                            {log && safeMin > 0 && (
+                                <div className="bg-indigo-950/30 border border-indigo-800/40 rounded-xl p-3">
+                                    <div className="text-[11px] text-indigo-300/70 mb-1">{t('pay.overtimeNewTotal')}</div>
+                                    <div className="text-lg font-bold text-indigo-200">
+                                        {formatHoursHumanTR(Number(newTotalPreview.toFixed(2)))}
+                                    </div>
+                                </div>
+                            )}
+
+                            <p className="text-[10px] text-amber-400/80 bg-amber-950/20 border border-amber-900/30 rounded-lg p-2.5 leading-relaxed">
+                                {t('pay.overtimeWarning')}
+                            </p>
+                        </div>
+
+                        <div className="p-4 border-t border-zinc-800 flex gap-2">
+                            <button
+                                onClick={() => setOvertimeLogId(null)}
+                                disabled={overtimeSubmitting}
+                                className="flex-1 px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+                            >
+                                {t('common.cancel') || 'İptal'}
+                            </button>
+                            <button
+                                onClick={handleSubmitOvertime}
+                                disabled={overtimeSubmitting || safeMin < 1 || safeMin > 720}
+                                className="flex-1 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {overtimeSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
+                                {t('pay.overtimeSubmit')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        })()}
+
         {/* QR SCAN MODAL */}
         {showQrModal && (
             <div className="absolute inset-0 z-[100] flex items-start justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
@@ -1738,10 +2086,25 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
         )}
 
         {/* ADD TIME LOG MODAL */}
-        {showTimeModal && (
+        {showTimeModal && (() => {
+            // Saat aralığı + mola süresi → canlı önizleme. Kaydederken aynı formül kullanılıyor.
+            const previewStart = new Date(`1970-01-01T${timeForm.startTime || '00:00'}:00`);
+            const previewEnd = new Date(`1970-01-01T${timeForm.endTime || '00:00'}:00`);
+            let previewMs = previewEnd.getTime() - previewStart.getTime();
+            if (isNaN(previewMs)) previewMs = 0;
+            if (previewMs < 0) previewMs += 24 * 60 * 60 * 1000;
+            const previewMins = Math.max(0, Math.floor(previewMs / 60000) - (timeForm.breakDuration || 0));
+            const previewHours = Number((previewMins / 60).toFixed(2));
+            const isEditing = !!editingLogId;
+            return (
             <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-                    <div className="p-6 border-b border-zinc-800 flex justify-between items-center"><h3 className="text-lg font-bold text-white flex items-center gap-2"><Clock size={20} className="text-indigo-500" /> {t('pay.addHours')}</h3><button onClick={() => setShowTimeModal(false)} className="text-zinc-500 hover:text-white"><X size={20} /></button></div>
+                    <div className="p-6 border-b border-zinc-800 flex justify-between items-center">
+                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                            <Clock size={20} className="text-indigo-500" /> {isEditing ? t('pay.editHours') : t('pay.addHours')}
+                        </h3>
+                        <button onClick={handleCloseTimeModal} className="text-zinc-500 hover:text-white"><X size={20} /></button>
+                    </div>
                     <form onSubmit={handleSaveTimeLog} className="p-6 space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                              <div className="space-y-1"><label className="text-xs text-zinc-400">{t('cal.startDate')}</label><input type="date" required value={timeForm.date} onChange={e => setTimeForm({...timeForm, date: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-white"/></div>
@@ -1751,8 +2114,25 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                              <div className="space-y-1"><label className="text-xs text-zinc-400">{t('cal.startTime')}</label><input type="time" required value={timeForm.startTime} onChange={e => setTimeForm({...timeForm, startTime: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-white"/></div>
                              <div className="space-y-1"><label className="text-xs text-zinc-400">{t('cal.endTime')}</label><input type="time" required value={timeForm.endTime} onChange={e => setTimeForm({...timeForm, endTime: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-white"/></div>
                         </div>
+                        <div className="grid grid-cols-2 gap-4 items-end">
+                             <div className="space-y-1">
+                                <label className="text-xs text-zinc-400">{t('pay.breakDuration')}</label>
+                                <input type="number" min={0} max={480} step={5} value={timeForm.breakDuration}
+                                    onChange={e => setTimeForm({...timeForm, breakDuration: Math.max(0, parseInt(e.target.value || '0', 10))})}
+                                    className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-white"/>
+                             </div>
+                             <div className="text-right">
+                                <div className="text-[10px] uppercase tracking-wider text-zinc-500">{t('pay.totalHours')}</div>
+                                <div className="text-lg font-bold text-emerald-400 tabular-nums">{formatHoursHumanTR(previewHours)}</div>
+                             </div>
+                        </div>
+                        {isEditing && (
+                            <div className="text-[11px] text-zinc-500 italic border-t border-zinc-800 pt-3">
+                                {t('pay.editAutoRecalc')}
+                            </div>
+                        )}
                         <div className="pt-4 flex gap-3">
-                            <button type="button" onClick={() => setShowTimeModal(false)} className="flex-1 py-2 bg-zinc-800 text-white rounded">{t('tasks.cancel')}</button>
+                            <button type="button" onClick={handleCloseTimeModal} className="flex-1 py-2 bg-zinc-800 text-white rounded">{t('tasks.cancel')}</button>
                             <button type="submit" className="flex-1 py-2 bg-indigo-600 text-white rounded">
                                 {isLoading ? <Loader2 className="animate-spin mx-auto" size={16}/> : t('pay.save')}
                             </button>
@@ -1760,7 +2140,8 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                     </form>
                 </div>
             </div>
-        )}
+            );
+        })()}
 
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-3 px-4 py-3 md:px-6 md:py-4 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-sm shrink-0">
             <h2 className="text-lg font-bold text-white tracking-tight">{t('pay.title')}</h2>
