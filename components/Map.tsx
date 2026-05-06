@@ -580,7 +580,7 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
   const onlineCount = liveList.filter((x) => x.isOnline).length;
 
   return (
-    <div className="flex-1 flex flex-col p-4 md:p-6 overflow-hidden">
+    <div className="flex-1 flex flex-col p-4 md:p-6 overflow-y-auto lg:overflow-hidden custom-scrollbar pb-32 lg:pb-6">
       {/* Header */}
       <div className="mb-4 flex items-start justify-between">
         <div>
@@ -641,9 +641,9 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
       </div>
 
       {/* Layout: Map + Side Panel — flex ile rows/cols arası geçiş */}
-      <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0 overflow-hidden">
+      <div className="flex-1 flex flex-col lg:flex-row gap-4 lg:min-h-0 lg:overflow-hidden">
         {/* Map */}
-        <div className="flex-1 rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900/50 min-h-[420px] relative">
+        <div className="rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900/50 h-[55vh] lg:h-auto lg:flex-1 lg:min-h-[420px] relative">
           {/* Rota kontrol kutucuğu — path açıkken haritanın üstünde gözükür */}
           {pathEmployeeId && (
             <div className="absolute top-3 left-3 z-[500] bg-zinc-900/95 backdrop-blur-sm border border-indigo-700/50 rounded-xl shadow-xl p-3 flex flex-col gap-2 min-w-[220px]">
@@ -833,9 +833,9 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
         </div>
 
         {/* Side Panel */}
-        <div className="flex flex-col gap-4 min-h-0 lg:w-[360px] lg:shrink-0">
+        <div className="flex flex-col gap-4 lg:min-h-0 lg:w-[360px] lg:shrink-0">
           {/* Aktif personel listesi */}
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 flex-1 flex flex-col min-h-0">
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 flex flex-col max-h-[360px] lg:max-h-none lg:flex-1 lg:min-h-0">
             <div className="flex items-center gap-2 mb-3">
               <Users size={16} className="text-indigo-400" />
               <h3 className="text-sm font-semibold text-white">{t('map.activeStaff')}</h3>
@@ -898,7 +898,7 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
           </div>
 
           {/* Bugünkü Giriş/Çıkış (time_logs) — şube filtresine duyarlı */}
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 flex-1 flex flex-col min-h-0">
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 flex flex-col max-h-[400px] lg:max-h-none lg:flex-1 lg:min-h-0">
             <div className="flex items-center gap-2 mb-3">
               <Clock size={16} className="text-indigo-400" />
               <h3 className="text-sm font-semibold text-white">
