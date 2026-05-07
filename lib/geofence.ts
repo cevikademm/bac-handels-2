@@ -4,14 +4,18 @@
 // Saf fonksiyonlar + whitelist. State yok, side effect yok.
 // =============================================================
 
-// Harita sekmesini görebilen kullanıcılar.
-// Tüm admin'ler + opsiyonel e-posta whitelist (gerekirse genişletilir).
-export const MAP_VISIBLE_EMAILS = ['cevikademm@gmail.com'];
+// Harita sekmesini görebilen kullanıcılar — sadece bu üç e-posta.
+// Admin rolü dahi olsa whitelist dışındaki kullanıcılar göremez.
+export const MAP_VISIBLE_EMAILS = [
+  'cevikademm@gmail.com',
+  'gurcan@bac.de',
+  'hakan@bac.de',
+  'seda@bac.de',
+];
 
-// role string olarak alınır ('Admin' veya 'Personel') — Role enum'una bağlı olmamak
-// için Layout'ın userRole prop'u gibi serbest stringle de çalışır.
-export const canSeeMap = (email?: string | null, role?: string | null): boolean => {
-  if (role && /admin/i.test(role)) return true;
+// role parametresi imza uyumu için tutuluyor (Layout.tsx çağrısı kırılmasın),
+// ancak erişim KARARı sadece e-posta whitelist'ine dayanır.
+export const canSeeMap = (email?: string | null, _role?: string | null): boolean => {
   return !!email && MAP_VISIBLE_EMAILS.includes(email.trim().toLowerCase());
 };
 

@@ -621,9 +621,9 @@ GRANT EXECUTE ON FUNCTION public.qr_check_in_out(TEXT, TEXT, NUMERIC, NUMERIC, T
 -- Eski imza (4 param) kaldırıldı; yeni clientler p_action gönderir, default 'auto' ile eski davranış korunur.
 
 -- 12. Şube seed — gerçek koordinatlar
--- NOT: 'Dom' = "BAC Kiosk" gerçek lokasyonu (kullanıcı doğruladı: 50.94032..., 6.93964...).
+-- NOT: 'Dom' = "BAC Kiosk" gerçek lokasyonu (kullanıcı doğruladı: 50.94221..., 6.95578...).
 INSERT INTO public.branch_locations (branch, latitude, longitude) VALUES
-  ('Dom',       50.94032812642508,  6.939643179081483),
+  ('Dom',       50.942212123059406, 6.955781214751541),
   ('Backaffee', 50.9403056233978,   6.939539275732692),
   ('Ringe',     50.93968838730243,  6.9400543539197255),
   ('Mülheim',   50.96208006232153,  7.0054699260591295),
@@ -635,8 +635,8 @@ ON CONFLICT (branch) DO NOTHING;
 
 -- Var olan veritabanında Dom koordinatlarını güncelle (idempotent).
 UPDATE public.branch_locations
-   SET latitude = 50.94032812642508,
-       longitude = 6.939643179081483,
+   SET latitude = 50.942212123059406,
+       longitude = 6.955781214751541,
        updated_at = NOW()
  WHERE branch = 'Dom';
 

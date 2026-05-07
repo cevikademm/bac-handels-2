@@ -111,12 +111,29 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
             }
 
             // 3. Shifts (Vardiyalar) — vardiya planı saatleri (planlı), referans olarak tutulur.
+            // Personel sadece yayınlanmış vardiyaları görmeli — admin onaylamadan
+            // calendar'a sızmamalı. shift_publications tablosundan yayın çiftlerini
+            // (week_start_date + branch) çekip filtreleriz.
             const { data: shiftData } = await supabase
                 .from('shift_schedules')
                 .select('*');
 
             if (shiftData) {
-                setShifts(shiftData);
+                if (currentUser.role !== Role.ADMIN) {
+                    let publishedKeys = new Set<string>();
+                    try {
+                        const { data: pubData } = await supabase
+                            .from('shift_publications')
+                            .select('week_start_date, branch');
+                        publishedKeys = new Set((pubData || []).map((p: any) => `${p.week_start_date}|${p.branch}`));
+                    } catch {
+                        // Tablo henüz yoksa — güvenli taraf: hiçbir vardiya gösterme
+                        publishedKeys = new Set();
+                    }
+                    setShifts(shiftData.filter((s: any) => publishedKeys.has(`${s.week_start_date}|${s.branch}`)));
+                } else {
+                    setShifts(shiftData);
+                }
             }
 
             // 4. Employees (For Attendees Selector) - çift rollü adminler (Apo, Malik) dahil
@@ -247,7 +264,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   // Plan: bir hücre = personelin o gün için planlanmış vardiya time_slot'u
   // (örn. "07:00-15:00"). Aynı personel aynı gün birden fazla satırda yer
   // alabilir (split shift) — hepsi ayrı entry olarak gösterilir.
-  type WorkEntry = { startTime: string; endTime: string; totalHours: number };
+  type WorkEntry = { startTime: string; endTime: string; totalHours: number; branch: string };
 
   // "07:00-15:00" / "9-17" / "07:00 – 15:00" gibi formatları HH:MM/HH:MM'ye normalize
   const parseTimeSlot = (slot: string | null | undefined): { startTime: string; endTime: string; totalHours: number } | null => {
@@ -273,6 +290,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
           if (schedule.week_start_date !== weekStartStr) return;
           const parsed = parseTimeSlot(schedule.time_slot);
           if (!parsed) return; // time_slot okunamadıysa atla
+          const entry: WorkEntry = { ...parsed, branch: schedule.branch || '' };
 
           (schedule.days || []).forEach((cell: any, dayIdx: number) => {
               if (!cell) return;
@@ -286,7 +304,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                   if (!empMap.has(empId)) empMap.set(empId, new Map());
                   const dayMap = empMap.get(empId)!;
                   if (!dayMap.has(dayIdx)) dayMap.set(dayIdx, []);
-                  dayMap.get(dayIdx)!.push(parsed);
+                  dayMap.get(dayIdx)!.push(entry);
               });
           });
       });
@@ -767,18 +785,26 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
                                                         return (
                                                             <td key={dayIndex} className={`text-center px-2 py-3 ${isCurrent ? 'bg-indigo-950/20' : ''}`}>
                                                                 {entries && entries.length > 0 ? (
-                                                                    entries.map((e, si) => (
-                                                                        <div key={si} className="mb-0.5 rounded-md px-2 py-1 bg-indigo-500/15 border border-indigo-500/20">
-                                                                            <div className="text-[11px] font-mono whitespace-nowrap text-indigo-300">
-                                                                                {e.startTime} - {e.endTime}
-                                                                            </div>
-                                                                            {e.totalHours > 0 && (
-                                                                                <div className="text-[10px] text-zinc-400 font-semibold mt-0.5">
-                                                                                    {formatHoursAsHM(e.totalHours)} saat
+                                                                    entries.map((e, si) => {
+                                                                        const bc = e.branch ? getbranchColors(e.branch) : null;
+                                                                        return (
+                                                                            <div key={si} className="mb-0.5 rounded-md px-2 py-1 bg-indigo-500/15 border border-indigo-500/20">
+                                                                                <div className="text-[11px] font-mono whitespace-nowrap text-indigo-300">
+                                                                                    {e.startTime} - {e.endTime}
                                                                                 </div>
-                                                                            )}
-                                                                        </div>
-                                                                    ))
+                                                                                {e.totalHours > 0 && (
+                                                                                    <div className="text-[10px] text-zinc-400 font-semibold mt-0.5">
+                                                                                        {formatHoursAsHM(e.totalHours)} saat
+                                                                                    </div>
+                                                                                )}
+                                                                                {e.branch && bc && (
+                                                                                    <div className={`text-[10px] font-bold mt-0.5 ${bc.text}`}>
+                                                                                        {e.branch}
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        );
+                                                                    })
                                                                 ) : (
                                                                     <span className="text-zinc-700 text-xs">--</span>
                                                                 )}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useLanguage } from '../lib/i18n';
 import { Branch, Employee, Role } from '../types';
-import { Save, ChevronLeft, ChevronRight, Copy, Plus, Trash2, Loader2, AlertTriangle } from 'lucide-react';
+import { Save, ChevronLeft, ChevronRight, Copy, Plus, Trash2, Loader2, AlertTriangle, CheckCircle2, Lock, Send, Undo2 } from 'lucide-react';
 import { includeAsPersonnel } from '../constants';
 import { supabase } from '../lib/supabase';
 import { formatLocalDate } from '../lib/utils';
@@ -60,6 +60,12 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
   // Diğer şubelerdeki tüm atamalar - çakışma kontrolü için
   const [otherBranchSchedules, setOtherBranchSchedules] = useState<{ branch: string; timeLabel: string; assignments: string[] }[]>([]);
 
+  // Onay/yayınlama durumu — week_start_date + branch için tek kayıt
+  // Yayında değilse personeller boş tablo + uyarı görür.
+  const [publication, setPublication] = useState<{ id: string; publishedAt: string; publishedByName: string | null } | null>(null);
+  const [publishLoading, setPublishLoading] = useState(false);
+  const isPublished = publication !== null;
+
   const weekKey = formatLocalDate(currentWeekStart);
   const currentWeekEnd = new Date(currentWeekStart);
   currentWeekEnd.setDate(currentWeekEnd.getDate() + 6);
@@ -78,6 +84,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
   useEffect(() => {
       fetchWeekData();
       fetchOtherBranchData();
+      fetchPublication();
   }, [activeBranch, weekKey]);
 
   // Mobil: uygulama/sekme odağa gelince veriyi yenile
@@ -86,6 +93,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
           if (document.visibilityState === 'visible') {
               fetchWeekData();
               fetchOtherBranchData();
+              fetchPublication();
           }
       };
       document.addEventListener('visibilitychange', handleVisibility);
@@ -132,6 +140,106 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
               })));
           }
       } catch (err) { console.error(err); }
+  };
+
+  // Bu hafta + şube için onay/yayın kaydını çek. Yoksa null kalır = taslak.
+  const fetchPublication = async () => {
+      try {
+          const { data } = await supabase
+              .from('shift_publications')
+              .select('id, published_at, published_by_name')
+              .eq('week_start_date', weekKey)
+              .eq('branch', String(activeBranch))
+              .maybeSingle();
+          if (!isMounted.current) return;
+          if (data) {
+              setPublication({
+                  id: data.id,
+                  publishedAt: data.published_at,
+                  publishedByName: data.published_by_name,
+              });
+          } else {
+              setPublication(null);
+          }
+      } catch (err) {
+          // Tablo henüz oluşturulmamış olabilir — sessizce taslak say
+          if (isMounted.current) setPublication(null);
+      }
+  };
+
+  // Tablo henüz Supabase'de oluşturulmamışsa PostgREST "Could not find the table"
+  // veya "schema cache" mesajı döndürür. Bu durumu yakalayıp kullanıcıya net
+  // talimat veren bir mesaj gösteririz (log'a değil — admin SQL'i bilmeyebilir).
+  const isMissingTableError = (err: any): boolean => {
+      const msg = String(err?.message || err?.code || '').toLowerCase();
+      return msg.includes('shift_publications') &&
+             (msg.includes('could not find') || msg.includes('schema cache') || msg.includes('does not exist'));
+  };
+
+  const publishWeek = async () => {
+      if (!isAdmin) return;
+      if (rosterData.length === 0) {
+          alert(t('shift.publishEmptyError'));
+          return;
+      }
+      if (!confirm(t('shift.publishConfirm'))) return;
+      setPublishLoading(true);
+      try {
+          const { data, error } = await supabase
+              .from('shift_publications')
+              .upsert(
+                  {
+                      week_start_date: weekKey,
+                      branch: String(activeBranch),
+                      published_at: new Date().toISOString(),
+                      published_by: currentUser.id,
+                      published_by_name: currentUser.name,
+                  },
+                  { onConflict: 'week_start_date,branch' }
+              )
+              .select()
+              .single();
+          if (error) throw error;
+          if (isMounted.current && data) {
+              setPublication({
+                  id: data.id,
+                  publishedAt: data.published_at,
+                  publishedByName: data.published_by_name,
+              });
+          }
+      } catch (err: any) {
+          console.error('publishWeek error:', err);
+          if (isMissingTableError(err)) {
+              alert(t('shift.missingTableHelp'));
+          } else {
+              alert(t('shift.publishError') + (err?.message || ''));
+          }
+      } finally {
+          if (isMounted.current) setPublishLoading(false);
+      }
+  };
+
+  const unpublishWeek = async () => {
+      if (!isAdmin || !publication) return;
+      if (!confirm(t('shift.unpublishConfirm'))) return;
+      setPublishLoading(true);
+      try {
+          const { error } = await supabase
+              .from('shift_publications')
+              .delete()
+              .eq('id', publication.id);
+          if (error) throw error;
+          if (isMounted.current) setPublication(null);
+      } catch (err: any) {
+          console.error('unpublishWeek error:', err);
+          if (isMissingTableError(err)) {
+              alert(t('shift.missingTableHelp'));
+          } else {
+              alert(t('shift.unpublishError') + (err?.message || ''));
+          }
+      } finally {
+          if (isMounted.current) setPublishLoading(false);
+      }
   };
 
   // Çakışma kontrolü: Bir personelin belirli bir günde diğer şubelerde çakışan vardiyası var mı?
@@ -262,24 +370,46 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
 
   // Tüm personel havuzdan gösterilir - şube filtresi yok
   const filteredEmployees = availableEmployees;
-  const displayedRows = isAdmin ? rosterData : rosterData.filter(row => row.assignments.includes(currentUser.id));
+  // Personel: sadece yayınlanmış haftalarda kendine ait satırları görür.
+  // Yayınlanmamışsa boş tablo + uyarı (ayrı render edilir).
+  const displayedRows = isAdmin
+      ? rosterData
+      : (isPublished ? rosterData.filter(row => row.assignments.includes(currentUser.id)) : []);
 
 
   // --- Şube başına kullanıcının haftalık vardiya sayısı (badge için) ---
   const [allWeekSchedules, setAllWeekSchedules] = useState<any[]>([]);
+  // Bu hafta yayında olan şubeler — personel için badge'lerin yayınlanmamış
+  // şubeleri saymaması gerekir, yoksa onaylanmamış vardiyayı sızdırırız.
+  const [publishedBranches, setPublishedBranches] = useState<Set<string>>(new Set());
 
   useEffect(() => {
       const fetchAllWeekSchedules = async () => {
           const { data } = await supabase.from('shift_schedules').select('*').eq('week_start_date', weekKey);
           if (data && isMounted.current) setAllWeekSchedules(data);
       };
+      const fetchPublishedBranches = async () => {
+          try {
+              const { data } = await supabase
+                  .from('shift_publications')
+                  .select('branch')
+                  .eq('week_start_date', weekKey);
+              if (!isMounted.current) return;
+              setPublishedBranches(new Set((data || []).map((r: any) => r.branch)));
+          } catch {
+              if (isMounted.current) setPublishedBranches(new Set());
+          }
+      };
       fetchAllWeekSchedules();
-  }, [weekKey]);
+      fetchPublishedBranches();
+  }, [weekKey, publication]);
 
   const branchShiftCounts = useMemo((): Map<string, number> => {
       const counts = new Map<string, number>();
       allWeekSchedules.forEach((schedule: any) => {
           const branch = schedule.branch;
+          // Personel için onaylanmamış şubelerin sayımı sızmasın
+          if (!isAdmin && !publishedBranches.has(branch)) return;
           const days: string[] = schedule.days || [];
           const userDays = days.filter((empId: string) => empId === currentUser.id).length;
           if (userDays > 0) {
@@ -287,7 +417,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
           }
       });
       return counts;
-  }, [allWeekSchedules, currentUser]);
+  }, [allWeekSchedules, currentUser, isAdmin, publishedBranches]);
 
   return (
     <div className="h-full w-full flex flex-col bg-[#09090b] relative overflow-hidden">
@@ -370,10 +500,66 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
 
       <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar bg-zinc-950 p-2 xl:p-4">
 
+            {/* ── ONAY/YAYIN DURUMU BANNER'I ──
+                Admin: durum + Yayınla / Yayını Geri Çek butonları
+                Personel: yayında değilse buraya "henüz onaylanmadı" gösterilmez,
+                          tablo yerine büyük kutu çıkar (aşağıda).  */}
+            {isAdmin && (
+                <div className={`mb-3 p-3 rounded-xl border flex items-center gap-3 flex-wrap ${
+                    isPublished
+                        ? 'bg-emerald-950/30 border-emerald-800/50'
+                        : 'bg-amber-950/30 border-amber-800/50'
+                }`}>
+                    {isPublished
+                        ? <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+                        : <Lock size={18} className="text-amber-400 shrink-0" />}
+                    <div className="min-w-0 flex-1">
+                        <div className="text-sm font-semibold text-white">
+                            {isPublished ? t('shift.statusPublished') : t('shift.statusDraft')}
+                        </div>
+                        <div className="text-[11px] text-zinc-400 mt-0.5">
+                            {isPublished
+                                ? t('shift.statusPublishedDesc')
+                                    .replace('{by}', publication?.publishedByName || '—')
+                                    .replace('{at}', publication ? formatDate(publication.publishedAt, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—')
+                                : t('shift.statusDraftDesc')}
+                        </div>
+                    </div>
+                    {isPublished ? (
+                        <button
+                            onClick={unpublishWeek}
+                            disabled={publishLoading}
+                            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 disabled:opacity-50"
+                        >
+                            {publishLoading ? <Loader2 size={14} className="animate-spin" /> : <Undo2 size={14} />}
+                            {t('shift.unpublish')}
+                        </button>
+                    ) : (
+                        <button
+                            onClick={publishWeek}
+                            disabled={publishLoading || rosterData.length === 0}
+                            className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {publishLoading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                            {t('shift.publish')}
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {/* Personel + yayında değil → büyük "henüz onaylanmadı" kutusu */}
+            {!isAdmin && !isPublished && !isLoading && (
+                <div className="mt-2 mb-4 mx-auto max-w-2xl bg-zinc-900/50 border border-amber-900/40 rounded-2xl p-8 text-center">
+                    <Lock size={32} className="text-amber-400 mx-auto mb-3" />
+                    <h3 className="text-base font-semibold text-white mb-1">{t('shift.notPublishedTitle')}</h3>
+                    <p className="text-sm text-zinc-400">{t('shift.notPublishedDesc')}</p>
+                </div>
+            )}
+
             {/* ══════════════════════════════════════════════════
                 TABLO GÖRÜNÜMÜ — Yatay kaydırmalı (mobil + masaüstü)
                ══════════════════════════════════════════════════ */}
-            <div className="h-full pb-20">
+            <div className={`h-full pb-20 ${!isAdmin && !isPublished ? 'hidden' : ''}`}>
                 <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 overflow-x-auto shadow-2xl relative" style={{ WebkitOverflowScrolling: 'touch' }}>
 <GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} />
                     {isLoading && (<div className="absolute inset-0 z-50 bg-zinc-950/80 backdrop-blur-sm flex items-center justify-center"><Loader2 size={40} className="text-blue-500 animate-spin" /></div>)}

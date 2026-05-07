@@ -9,6 +9,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Circle, Popup, Polyline, CircleMarker, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { MapPin, Users, Activity, Clock, ArrowRightLeft, X, Smartphone, LogIn, LogOut, QrCode, Hand, Hourglass, Route } from 'lucide-react';
 import { Employee } from '../types';
 import { supabase } from '../lib/supabase';
@@ -90,11 +91,32 @@ const branchColors: Record<string, string> = {
 };
 const colorFor = (b?: string | null) => (b && branchColors[b]) || '#a1a1aa';
 
+// Tile sağlayıcıları — birincil + fallback. tileerror eşiği aşılınca
+// otomatik bir sonrakine geçilir. CARTO Voyager: key'siz, hızlı CDN, dark UI ile uyumlu.
+const TILE_PROVIDERS = [
+  {
+    name: 'carto-voyager',
+    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    subdomains: 'abcd',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    maxZoom: 20,
+  },
+  {
+    name: 'osm',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    subdomains: 'abc',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19,
+  },
+] as const;
+
+const TILE_ERROR_THRESHOLD = 5;
+
 // 5 şube koordinatı. DB'den çekemediğimizde (offline / seed atlanmış / RLS)
 // bunları fallback olarak kullanırız.
 // NOT: Dom = "BAC Kiosk" gerçek lokasyonu — kullanıcı tarafından doğrulandı.
 const FALLBACK_BRANCHES: BranchRow[] = [
-  { branch: 'Dom',       latitude: 50.94032812642508,  longitude: 6.939643179081483,  geofence_m: 20, radius_m: 150 },
+  { branch: 'Dom',       latitude: 50.942212123059406, longitude: 6.955781214751541, geofence_m: 20, radius_m: 150 },
   { branch: 'Backaffee', latitude: 50.9403056233978,   longitude: 6.939539275732692,  geofence_m: 20, radius_m: 150 },
   { branch: 'Ringe',     latitude: 50.93968838730243,  longitude: 6.9400543539197255, geofence_m: 20, radius_m: 150 },
   { branch: 'Mülheim',   latitude: 50.96208006232153,  longitude: 7.0054699260591295, geofence_m: 20, radius_m: 150 },
@@ -258,6 +280,12 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
   const [pathRange, setPathRange] = useState<PathRange>('today');
   const [pathPoints, setPathPoints] = useState<LocationHistoryRow[]>([]);
   const [pathLoading, setPathLoading] = useState(false);
+
+  // Tile yükleme dayanıklılığı — birincil sağlayıcı başarısız olursa
+  // otomatik fallback'e geç, kullanıcıya skeleton/error UI göster.
+  const [tileProviderIdx, setTileProviderIdx] = useState(0);
+  const [tileMapState, setTileMapState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const tileErrorCountRef = useRef(0);
 
   // Guard — sadece admin'ler veya whitelist email'i.
   // App.tsx zaten guard'lıyor; defansif olarak burada da kontrol et.
@@ -692,6 +720,29 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
               </div>
             </div>
           )}
+          {tileMapState === 'loading' && (
+            <div className="absolute inset-0 z-[400] bg-zinc-900/80 backdrop-blur-sm flex items-center justify-center pointer-events-none">
+              <div className="flex items-center gap-3 text-zinc-300">
+                <MapPin size={20} className="animate-pulse text-indigo-400" />
+                <span className="text-sm">{t('map.loadingTiles')}</span>
+              </div>
+            </div>
+          )}
+          {tileMapState === 'error' && (
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[600] bg-rose-900/95 border border-rose-700 text-rose-100 px-4 py-2 rounded-lg shadow-xl flex items-center gap-3">
+              <span className="text-sm">{t('map.tileError')}</span>
+              <button
+                onClick={() => {
+                  tileErrorCountRef.current = 0;
+                  setTileProviderIdx(0);
+                  setTileMapState('loading');
+                }}
+                className="text-xs bg-rose-700 hover:bg-rose-600 px-2 py-1 rounded"
+              >
+                {t('map.retry')}
+              </button>
+            </div>
+          )}
           <MapContainer
             center={mapCenter}
             zoom={13}
@@ -699,8 +750,31 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
             style={{ height: '100%', width: '100%' }}
           >
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              key={tileProviderIdx}
+              url={TILE_PROVIDERS[tileProviderIdx].url}
+              subdomains={TILE_PROVIDERS[tileProviderIdx].subdomains}
+              attribution={TILE_PROVIDERS[tileProviderIdx].attribution}
+              maxZoom={TILE_PROVIDERS[tileProviderIdx].maxZoom}
+              keepBuffer={4}
+              updateWhenIdle
+              crossOrigin="anonymous"
+              eventHandlers={{
+                tileerror: () => {
+                  tileErrorCountRef.current += 1;
+                  if (tileErrorCountRef.current >= TILE_ERROR_THRESHOLD) {
+                    if (tileProviderIdx < TILE_PROVIDERS.length - 1) {
+                      tileErrorCountRef.current = 0;
+                      setTileProviderIdx((i) => i + 1);
+                    } else {
+                      setTileMapState('error');
+                    }
+                  }
+                },
+                load: () => {
+                  tileErrorCountRef.current = 0;
+                  setTileMapState('ready');
+                },
+              }}
             />
 
             {/* 5 şubeyi tek seferde ekrana sığdır */}

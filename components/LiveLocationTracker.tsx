@@ -121,7 +121,10 @@ const LiveLocationTracker: React.FC<Props> = ({ currentUser }) => {
         }
         rawInside = nearest.d <= nearest.geom;
       }
-      const stable = lastRawInsideRef.current === rawInside;
+      // İlk ölçümde stable=true kabul et — aksi halde server v_prev=FALSE
+      // ile eski durumu korur ve ilk ping'te personel "şube dışında" gözükür.
+      const isFirstPing = lastRawInsideRef.current === null;
+      const stable = isFirstPing || lastRawInsideRef.current === rawInside;
       lastRawInsideRef.current = rawInside;
 
       try {

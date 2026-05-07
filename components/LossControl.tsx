@@ -147,17 +147,15 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
   const fetchAllData = async () => {
     setIsLoading(true);
     try {
-      // Fetch stock entries
-      const { data: stockData } = await supabase
-        .from('stock_entries')
-        .select('*')
-        .order('entry_date', { ascending: false });
+      // Fetch stock entries — admin-only RPC (RLS doğrudan tablo erişimini engeller)
+      const { data: stockData, error: stockErr } = await supabase
+        .rpc('lc_list_stock_entries', { p_caller_id: currentUser.id });
+      if (stockErr) console.warn('lc_list_stock_entries:', stockErr.message);
 
-      // Fetch stock counts
-      const { data: countData } = await supabase
-        .from('stock_counts')
-        .select('*')
-        .order('count_date', { ascending: false });
+      // Fetch stock counts — admin-only RPC
+      const { data: countData, error: countErr } = await supabase
+        .rpc('lc_list_stock_counts', { p_caller_id: currentUser.id });
+      if (countErr) console.warn('lc_list_stock_counts:', countErr.message);
 
       // Fetch all sales (approved only for loss calc)
       const { data: sales } = await supabase
@@ -334,21 +332,20 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
     setShowCountForm(true);
   };
 
-  // Save Stock Entry (insert or update)
+  // Save Stock Entry (insert or update) — admin-only RPC
   const handleSaveStockEntry = async () => {
     if (!stockForm.product_name || stockForm.quantity <= 0) return;
     setIsSaving(true);
     try {
-      const payload = {
-        product_name: stockForm.product_name,
-        branch: stockForm.branch,
-        quantity: stockForm.quantity,
-        entry_date: stockForm.entry_date,
-        note: stockForm.note || null
-      };
-      const { error } = editingEntry
-        ? await supabase.from('stock_entries').update(payload).eq('id', editingEntry.id)
-        : await supabase.from('stock_entries').insert({ ...payload, entered_by: currentUser.id });
+      const { error } = await supabase.rpc('lc_save_stock_entry', {
+        p_caller_id: currentUser.id,
+        p_id: editingEntry?.id || null,
+        p_product_name: stockForm.product_name,
+        p_branch: stockForm.branch,
+        p_quantity: stockForm.quantity,
+        p_entry_date: stockForm.entry_date,
+        p_note: stockForm.note || null,
+      });
       if (error) throw error;
       closeStockForm();
       fetchAllData();
@@ -359,21 +356,20 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
     }
   };
 
-  // Save Stock Count (insert or update)
+  // Save Stock Count (insert or update) — admin-only RPC
   const handleSaveCount = async () => {
     if (!countForm.product_name || countForm.counted_quantity < 0) return;
     setIsSaving(true);
     try {
-      const payload = {
-        product_name: countForm.product_name,
-        branch: countForm.branch,
-        counted_quantity: countForm.counted_quantity,
-        count_date: countForm.count_date,
-        note: countForm.note || null
-      };
-      const { error } = editingCount
-        ? await supabase.from('stock_counts').update(payload).eq('id', editingCount.id)
-        : await supabase.from('stock_counts').insert({ ...payload, counted_by: currentUser.id });
+      const { error } = await supabase.rpc('lc_save_stock_count', {
+        p_caller_id: currentUser.id,
+        p_id: editingCount?.id || null,
+        p_product_name: countForm.product_name,
+        p_branch: countForm.branch,
+        p_counted_quantity: countForm.counted_quantity,
+        p_count_date: countForm.count_date,
+        p_note: countForm.note || null,
+      });
       if (error) throw error;
       closeCountForm();
       fetchAllData();
@@ -384,11 +380,14 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
     }
   };
 
-  // Delete handlers
+  // Delete handlers — admin-only RPC
   const handleDeleteEntry = async (id: string) => {
     if (!confirm(t('loss.confirmDeleteStock'))) return;
     try {
-      const { error } = await supabase.from('stock_entries').delete().eq('id', id);
+      const { error } = await supabase.rpc('lc_delete_stock_entry', {
+        p_caller_id: currentUser.id,
+        p_id: id,
+      });
       if (error) throw error;
       fetchAllData();
     } catch (err) {
@@ -399,7 +398,10 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
   const handleDeleteCount = async (id: string) => {
     if (!confirm(t('loss.confirmDeleteCount'))) return;
     try {
-      const { error } = await supabase.from('stock_counts').delete().eq('id', id);
+      const { error } = await supabase.rpc('lc_delete_stock_count', {
+        p_caller_id: currentUser.id,
+        p_id: id,
+      });
       if (error) throw error;
       fetchAllData();
     } catch (err) {

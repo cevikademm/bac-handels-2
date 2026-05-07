@@ -9,14 +9,18 @@ import Payroll from './components/Payroll';
 import Login from './components/Login';
 import SalesDashboard from './components/SalesDashboard';
 import LossControl from './components/LossControl';
-import Map from './components/Map';
+import DeviceBrands from './components/DeviceBrands';
 import LiveLocationTracker from './components/LiveLocationTracker';
 import PWAInstallBanner, { PushSubscriptionCard } from './components/PWAInstallBanner';
 import NotificationPreferencesCard from './components/NotificationPreferencesCard';
+import { DeviceHistoryCard, PhoneConflictsCard } from './components/DeviceTrustCard';
 import { canSeeMap } from './lib/geofence';
+import { canSeeDeviceInfo } from './lib/utils';
 
 // Lazy: zxing/browser top-level import'u prod minify'da bozuluyordu
 const QrCheckIn = lazy(() => import('./components/QrCheckIn'));
+// Lazy: Leaflet+react-leaflet ~140kB; harita sekmesine girilene dek yüklenmesin
+const Map = lazy(() => import('./components/Map'));
 import { Settings as SettingsIcon, Shield, Volume2, Upload, RefreshCw, Play, Loader2, KeyRound, Globe, Lock, Server, CheckCircle } from 'lucide-react';
 import { MOCK_EMPLOYEES, NOTIFICATION_SOUND } from './constants';
 import { Employee, Role, AppNotification } from './types';
@@ -465,6 +469,12 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                     {/* NOTIFICATION PREFERENCES (Admin only) */}
                     <NotificationPreferencesCard currentUser={currentUser} />
 
+                    {/* QR DEVICE HISTORY (kullanıcının kendi telefon geçmişi) */}
+                    <DeviceHistoryCard currentUser={currentUser} />
+
+                    {/* PHONE CONFLICTS (sadece admin + canSeeDeviceInfo allowlist) */}
+                    <PhoneConflictsCard currentUser={currentUser} />
+
                     {/* PASSWORD CHANGE SECTION */}
                     <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
                         <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
@@ -770,7 +780,17 @@ const AppContent: React.FC = () => {
         if (!canSeeMap(currentUser?.email, currentUser?.role)) {
           return <Dashboard notifications={notifications} currentUser={currentUser || MOCK_EMPLOYEES[0]} onUpdateUser={setCurrentUser} />;
         }
-        return <Map currentUser={currentUser || MOCK_EMPLOYEES[0]} />;
+        return (
+          <Suspense fallback={<div className="flex items-center justify-center h-full text-zinc-400 text-sm">Harita yükleniyor…</div>}>
+            <Map currentUser={currentUser || MOCK_EMPLOYEES[0]} />
+          </Suspense>
+        );
+      case 'device-brands':
+        // Cihaz markaları sadece admin + canSeeDeviceInfo allowlist'ine açık.
+        if (currentUser?.role !== Role.ADMIN || !canSeeDeviceInfo(currentUser?.email)) {
+          return <Dashboard notifications={notifications} currentUser={currentUser || MOCK_EMPLOYEES[0]} onUpdateUser={setCurrentUser} />;
+        }
+        return <DeviceBrands currentUser={currentUser || MOCK_EMPLOYEES[0]} />;
       case 'settings':
         return <Settings currentUser={currentUser} onUpdateUser={setCurrentUser} />;
       default:

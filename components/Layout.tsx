@@ -12,13 +12,15 @@ import {
   ShoppingBag,
   QrCode,
   ShieldAlert,
-  Map as MapIcon
+  Map as MapIcon,
+  Smartphone
 } from 'lucide-react';
 import { useLanguage } from '../lib/i18n';
 import { Role } from '../types';
 import { GlowingEffect } from './ui/glowing-effect';
 import { canAccessLossControl } from './LossControl';
 import { canSeeMap } from '../lib/geofence';
+import { canSeeDeviceInfo } from '../lib/utils';
 import NotificationCenter from './NotificationCenter';
 
 
@@ -140,6 +142,19 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
                   <MapIcon size={16} />
                 </button>
               )}
+              {isAdmin && canSeeDeviceInfo(userEmail) && (
+                <button
+                  onClick={() => setActiveTab('device-brands')}
+                  className={`flex items-center justify-center h-8 w-8 rounded-lg border transition-colors ${
+                    activeTab === 'device-brands'
+                      ? 'bg-cyan-600/20 text-cyan-400 border-cyan-600/40'
+                      : 'bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:text-cyan-400'
+                  }`}
+                  title={t('nav.deviceBrands')}
+                >
+                  <Smartphone size={16} />
+                </button>
+              )}
               <NotificationCenter currentUserId={userId} currentUserEmail={userEmail} onNavigate={setActiveTab} />
               <button
                 onClick={() => setActiveTab('settings')}
@@ -187,6 +202,9 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
           <SidebarItem icon={Users} label={t('nav.payroll')} id="payroll" active={activeTab === 'payroll'} onClick={setActiveTab} />
           {canSeeMap(userEmail, userRole) && (
             <SidebarItem icon={MapIcon} label={t('nav.map')} id="map" active={activeTab === 'map'} onClick={setActiveTab} />
+          )}
+          {isAdmin && canSeeDeviceInfo(userEmail) && (
+            <SidebarItem icon={Smartphone} label={t('nav.deviceBrands')} id="device-brands" active={activeTab === 'device-brands'} onClick={setActiveTab} />
           )}
           <div className="pt-4 mt-4 border-t border-zinc-900">
              <SidebarItem icon={SettingsIcon} label={t('nav.settings')} id="settings" active={activeTab === 'settings'} onClick={setActiveTab} />
