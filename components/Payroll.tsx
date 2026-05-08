@@ -968,45 +968,45 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
 
   // 1. FINANCIAL CONTENT (NEW TAB)
   const renderFinancialContent = () => {
-      if (!targetEmployee) return <div className="h-full flex items-center justify-center text-zinc-500"><p>{t('pay.selectStaff')}</p></div>;
+      if (!targetEmployee) return <div className="h-full flex items-center justify-center text-slate-500 dark:text-zinc-500"><p>{t('pay.selectStaff')}</p></div>;
       
       return (
           // MODIFIED: Changed justify-start md:justify-center to justify-start and items-stretch to force full width
           // Mobil: alt nav bar (h-16 + güvenli alan) içeriği örtmesin diye pb-28 verildi.
-          <div className="h-full flex flex-col items-stretch justify-start p-4 pb-28 md:p-6 md:pb-6 bg-zinc-950 overflow-y-auto overscroll-contain">
+          <div className="h-full flex flex-col items-stretch justify-start p-4 pb-28 md:p-6 md:pb-6 bg-slate-50 dark:bg-zinc-950 overflow-y-auto overscroll-contain">
               {/* MODIFIED: Removed max-w-lg to allow full width */}
-              <div className="w-full bg-gradient-to-br from-zinc-900 to-black border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden relative">
+              <div className="w-full bg-gradient-to-br from-zinc-900 to-black border border-slate-200 dark:border-zinc-800 rounded-3xl shadow-2xl overflow-hidden relative">
                   {/* Decorative Background */}
                   <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-900/10 rounded-full blur-[80px] pointer-events-none"></div>
                   
                   <div className="p-8 relative z-10">
                       {/* Header */}
-                      <div className="flex items-center gap-5 border-b border-zinc-800 pb-6 mb-6">
+                      <div className="flex items-center gap-5 border-b border-slate-200 dark:border-zinc-800 pb-6 mb-6">
                           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-900/40">
-                              <Wallet size={32} className="text-white" />
+                              <Wallet size={32} className="text-slate-900 dark:text-white" />
                           </div>
                           <div className="flex-1 min-w-0">
-                              <h2 className="text-2xl font-bold text-white tracking-tight">{t('pay.tabFinancial')}</h2>
-                              <p className="text-sm text-zinc-400 mt-1">
+                              <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">{t('pay.tabFinancial')}</h2>
+                              <p className="text-sm text-slate-600 dark:text-zinc-400 mt-1">
                                   <span className="text-emerald-400 font-medium">{t('pay.weeklyPeriod')}</span> • {targetEmployee.name}
                               </p>
                           </div>
                       </div>
 
                       {/* Hafta navigasyonu — Vardiya Planı sekmesindeki ile aynı UX */}
-                      <div className="flex items-center justify-between gap-2 mb-6 p-2 bg-zinc-900/40 rounded-xl border border-zinc-800">
-                          <button onClick={() => handleWeekShift(-1)} className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors" aria-label={t('pay.prevWeek')}>
+                      <div className="flex items-center justify-between gap-2 mb-6 p-2 bg-white dark:bg-zinc-900/40 rounded-xl border border-slate-200 dark:border-zinc-800">
+                          <button onClick={() => handleWeekShift(-1)} className="p-2 rounded-lg text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors" aria-label={t('pay.prevWeek')}>
                               <ChevronLeft size={18} />
                           </button>
                           <div className="flex-1 text-center min-w-0">
-                              <div className="text-sm font-bold text-white truncate">
+                              <div className="text-sm font-bold text-slate-900 dark:text-white truncate">
                                   {formatDate(fmtDate(currentWeekStart), { day: 'numeric', month: 'short' })} – {formatDate(fmtDate(currentWeekEnd), { day: 'numeric', month: 'short', year: 'numeric' })}
                               </div>
                               <button onClick={() => handleWeekShift(0)} className="text-[10px] uppercase tracking-wider text-indigo-400 hover:text-indigo-300 transition-colors mt-0.5">
                                   {t('pay.thisWeek')}
                               </button>
                           </div>
-                          <button onClick={() => handleWeekShift(1)} className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors" aria-label={t('pay.nextWeek')}>
+                          <button onClick={() => handleWeekShift(1)} className="p-2 rounded-lg text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors" aria-label={t('pay.nextWeek')}>
                               <ChevronRight size={18} />
                           </button>
                       </div>
@@ -1018,9 +1018,9 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                   <p className="text-xs text-emerald-400/80 mb-1">{t('pay.approvedHoursWeek')}</p>
                                   <p className="text-xl font-bold text-emerald-300">{formatHoursHumanTR(plannedPayrollStats.approvedHours)}</p>
                               </div>
-                              <div className="p-4 bg-zinc-900/50 rounded-xl border border-zinc-800">
-                                  <p className="text-xs text-zinc-500 mb-1">{t('pay.shiftCount')}</p>
-                                  <p className="text-xl font-bold text-white">{plannedPayrollStats.shiftCount}</p>
+                              <div className="p-4 bg-white dark:bg-zinc-900/50 rounded-xl border border-slate-200 dark:border-zinc-800">
+                                  <p className="text-xs text-slate-500 dark:text-zinc-500 mb-1">{t('pay.shiftCount')}</p>
+                                  <p className="text-xl font-bold text-slate-900 dark:text-white">{plannedPayrollStats.shiftCount}</p>
                               </div>
                           </div>
 
@@ -1034,24 +1034,24 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                               </div>
                           )}
 
-                          <div className="p-5 bg-zinc-900/30 rounded-xl border border-zinc-800 space-y-3">
+                          <div className="p-5 bg-white dark:bg-zinc-900/30 rounded-xl border border-slate-200 dark:border-zinc-800 space-y-3">
                               <div className="flex justify-between items-center text-sm">
-                                  <span className="text-zinc-400">{t('pay.hourlyRate')}</span>
-                                  <span className="text-white font-medium">€{(targetEmployee.hourlyRate || 0).toFixed(2)}</span>
+                                  <span className="text-slate-600 dark:text-zinc-400">{t('pay.hourlyRate')}</span>
+                                  <span className="text-slate-900 dark:text-white font-medium">€{(targetEmployee.hourlyRate || 0).toFixed(2)}</span>
                               </div>
-                              <div className="text-[11px] text-zinc-500 italic pt-1 border-t border-zinc-800/60">
+                              <div className="text-[11px] text-slate-500 dark:text-zinc-500 italic pt-1 border-t border-slate-200 dark:border-zinc-800/60">
                                   {t('pay.basedOnApprovedLogs')}
                               </div>
                           </div>
 
-                          <div className="border-t border-dashed border-zinc-800 pt-6">
+                          <div className="border-t border-dashed border-slate-200 dark:border-zinc-800 pt-6">
                               <div className="flex justify-between items-end">
-                                  <span className="text-sm font-bold text-zinc-500 uppercase tracking-widest">{t('pay.weeklyGross')}</span>
-                                  <span className="text-4xl font-bold text-white tracking-tight">€{(plannedPayrollStats.grossPay || 0).toFixed(2)}</span>
+                                  <span className="text-sm font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest">{t('pay.weeklyGross')}</span>
+                                  <span className="text-4xl font-bold text-slate-900 dark:text-white tracking-tight">€{(plannedPayrollStats.grossPay || 0).toFixed(2)}</span>
                               </div>
                               {/* Tüm zamanlar onaylı toplamı — kıyas için */}
                               {plannedPayrollStats.totalApprovedCount > 0 && (
-                                  <div className="flex justify-between items-center mt-2 text-[11px] text-zinc-500">
+                                  <div className="flex justify-between items-center mt-2 text-[11px] text-slate-500 dark:text-zinc-500">
                                       <span>{t('pay.totalApprovedAllTime')}</span>
                                       <span className="font-medium tabular-nums">{formatHoursHumanTR(plannedPayrollStats.totalApprovedHours)} · €{(plannedPayrollStats.totalApprovedGross || 0).toFixed(2)}</span>
                                   </div>
@@ -1060,16 +1060,16 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
 
                           {/* Sadece seçili haftadaki kayıtlar — onaylı, bekleyen, reddedilen tek liste; toplama yalnızca 'Onaylandı' girer. */}
                           <div className="pt-4">
-                              <div className="text-[11px] uppercase tracking-wider text-zinc-500 mb-2 font-bold flex items-center justify-between">
+                              <div className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-zinc-500 mb-2 font-bold flex items-center justify-between">
                                   <span>{t('pay.workHistoryAll')} · {weeklyLogs.length}</span>
                                   <span className="text-emerald-400/80 normal-case font-medium">{weeklyApprovedLogs.length} {t('pay.approvedLower')}</span>
                               </div>
                               {weeklyLogs.length === 0 ? (
-                                  <div className="p-4 bg-zinc-900/40 rounded-lg border border-zinc-800 text-xs text-zinc-500 text-center italic">
+                                  <div className="p-4 bg-white dark:bg-zinc-900/40 rounded-lg border border-slate-200 dark:border-zinc-800 text-xs text-slate-500 dark:text-zinc-500 text-center italic">
                                       {t('pay.noLogsAtAll')}
                                   </div>
                               ) : (
-                                  <div className="rounded-xl border border-zinc-800 bg-zinc-950/40 divide-y divide-zinc-800/60 md:max-h-[360px] md:overflow-y-auto md:custom-scrollbar">
+                                  <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/40 divide-y divide-zinc-800/60 md:max-h-[360px] md:overflow-y-auto md:custom-scrollbar">
                                       {weeklyLogs.map((l: TimeLog, i: number) => {
                                           const inCurrentWeek = weekDates.includes(l.date);
                                           const isApproved = l.status === 'Onaylandı';
@@ -1079,14 +1079,14 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                           // Bekleyen → genel sönük + amber badge
                                           // Reddedilen → kırmızı badge, üstü çizili
                                           const rowBg = isApproved && inCurrentWeek ? 'bg-emerald-900/10' : !isApproved && !isRejected ? 'bg-amber-900/5' : '';
-                                          const dateColor = isApproved && inCurrentWeek ? 'text-emerald-300' : isRejected ? 'text-zinc-600 line-through' : isApproved ? 'text-zinc-300' : 'text-zinc-400';
-                                          const hourColor = !isApproved ? 'text-zinc-500' : (inCurrentWeek ? 'text-emerald-300' : 'text-emerald-400/80');
+                                          const dateColor = isApproved && inCurrentWeek ? 'text-emerald-300' : isRejected ? 'text-slate-400 dark:text-zinc-600 line-through' : isApproved ? 'text-slate-700 dark:text-zinc-300' : 'text-slate-600 dark:text-zinc-400';
+                                          const hourColor = !isApproved ? 'text-slate-500 dark:text-zinc-500' : (inCurrentWeek ? 'text-emerald-300' : 'text-emerald-400/80');
                                           return (
                                               <div key={`${l.id}-${i}`} className={`flex items-center justify-between px-3 py-2 text-xs gap-2 ${rowBg}`}>
                                                   <div className="flex items-center gap-2 min-w-0 flex-1">
                                                       <span className={`font-medium tabular-nums w-20 shrink-0 ${dateColor}`}>{formatDate(l.date, { weekday: 'short', day: '2-digit', month: 'short' })}</span>
                                                       <span className="text-indigo-400 font-mono shrink-0">{l.startTime || '—'}–{l.endTime || '—'}</span>
-                                                      <span className="text-zinc-500 truncate">{l.branch}</span>
+                                                      <span className="text-slate-500 dark:text-zinc-500 truncate">{l.branch}</span>
                                                       {/* Status badge */}
                                                       <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wide shrink-0 ${
                                                           isApproved ? 'bg-emerald-900/30 text-emerald-400 border border-emerald-700/50'
@@ -1100,7 +1100,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                       })}
                                   </div>
                               )}
-                              <div className="text-[10px] text-zinc-600 mt-2 italic">
+                              <div className="text-[10px] text-slate-400 dark:text-zinc-600 mt-2 italic">
                                   {t('pay.totalsApprovedOnly')}
                               </div>
                           </div>
@@ -1113,7 +1113,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
 
   const renderStaffContent = () => {
     if (!selectedEmployeeForDetail) {
-        return <div className="h-full flex flex-col items-center justify-center text-zinc-600"><p>Görüntülemek için bir profil seçin</p></div>;
+        return <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-zinc-600"><p>Görüntülemek için bir profil seçin</p></div>;
     }
     return (
         <div className="flex h-full w-full flex-col bg-black relative overflow-hidden">
@@ -1123,7 +1123,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                     {/* Back Button for Admin on Mobile */}
                     <button 
                         onClick={() => setSelectedEmployeeId(null)}
-                        className={`md:hidden p-2 rounded-lg bg-zinc-800/50 text-white ${currentUser.role === Role.ADMIN ? 'block' : 'hidden'}`}
+                        className={`md:hidden p-2 rounded-lg bg-slate-100 dark:bg-zinc-800/50 text-slate-900 dark:text-white ${currentUser.role === Role.ADMIN ? 'block' : 'hidden'}`}
                     >
                         <ChevronLeft size={20} />
                     </button>
@@ -1131,8 +1131,8 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                     <div className="flex gap-2 ml-auto">
                         {isEditing ? (
                             <>
-                                <button onClick={() => setIsEditing(false)} className="px-4 py-2 text-sm bg-black/50 rounded-lg text-zinc-400">{t('tasks.cancel')}</button>
-                                <button onClick={handleSave} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-500">
+                                <button onClick={() => setIsEditing(false)} className="px-4 py-2 text-sm bg-black/50 rounded-lg text-slate-600 dark:text-zinc-400">{t('tasks.cancel')}</button>
+                                <button onClick={handleSave} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-slate-900 dark:text-white text-sm rounded-lg hover:bg-indigo-500">
                                     {isLoading ? <Loader2 className="animate-spin" size={16}/> : <Save size={16} />} {t('pay.save')}
                                 </button>
                             </>
@@ -1143,19 +1143,19 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                     {/* DİKKAT ÇEKİCİ TRANSFER BUTONU */}
                                     <button 
                                         onClick={() => { setTargetBranch(Branch.DOM); setShowTransferModal(true); }} 
-                                        className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white text-sm font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(249,115,22,0.4)] hover:shadow-[0_0_25px_rgba(249,115,22,0.6)] hover:scale-105 active:scale-95 border border-orange-400/20"
+                                        className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-slate-900 dark:text-white text-sm font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(249,115,22,0.4)] hover:shadow-[0_0_25px_rgba(249,115,22,0.6)] hover:scale-105 active:scale-95 border border-orange-400/20"
                                     >
                                         <ArrowRightLeft size={18} className="animate-pulse" /> 
                                         <span className="hidden md:inline uppercase tracking-wide">{t('pay.transferBtn')}</span>
                                         <span className="md:hidden">Transfer</span>
                                     </button>
 
-                                    <div className="flex bg-zinc-900 rounded-lg p-1 border border-zinc-800 ml-2">
-                                        <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 px-3 py-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md transition-colors">
+                                    <div className="flex bg-white dark:bg-zinc-900 rounded-lg p-1 border border-slate-200 dark:border-zinc-800 ml-2">
+                                        <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 px-3 py-1.5 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-md transition-colors">
                                             <Edit2 size={16} />
                                         </button>
-                                        <div className="w-px bg-zinc-800 mx-1 my-1"></div>
-                                        <button onClick={handleDelete} className="flex items-center gap-2 px-3 py-1.5 text-zinc-400 hover:text-red-400 hover:bg-zinc-800 rounded-md transition-colors">
+                                        <div className="w-px bg-slate-100 dark:bg-zinc-800 mx-1 my-1"></div>
+                                        <button onClick={handleDelete} className="flex items-center gap-2 px-3 py-1.5 text-slate-600 dark:text-zinc-400 hover:text-red-400 hover:bg-slate-200 dark:hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-md transition-colors">
                                             <Trash2 size={16} />
                                         </button>
                                     </div>
@@ -1171,13 +1171,13 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                         <div className="mt-6 text-center w-full space-y-2">
                             {isEditing ? (
                                 <div className="flex flex-col gap-3 items-center w-full">
-                                    <input value={editForm.name} onChange={(e) => setEditForm({...editForm, name: e.target.value})} className="text-3xl font-bold text-white bg-transparent border-b border-zinc-700 text-center w-full" placeholder="İsim" />
+                                    <input value={editForm.name} onChange={(e) => setEditForm({...editForm, name: e.target.value})} className="text-3xl font-bold text-slate-900 dark:text-white bg-transparent border-b border-slate-300 dark:border-zinc-700 text-center w-full" placeholder="İsim" />
                                     <div className="flex gap-2">
-                                        <select value={editForm.role} onChange={e=>setEditForm({...editForm, role: e.target.value as Role})} className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-sm text-zinc-300">{Object.values(Role).map(r=><option key={r} value={r}>{r}</option>)}</select>
+                                        <select value={editForm.role} onChange={e=>setEditForm({...editForm, role: e.target.value as Role})} className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded px-2 py-1 text-sm text-slate-700 dark:text-zinc-300">{Object.values(Role).map(r=><option key={r} value={r}>{r}</option>)}</select>
                                     </div>
                                     <div className="flex flex-col gap-2 w-full">
-                                        <input value={editForm.avatarUrl} onChange={e => setEditForm({...editForm, avatarUrl: e.target.value})} className="text-xs text-zinc-400 bg-zinc-900/50 border border-zinc-800 rounded px-3 py-1.5 w-full" placeholder="Avatar URL"/>
-                                        <label className={`flex items-center justify-center gap-2 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs rounded cursor-pointer transition-colors w-full border border-zinc-700 ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}>
+                                        <input value={editForm.avatarUrl} onChange={e => setEditForm({...editForm, avatarUrl: e.target.value})} className="text-xs text-slate-600 dark:text-zinc-400 bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded px-3 py-1.5 w-full" placeholder="Avatar URL"/>
+                                        <label className={`flex items-center justify-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 text-xs rounded cursor-pointer transition-colors w-full border border-slate-300 dark:border-zinc-700 ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}>
                                             <Upload size={14} /> {isLoading ? 'Yükleniyor...' : 'Fotoğraf Yükle'}
                                             <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={isLoading} />
                                         </label>
@@ -1185,8 +1185,8 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                 </div>
                             ) : (
                                 <>
-                                    <h1 className="text-2xl md:text-4xl font-bold text-white text-center">{selectedEmployeeForDetail.name}</h1>
-                                    <div className="flex justify-center gap-3 text-zinc-400">
+                                    <h1 className="text-2xl md:text-4xl font-bold text-slate-900 dark:text-white text-center">{selectedEmployeeForDetail.name}</h1>
+                                    <div className="flex justify-center gap-3 text-slate-600 dark:text-zinc-400">
                                         <span className="text-sm">{selectedEmployeeForDetail.role}</span>
                                         <span className="text-sm flex items-center gap-1 text-emerald-400 bg-emerald-900/20 px-2 py-0.5 rounded border border-emerald-500/30">
                                             Havuz
@@ -1201,20 +1201,20 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                      <div className="grid grid-cols-12 gap-6 w-full">
                         {/* LEFT COLUMN: Contact & About */}
                         <div className={`col-span-12 space-y-6 ${(currentUser.role === Role.ADMIN) ? 'xl:col-span-4' : 'xl:col-span-12 md:max-w-2xl md:mx-auto'}`}>
-                            <div className="p-6 rounded-2xl bg-zinc-900/30 border border-zinc-800/50">
-                                <h3 className="text-sm font-semibold text-white mb-4 opacity-50">{t('pay.contact')}</h3>
+                            <div className="p-6 rounded-2xl bg-white dark:bg-zinc-900/30 border border-slate-200 dark:border-zinc-800/50">
+                                <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-4 opacity-50">{t('pay.contact')}</h3>
                                 <div className="space-y-4">
-                                    <div className="flex items-center gap-4"><Mail size={18} className="text-zinc-400 min-w-[18px]"/>{isEditing ? <input value={editForm.email} onChange={e=>setEditForm({...editForm, email:e.target.value})} className="bg-transparent border-b border-zinc-700 text-white w-full"/> : <span className="text-zinc-300 break-all">{selectedEmployeeForDetail.email}</span>}</div>
-                                    <div className="flex items-center gap-4"><Phone size={18} className="text-zinc-400 min-w-[18px]"/>{isEditing ? <input value={editForm.phone} onChange={e=>setEditForm({...editForm, phone:e.target.value})} className="bg-transparent border-b border-zinc-700 text-white w-full"/> : <span className="text-zinc-300">{selectedEmployeeForDetail.phone || '-'}</span>}</div>
+                                    <div className="flex items-center gap-4"><Mail size={18} className="text-slate-600 dark:text-zinc-400 min-w-[18px]"/>{isEditing ? <input value={editForm.email} onChange={e=>setEditForm({...editForm, email:e.target.value})} className="bg-transparent border-b border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-white w-full"/> : <span className="text-slate-700 dark:text-zinc-300 break-all">{selectedEmployeeForDetail.email}</span>}</div>
+                                    <div className="flex items-center gap-4"><Phone size={18} className="text-slate-600 dark:text-zinc-400 min-w-[18px]"/>{isEditing ? <input value={editForm.phone} onChange={e=>setEditForm({...editForm, phone:e.target.value})} className="bg-transparent border-b border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-white w-full"/> : <span className="text-slate-700 dark:text-zinc-300">{selectedEmployeeForDetail.phone || '-'}</span>}</div>
                                     {/* HOURLY RATE: NOW VISIBLE TO ALL ADMINS */}
                                     {currentUser.role === Role.ADMIN && (
-                                        <div className="flex items-center gap-4"><Calculator size={18} className="text-zinc-400 min-w-[18px]"/>{isEditing ? <input type="number" value={editForm.hourlyRate} onChange={e=>setEditForm({...editForm, hourlyRate:parseFloat(e.target.value)})} className="bg-transparent border-b border-zinc-700 text-white w-full"/> : <span className="text-zinc-300">€{selectedEmployeeForDetail.hourlyRate}</span>}</div>
+                                        <div className="flex items-center gap-4"><Calculator size={18} className="text-slate-600 dark:text-zinc-400 min-w-[18px]"/>{isEditing ? <input type="number" value={editForm.hourlyRate} onChange={e=>setEditForm({...editForm, hourlyRate:parseFloat(e.target.value)})} className="bg-transparent border-b border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-white w-full"/> : <span className="text-slate-700 dark:text-zinc-300">€{selectedEmployeeForDetail.hourlyRate}</span>}</div>
                                     )}
                                 </div>
                             </div>
-                             <div className="p-6 rounded-2xl bg-zinc-900/30 border border-zinc-800/50">
-                                 <h3 className="text-sm font-semibold text-white mb-4 opacity-50">{t('pay.about')}</h3>
-                                 {isEditing ? <textarea value={editForm.bio} onChange={e=>setEditForm({...editForm, bio:e.target.value})} className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-sm text-zinc-300 min-h-[100px]"/> : <p className="text-sm text-zinc-400">{selectedEmployeeForDetail.bio || '...'}</p>}
+                             <div className="p-6 rounded-2xl bg-white dark:bg-zinc-900/30 border border-slate-200 dark:border-zinc-800/50">
+                                 <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-4 opacity-50">{t('pay.about')}</h3>
+                                 {isEditing ? <textarea value={editForm.bio} onChange={e=>setEditForm({...editForm, bio:e.target.value})} className="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded p-2 text-sm text-slate-700 dark:text-zinc-300 min-h-[100px]"/> : <p className="text-sm text-slate-600 dark:text-zinc-400">{selectedEmployeeForDetail.bio || '...'}</p>}
                             </div>
                         </div>
                         
@@ -1258,15 +1258,15 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                     const sortedDates = Array.from(allDates).sort((a, b) => b.localeCompare(a));
 
                                     return (
-                                    <div className="p-5 rounded-2xl bg-zinc-900/30 border border-orange-800/30 animate-in fade-in">
+                                    <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900/30 border border-orange-800/30 animate-in fade-in">
                                         <h3 className="text-xs font-semibold text-orange-400 mb-4 flex items-center gap-2 uppercase tracking-wider">
                                             <ArrowRightLeft size={14} className="text-orange-500"/> Transfer Günlüğü ({transferHistory.length})
                                         </h3>
 
                                         {/* HAFTALIK PLAN ÜST BÖLÜM - TIKLANABILIR */}
-                                        <div className="mb-5 p-3 rounded-xl bg-zinc-950/50 border border-zinc-800/50">
+                                        <div className="mb-5 p-3 rounded-xl bg-slate-50 dark:bg-zinc-950/50 border border-slate-200 dark:border-zinc-800/50">
                                             <div className="flex items-center justify-between mb-2">
-                                                <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-medium">Bu Hafta</span>
+                                                <span className="text-[10px] text-slate-500 dark:text-zinc-500 uppercase tracking-wider font-medium">Bu Hafta</span>
                                                 {selectedTransferDay && (
                                                     <button onClick={() => setSelectedTransferDay(null)} className="text-[10px] text-orange-400 hover:text-orange-300 transition-colors">
                                                         Tümünü Göster
@@ -1284,10 +1284,10 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                                         <button
                                                             key={dateStr}
                                                             onClick={() => hasTransfer ? setSelectedTransferDay(isSelected ? null : dateStr) : null}
-                                                            className={`flex flex-col items-center p-1.5 rounded-lg transition-all ${hasTransfer ? 'cursor-pointer hover:scale-105' : 'cursor-default'} ${isSelected ? 'ring-2 ring-orange-500 bg-orange-900/50 shadow-lg shadow-orange-900/30' : isToday ? 'ring-1 ring-orange-500/50' : ''} ${hasTransfer && !isSelected ? 'bg-orange-950/40 hover:bg-orange-950/60' : !hasTransfer ? 'bg-zinc-900/30' : ''}`}
+                                                            className={`flex flex-col items-center p-1.5 rounded-lg transition-all ${hasTransfer ? 'cursor-pointer hover:scale-105' : 'cursor-default'} ${isSelected ? 'ring-2 ring-orange-500 bg-orange-900/50 shadow-lg shadow-orange-900/30' : isToday ? 'ring-1 ring-orange-500/50' : ''} ${hasTransfer && !isSelected ? 'bg-orange-950/40 hover:bg-orange-950/60' : !hasTransfer ? 'bg-white dark:bg-zinc-900/30' : ''}`}
                                                         >
-                                                            <span className={`text-[9px] font-medium ${isSelected ? 'text-orange-300' : isToday ? 'text-orange-400' : 'text-zinc-500'}`}>{dayNames[(i + 1) % 7]}</span>
-                                                            <span className={`text-xs font-bold mt-0.5 ${isSelected ? 'text-white' : isToday ? 'text-white' : hasTransfer ? 'text-orange-300' : 'text-zinc-600'}`}>{dayNum}</span>
+                                                            <span className={`text-[9px] font-medium ${isSelected ? 'text-orange-300' : isToday ? 'text-orange-400' : 'text-slate-500 dark:text-zinc-500'}`}>{dayNames[(i + 1) % 7]}</span>
+                                                            <span className={`text-xs font-bold mt-0.5 ${isSelected ? 'text-slate-900 dark:text-white' : isToday ? 'text-slate-900 dark:text-white' : hasTransfer ? 'text-orange-300' : 'text-slate-400 dark:text-zinc-600'}`}>{dayNum}</span>
                                                             {hasTransfer && (
                                                                 <div className="flex gap-0.5 mt-1">
                                                                     {dayTransfers.slice(0, 3).map((tr: any) => (
@@ -1317,28 +1317,28 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                                     return (
                                                         <div key={dateStr} className="relative pl-8 pb-3">
                                                             {/* Timeline noktası */}
-                                                            <div className={`absolute left-1.5 top-1.5 w-3 h-3 rounded-full border-2 ${isToday ? 'bg-orange-500 border-orange-400 shadow-[0_0_8px_rgba(249,115,22,0.6)]' : 'bg-zinc-700 border-zinc-600'}`}></div>
+                                                            <div className={`absolute left-1.5 top-1.5 w-3 h-3 rounded-full border-2 ${isToday ? 'bg-orange-500 border-orange-400 shadow-[0_0_8px_rgba(249,115,22,0.6)]' : 'bg-slate-200 dark:bg-zinc-700 border-zinc-600'}`}></div>
 
                                                             {/* Gün başlığı */}
-                                                            <div className={`text-[10px] font-bold mb-1.5 uppercase tracking-wider ${isToday ? 'text-orange-400' : 'text-zinc-500'}`}>
+                                                            <div className={`text-[10px] font-bold mb-1.5 uppercase tracking-wider ${isToday ? 'text-orange-400' : 'text-slate-500 dark:text-zinc-500'}`}>
                                                                 {isToday ? '● Bugün — ' : ''}{dayLabel}
-                                                                <span className="text-zinc-600 normal-case ml-1">({dayTransfers.length} transfer)</span>
+                                                                <span className="text-slate-400 dark:text-zinc-600 normal-case ml-1">({dayTransfers.length} transfer)</span>
                                                             </div>
 
                                                             {/* O güne ait tüm transferler */}
                                                             <div className="space-y-1.5">
                                                                 {dayTransfers.map((tr: any) => (
-                                                                    <div key={tr.id} className={`p-2.5 rounded-lg border ${tr.status === 'active' ? 'bg-orange-950/30 border-orange-700/40' : 'bg-zinc-900/30 border-zinc-800/50'}`}>
+                                                                    <div key={tr.id} className={`p-2.5 rounded-lg border ${tr.status === 'active' ? 'bg-orange-950/30 border-orange-700/40' : 'bg-white dark:bg-zinc-900/30 border-slate-200 dark:border-zinc-800/50'}`}>
                                                                         <div className="flex items-center justify-between">
                                                                             <div className="flex items-center gap-1.5">
-                                                                                <span className="text-[11px] text-zinc-400">Yeni Çalışma Şubeniz:</span>
-                                                                                <span className="text-[11px] text-white font-semibold bg-orange-600/20 px-1.5 py-0.5 rounded border border-orange-500/20">{tr.to_branch}</span>
+                                                                                <span className="text-[11px] text-slate-600 dark:text-zinc-400">Yeni Çalışma Şubeniz:</span>
+                                                                                <span className="text-[11px] text-slate-900 dark:text-white font-semibold bg-orange-600/20 px-1.5 py-0.5 rounded border border-orange-500/20">{tr.to_branch}</span>
                                                                             </div>
                                                                             <div className="flex items-center gap-1">
-                                                                                <span className="text-[10px] text-zinc-500 flex items-center gap-0.5">
+                                                                                <span className="text-[10px] text-slate-500 dark:text-zinc-500 flex items-center gap-0.5">
                                                                                     <Clock size={9}/> {tr.start_time}-{tr.end_time}
                                                                                 </span>
-                                                                                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${tr.status === 'active' ? 'bg-orange-600/20 text-orange-400' : 'bg-zinc-700/30 text-zinc-400'}`}>
+                                                                                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${tr.status === 'active' ? 'bg-orange-600/20 text-orange-400' : 'bg-slate-200 dark:bg-zinc-700/30 text-slate-600 dark:text-zinc-400'}`}>
                                                                                     {tr.status === 'active' ? 'Aktif' : 'Bitti'}
                                                                                 </span>
                                                                                 <button
@@ -1352,7 +1352,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                                                                             .contains('attendees', [selectedEmployeeForDetail!.id]);
                                                                                         setTransferHistory(prev => prev.filter((t: any) => t.id !== tr.id));
                                                                                     }}
-                                                                                    className="text-zinc-600 hover:text-red-400 transition-colors"
+                                                                                    className="text-slate-400 dark:text-zinc-600 hover:text-red-400 transition-colors"
                                                                                     title="Sil"
                                                                                 >
                                                                                     <Trash2 size={11}/>
@@ -1383,48 +1383,48 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
   const renderApprovalsContent = () => {
       const empById = new Map(allEmployees.map(e => [e.id, e]));
       return (
-          <div className="h-full flex flex-col bg-zinc-950/50 overflow-hidden">
-              <div className="p-4 md:p-6 border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-md sticky top-0 z-20 flex flex-col gap-3">
+          <div className="h-full flex flex-col bg-slate-50 dark:bg-zinc-950/50 overflow-hidden">
+              <div className="p-4 md:p-6 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 backdrop-blur-md sticky top-0 z-20 flex flex-col gap-3">
                   <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                           <Shield size={18} className="text-amber-400" />
-                          <h2 className="text-base md:text-lg font-bold text-white">Onay Bekleyenler</h2>
+                          <h2 className="text-base md:text-lg font-bold text-slate-900 dark:text-white">Onay Bekleyenler</h2>
                           <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-900/30 text-amber-300 border border-amber-800/50">{pendingApprovals.length}</span>
                       </div>
                   </div>
                   <div className="relative">
-                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-zinc-500" />
                       <input
                           type="text"
                           value={approvalsSearch}
                           onChange={e => setApprovalsSearch(e.target.value)}
                           placeholder="İsim veya e-posta ile ara..."
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-zinc-200 outline-none focus:border-amber-500"
+                          className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-800 dark:text-zinc-200 outline-none focus:border-amber-500"
                       />
                   </div>
               </div>
 
               <div className="flex-1 min-h-0 overflow-y-auto p-3 pb-28 md:p-6 md:pb-6 space-y-2">
                   {pendingApprovals.length === 0 ? (
-                      <div className="text-center text-zinc-500 text-sm py-12">
+                      <div className="text-center text-slate-500 dark:text-zinc-500 text-sm py-12">
                           {approvalsSearch ? 'Aramaya uyan bekleyen kayıt yok.' : 'Bekleyen kayıt yok 🎉'}
                       </div>
                   ) : pendingApprovals.map(({ log, emp }) => (
-                      <div key={log.id} className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-3 md:p-4">
+                      <div key={log.id} className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl p-3 md:p-4">
                           <div className="flex items-start gap-3">
                               <img
                                   src={emp?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp?.name || '?')}`}
-                                  className="w-10 h-10 rounded-full object-cover border border-zinc-800 shrink-0"
+                                  className="w-10 h-10 rounded-full object-cover border border-slate-200 dark:border-zinc-800 shrink-0"
                                   referrerPolicy="no-referrer"
                                   alt=""
                               />
                               <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 flex-wrap">
-                                      <span className="text-sm font-semibold text-white truncate">{emp?.name || 'Bilinmeyen'}</span>
+                                      <span className="text-sm font-semibold text-slate-900 dark:text-white truncate">{emp?.name || 'Bilinmeyen'}</span>
                                       {log.method === 'qr' ? (
                                           <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-900/40 text-emerald-300 border border-emerald-800/60">QR</span>
                                       ) : (
-                                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">Manuel</span>
+                                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-300 dark:border-zinc-700">Manuel</span>
                                       )}
                                       {log.autoClosedAt && (
                                           <span
@@ -1452,7 +1452,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                       )}
                                       {log.method === 'qr' && log.deviceInfo && canSeeDeviceInfo(currentUser.email) && (
                                           <>
-                                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700" title="Cihaz markası — sadece yetkili adminler görür">
+                                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-300 dark:border-zinc-700" title="Cihaz markası — sadece yetkili adminler görür">
                                                   {log.deviceInfo}
                                               </span>
                                               {deviceConflicts.has(log.id) && (
@@ -1466,20 +1466,20 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                           </>
                                       )}
                                   </div>
-                                  <div className="flex items-center gap-2 text-xs text-zinc-400 mt-1 flex-wrap">
+                                  <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-zinc-400 mt-1 flex-wrap">
                                       <CalendarIcon size={11} />
                                       <span>{formatDate(log.date, { day: 'numeric', month: 'long', weekday: 'short' })}</span>
-                                      <span className="text-zinc-700">•</span>
+                                      <span className="text-slate-300 dark:text-zinc-700">•</span>
                                       <Clock size={11} />
                                       <span className="font-mono">{log.startTime || '—'} - {log.endTime || '—'}</span>
                                       {typeof log.totalHours === 'number' && log.totalHours > 0 && (
                                           <>
-                                              <span className="text-zinc-700">•</span>
-                                              <span className="text-white font-medium">{formatHoursHumanTR(log.totalHours)}</span>
+                                              <span className="text-slate-300 dark:text-zinc-700">•</span>
+                                              <span className="text-slate-900 dark:text-white font-medium">{formatHoursHumanTR(log.totalHours)}</span>
                                           </>
                                       )}
                                   </div>
-                                  <div className={`flex items-center gap-2 text-[11px] mt-1 flex-wrap ${log.method === 'qr' ? 'text-emerald-400' : 'text-zinc-500'}`}>
+                                  <div className={`flex items-center gap-2 text-[11px] mt-1 flex-wrap ${log.method === 'qr' ? 'text-emerald-400' : 'text-slate-500 dark:text-zinc-500'}`}>
                                       <MapPin size={10} />
                                       <span className={log.method === 'qr' ? 'font-semibold' : ''}>{log.branch || 'Şube yok'}</span>
                                       {log.checkInLat != null && log.checkInLng != null && (
@@ -1496,29 +1496,29 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                               </div>
                           </div>
 
-                          <div className="flex gap-2 mt-3 pt-3 border-t border-zinc-800/60">
+                          <div className="flex gap-2 mt-3 pt-3 border-t border-slate-200 dark:border-zinc-800/60">
                               <button
                                   onClick={() => handleStatusChange(log.id, 'Onaylandı')}
-                                  className="flex-1 px-3 py-2 bg-zinc-900 hover:bg-green-600 text-zinc-200 hover:text-white text-xs font-medium rounded-lg flex items-center justify-center gap-1.5 transition-colors border border-zinc-800 hover:border-green-500"
+                                  className="flex-1 px-3 py-2 bg-white dark:bg-zinc-900 hover:bg-green-600 text-slate-800 dark:text-zinc-200 hover:text-slate-900 dark:hover:text-white text-xs font-medium rounded-lg flex items-center justify-center gap-1.5 transition-colors border border-slate-200 dark:border-zinc-800 hover:border-green-500"
                               >
                                   <ThumbsUp size={14} /> Onayla
                               </button>
                               <button
                                   onClick={() => handleStatusChange(log.id, 'Reddedildi')}
-                                  className="flex-1 px-3 py-2 bg-zinc-900 hover:bg-red-600 text-zinc-200 hover:text-white text-xs font-medium rounded-lg flex items-center justify-center gap-1.5 transition-colors border border-zinc-800 hover:border-red-500"
+                                  className="flex-1 px-3 py-2 bg-white dark:bg-zinc-900 hover:bg-red-600 text-slate-800 dark:text-zinc-200 hover:text-slate-900 dark:hover:text-white text-xs font-medium rounded-lg flex items-center justify-center gap-1.5 transition-colors border border-slate-200 dark:border-zinc-800 hover:border-red-500"
                               >
                                   <ThumbsDown size={14} /> Reddet
                               </button>
                               <button
                                   onClick={() => handleOpenEditTimeLog(log)}
-                                  className="px-3 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-500 hover:text-indigo-400 rounded-lg border border-zinc-800"
+                                  className="px-3 py-2 bg-white dark:bg-zinc-900 hover:bg-slate-200 dark:hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500 dark:text-zinc-500 hover:text-indigo-400 rounded-lg border border-slate-200 dark:border-zinc-800"
                                   title={t('pay.editHours')}
                               >
                                   <Edit2 size={14} />
                               </button>
                               <button
                                   onClick={() => { if (confirm('Bu kaydı silmek istediğinizden emin misiniz?')) handleDeleteTimeLog(log.id); }}
-                                  className="px-3 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-500 hover:text-red-400 rounded-lg border border-zinc-800"
+                                  className="px-3 py-2 bg-white dark:bg-zinc-900 hover:bg-slate-200 dark:hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500 dark:text-zinc-500 hover:text-red-400 rounded-lg border border-slate-200 dark:border-zinc-800"
                                   title="Sil"
                               >
                                   <Trash2 size={14} />
@@ -1532,74 +1532,74 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
   };
 
   const renderMonthlyContent = () => {
-       if (!targetEmployee) return <div className="h-full flex items-center justify-center text-zinc-500"><p>Personel seçiniz</p></div>;
+       if (!targetEmployee) return <div className="h-full flex items-center justify-center text-slate-500 dark:text-zinc-500"><p>Personel seçiniz</p></div>;
        return (
-        <div className="h-full flex flex-col bg-zinc-950/50">
+        <div className="h-full flex flex-col bg-slate-50 dark:bg-zinc-950/50">
             {/* MODIFIED HEADER: items-stretch to force height/width, removed w-full constraint to allow flex-1 to work properly */}
-            <div className="p-4 md:p-6 border-b border-zinc-800 flex flex-col md:flex-row justify-between items-stretch md:items-center bg-zinc-900/50 backdrop-blur-md sticky top-0 z-20 gap-4">
+            <div className="p-4 md:p-6 border-b border-slate-200 dark:border-zinc-800 flex flex-col md:flex-row justify-between items-stretch md:items-center bg-white dark:bg-zinc-900/50 backdrop-blur-md sticky top-0 z-20 gap-4">
                 <div className="flex items-center gap-2 md:gap-4 w-full md:w-auto justify-between md:justify-start">
                      <div className="flex items-center gap-2 flex-1 md:flex-none">
                         {/* Back Button for Admin on Mobile */}
                         <button 
                             onClick={() => setSelectedEmployeeId(null)}
-                            className={`md:hidden p-2 rounded-lg bg-zinc-800/50 text-white ${currentUser.role === Role.ADMIN ? 'block' : 'hidden'}`}
+                            className={`md:hidden p-2 rounded-lg bg-slate-100 dark:bg-zinc-800/50 text-slate-900 dark:text-white ${currentUser.role === Role.ADMIN ? 'block' : 'hidden'}`}
                         >
                             <ChevronLeft size={20} />
                         </button>
 
                         {/* Haftalık navigasyon — Vardiya Planı sekmesindeki ile aynı UX */}
-                        <div className="flex flex-1 md:flex-none items-center justify-between bg-zinc-950 border border-zinc-800 rounded-lg p-1 w-full md:min-w-[260px]">
-                            <button onClick={() => handleWeekShift(-1)} className="p-1 hover:bg-zinc-800 rounded text-zinc-400" aria-label={t('pay.prevWeek')}><ChevronLeft size={20}/></button>
+                        <div className="flex flex-1 md:flex-none items-center justify-between bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-lg p-1 w-full md:min-w-[260px]">
+                            <button onClick={() => handleWeekShift(-1)} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-slate-600 dark:text-zinc-400" aria-label={t('pay.prevWeek')}><ChevronLeft size={20}/></button>
                             <button
                                 onClick={() => handleWeekShift(0)}
-                                className="flex-1 text-center px-2 md:px-3 text-xs md:text-sm font-bold text-white min-w-[140px] md:min-w-[200px] hover:text-indigo-300 transition-colors"
+                                className="flex-1 text-center px-2 md:px-3 text-xs md:text-sm font-bold text-slate-900 dark:text-white min-w-[140px] md:min-w-[200px] hover:text-indigo-300 transition-colors"
                                 title={t('pay.thisWeek')}
                             >
                                 {formatDate(fmtDate(currentWeekStart), { day: 'numeric', month: 'short' })} – {formatDate(fmtDate(currentWeekEnd), { day: 'numeric', month: 'short', year: 'numeric' })}
                             </button>
-                            <button onClick={() => handleWeekShift(1)} className="p-1 hover:bg-zinc-800 rounded text-zinc-400" aria-label={t('pay.nextWeek')}><ChevronRight size={20}/></button>
+                            <button onClick={() => handleWeekShift(1)} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-slate-600 dark:text-zinc-400" aria-label={t('pay.nextWeek')}><ChevronRight size={20}/></button>
                         </div>
                      </div>
-                    <div className="hidden md:block"><h2 className="text-lg font-bold text-white">{targetEmployee.name}</h2></div>
+                    <div className="hidden md:block"><h2 className="text-lg font-bold text-slate-900 dark:text-white">{targetEmployee.name}</h2></div>
                     {/* Mobile Only Name Display */}
-                    <div className="md:hidden text-right ml-2"><h2 className="text-sm font-bold text-white">{targetEmployee.name.split(' ')[0]}</h2></div>
+                    <div className="md:hidden text-right ml-2"><h2 className="text-sm font-bold text-slate-900 dark:text-white">{targetEmployee.name.split(' ')[0]}</h2></div>
                 </div>
                 <div className="flex gap-2 w-full md:w-auto">
-                    <button onClick={() => setShowQrModal(true)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs md:text-sm font-medium rounded-lg"><QrCode size={16} /> <span className="inline">{t('qr.scanBtn')}</span></button>
+                    <button onClick={() => setShowQrModal(true)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-900 dark:text-white text-xs md:text-sm font-medium rounded-lg"><QrCode size={16} /> <span className="inline">{t('qr.scanBtn')}</span></button>
                     {/* Manuel "Saat Ekle" — herkese açık (personel + tüm adminler).
                         Personel kayıtları status='Bekliyor' olarak admin onayına düşer
                         (handleSaveTimeLog:782); admin kayıtları doğrudan 'Onaylandı'. */}
-                    <button onClick={handleOpenTimeModal} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs md:text-sm font-medium rounded-lg"><Plus size={16} /> <span className="inline">{t('pay.addHours')}</span></button>
+                    <button onClick={handleOpenTimeModal} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-slate-900 dark:text-white text-xs md:text-sm font-medium rounded-lg"><Plus size={16} /> <span className="inline">{t('pay.addHours')}</span></button>
                 </div>
             </div>
             <div className="flex-1 overflow-hidden flex flex-col md:flex-row min-h-0">
                 <div className="flex-1 w-full overflow-y-auto min-h-0 p-4 pb-28 md:p-6 md:pb-6">
-                    <h3 className="text-sm font-semibold text-zinc-400 mb-6 flex items-center gap-2"><Clock size={16}/> {t('pay.workHistory')}</h3>
-                    <div className="relative ml-3 space-y-8 border-l border-zinc-800">
-                        {weeklyLogs.length===0 ? <span className="ml-6 text-zinc-500 text-sm">{t('pay.noRecord')}</span> : weeklyLogs.map(log=>(
+                    <h3 className="text-sm font-semibold text-slate-600 dark:text-zinc-400 mb-6 flex items-center gap-2"><Clock size={16}/> {t('pay.workHistory')}</h3>
+                    <div className="relative ml-3 space-y-8 border-l border-slate-200 dark:border-zinc-800">
+                        {weeklyLogs.length===0 ? <span className="ml-6 text-slate-500 dark:text-zinc-500 text-sm">{t('pay.noRecord')}</span> : weeklyLogs.map(log=>(
                             <div key={log.id} className="relative ml-6 group">
-                                <span className={`absolute -left-[31px] top-1 w-4 h-4 rounded-full border-2 border-zinc-900 ${log.status==='Onaylandı'?'bg-green-500':log.status==='Reddedildi'?'bg-red-500':'bg-amber-500'}`}></span>
-                                <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4">
+                                <span className={`absolute -left-[31px] top-1 w-4 h-4 rounded-full border-2 border-slate-200 dark:border-zinc-900 ${log.status==='Onaylandı'?'bg-green-500':log.status==='Reddedildi'?'bg-red-500':'bg-amber-500'}`}></span>
+                                <div className="bg-white dark:bg-zinc-900/40 border border-slate-200 dark:border-zinc-800 rounded-xl p-4">
                                     <div className="flex justify-between items-start mb-2">
                                         <div>
-                                            <span className="text-sm font-bold text-white">{formatDate(log.date, {day:'numeric',month:'long',weekday:'long'})}</span>
+                                            <span className="text-sm font-bold text-slate-900 dark:text-white">{formatDate(log.date, {day:'numeric',month:'long',weekday:'long'})}</span>
                                             {/* GÜNCELLEME: SAAT GÖSTERİMİ & ŞUBE DETAYI */}
                                             <div className="flex flex-col gap-1 mt-1">
-                                                <div className="flex items-center gap-2 text-xs text-zinc-400 flex-wrap">
+                                                <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-zinc-400 flex-wrap">
                                                     <Clock size={12} />
                                                     <span className="font-mono">{log.startTime || '—'} - {log.endTime || '—'}</span>
-                                                    <span className="text-zinc-600">•</span>
+                                                    <span className="text-slate-400 dark:text-zinc-600">•</span>
                                                     {/* Sürüyor: QR kaydı, henüz kapanmamış (check_out_at boş) VE manuel düzeltme de yapılmamış (end_time boş). */}
                                                     {log.method === 'qr' && !log.checkOutAt && !log.endTime ? (
                                                         <span className="text-amber-300 font-semibold text-[11px] px-1.5 py-0.5 rounded bg-amber-900/30 border border-amber-800/60 inline-flex items-center gap-1">
                                                             <Loader2 size={10} className="animate-spin" /> Sürüyor
                                                         </span>
                                                     ) : (
-                                                        <span className="text-white font-medium">{formatHoursHumanTR(log.totalHours)}</span>
+                                                        <span className="text-slate-900 dark:text-white font-medium">{formatHoursHumanTR(log.totalHours)}</span>
                                                     )}
                                                 </div>
                                                 {log.branch && (
-                                                    <div className={`flex items-center gap-2 text-[10px] ${log.method === 'qr' ? 'text-emerald-400' : 'text-zinc-500'}`}>
+                                                    <div className={`flex items-center gap-2 text-[10px] ${log.method === 'qr' ? 'text-emerald-400' : 'text-slate-500 dark:text-zinc-500'}`}>
                                                         <MapPin size={10} />
                                                         <span className={log.method === 'qr' ? 'font-semibold' : ''}>{log.branch}</span>
                                                         {log.method === 'qr' && (
@@ -1607,7 +1607,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                                         )}
                                                         {log.method === 'qr' && log.deviceInfo && canSeeDeviceInfo(currentUser.email) && (
                                                             <>
-                                                                <span className="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700" title="Cihaz markası — sadece yetkili adminler görür">
+                                                                <span className="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-300 dark:border-zinc-700" title="Cihaz markası — sadece yetkili adminler görür">
                                                                     {log.deviceInfo}
                                                                 </span>
                                                                 {deviceConflicts.has(log.id) && (
@@ -1668,10 +1668,10 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                             </div>
                                             {currentUser.role === Role.ADMIN && (
                                                 <div className="flex items-center gap-1">
-                                                    <button onClick={() => handleOpenEditTimeLog(log)} className="text-zinc-500 hover:text-indigo-400 p-1 rounded-md transition-colors" title={t('pay.editHours')}>
+                                                    <button onClick={() => handleOpenEditTimeLog(log)} className="text-slate-500 dark:text-zinc-500 hover:text-indigo-400 p-1 rounded-md transition-colors" title={t('pay.editHours')}>
                                                         <Edit2 size={16} />
                                                     </button>
-                                                    <button onClick={() => handleDeleteTimeLog(log.id)} className="text-zinc-500 hover:text-red-400 p-1 rounded-md transition-colors" title="Sil">
+                                                    <button onClick={() => handleDeleteTimeLog(log.id)} className="text-slate-500 dark:text-zinc-500 hover:text-red-400 p-1 rounded-md transition-colors" title="Sil">
                                                         <Trash2 size={18} />
                                                     </button>
                                                 </div>
@@ -1680,10 +1680,10 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                     </div>
                                     {/* Personel: kendi auto-close edilmiş kaydına fazla mesai bildirebilir */}
                                     {log.employeeId === currentUser.id && log.autoClosedAt && log.status === 'Bekliyor' && (
-                                        <div className="mt-3 pt-3 border-t border-zinc-800/50 flex justify-end">
+                                        <div className="mt-3 pt-3 border-t border-slate-200 dark:border-zinc-800/50 flex justify-end">
                                             <button
                                                 onClick={() => handleOpenOvertimeModal(log)}
-                                                className="px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white text-xs font-medium rounded-lg flex items-center gap-1.5 border border-indigo-700/40 hover:border-indigo-500 transition-colors"
+                                                className="px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-slate-900 dark:hover:text-white text-xs font-medium rounded-lg flex items-center gap-1.5 border border-indigo-700/40 hover:border-indigo-500 transition-colors"
                                                 title={t('pay.overtimeBtnTooltip')}
                                             >
                                                 <Zap size={14} /> {t('pay.overtimeBtn')}
@@ -1691,9 +1691,9 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                         </div>
                                     )}
                                     {currentUser.role === Role.ADMIN && log.status !== 'Onaylandı' && log.status !== 'Reddedildi' && (
-                                        <div className="mt-3 pt-3 border-t border-zinc-800/50 flex justify-end gap-2">
-                                            <button onClick={()=>handleStatusChange(log.id,'Reddedildi')} className="p-1.5 hover:bg-red-900/20 text-zinc-500 hover:text-red-400 rounded"><ThumbsDown size={14}/></button>
-                                            <button onClick={()=>handleStatusChange(log.id,'Onaylandı')} className="px-3 py-1.5 bg-zinc-800 hover:bg-green-600 hover:text-white text-zinc-300 text-xs rounded flex gap-1"><ThumbsUp size={14}/> Onayla</button>
+                                        <div className="mt-3 pt-3 border-t border-slate-200 dark:border-zinc-800/50 flex justify-end gap-2">
+                                            <button onClick={()=>handleStatusChange(log.id,'Reddedildi')} className="p-1.5 hover:bg-red-900/20 text-slate-500 dark:text-zinc-500 hover:text-red-400 rounded"><ThumbsDown size={14}/></button>
+                                            <button onClick={()=>handleStatusChange(log.id,'Onaylandı')} className="px-3 py-1.5 bg-slate-100 dark:bg-zinc-800 hover:bg-green-600 hover:text-slate-900 dark:hover:text-white text-slate-700 dark:text-zinc-300 text-xs rounded flex gap-1"><ThumbsUp size={14}/> Onayla</button>
                                         </div>
                                     )}
                                 </div>
@@ -1708,7 +1708,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
   };
 
   return (
-    <div className="h-full flex flex-col relative overflow-hidden bg-zinc-950">
+    <div className="h-full flex flex-col relative overflow-hidden bg-slate-50 dark:bg-zinc-950">
         {/* TRANSFER MODAL — KREATIV TASARIM */}
         {showTransferModal && selectedEmployeeForDetail && (() => {
             // Çakışma hesaplayıcı
@@ -1727,7 +1727,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
 
             return (
             <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-                <div className="bg-gradient-to-b from-zinc-900 via-zinc-900 to-zinc-950 border border-zinc-700/50 rounded-3xl shadow-[0_0_80px_rgba(249,115,22,0.08)] w-full max-w-md max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95">
+                <div className="bg-gradient-to-b from-zinc-900 via-zinc-900 to-zinc-950 border border-slate-300 dark:border-zinc-700/50 rounded-3xl shadow-[0_0_80px_rgba(249,115,22,0.08)] w-full max-w-md max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95">
 
                     {/* HEADER — Gradient accent bar (sabit) */}
                     <div className="relative overflow-hidden shrink-0">
@@ -1735,34 +1735,34 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                         <div className="p-5 flex justify-between items-center">
                             <div className="flex items-center gap-3">
                                 <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-lg shadow-orange-900/30">
-                                    <ArrowRightLeft size={18} className="text-white" />
+                                    <ArrowRightLeft size={18} className="text-slate-900 dark:text-white" />
                                 </div>
                                 <div>
-                                    <h3 className="text-base font-bold text-white tracking-tight">Transfer Planla</h3>
-                                    <p className="text-[10px] text-zinc-500 mt-0.5">Personel görevlendirme</p>
+                                    <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">Transfer Planla</h3>
+                                    <p className="text-[10px] text-slate-500 dark:text-zinc-500 mt-0.5">Personel görevlendirme</p>
                                 </div>
                             </div>
-                            <button onClick={() => setShowTransferModal(false)} className="w-8 h-8 rounded-full bg-zinc-800/80 hover:bg-zinc-700 flex items-center justify-center transition-colors group">
-                                <X size={16} className="text-zinc-400 group-hover:text-white" />
+                            <button onClick={() => setShowTransferModal(false)} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-zinc-800/80 hover:bg-slate-300 dark:hover:bg-slate-200 dark:hover:bg-zinc-700 flex items-center justify-center transition-colors group">
+                                <X size={16} className="text-slate-600 dark:text-zinc-400 group-hover:text-slate-900 dark:hover:text-white" />
                             </button>
                         </div>
                     </div>
 
                     <div className="px-5 pb-5 space-y-5 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
                         {/* PERSONEL KARTI */}
-                        <div className="flex items-center gap-3 p-3 rounded-2xl bg-zinc-800/30 border border-zinc-800/50">
+                        <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-100 dark:bg-zinc-800/30 border border-slate-200 dark:border-zinc-800/50">
                             <div className="relative">
                                 <div className="w-12 h-12 rounded-xl overflow-hidden ring-2 ring-zinc-700 shadow-lg">
                                     <img src={selectedEmployeeForDetail.avatarUrl} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                                 </div>
-                                <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-zinc-900"></div>
+                                <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-slate-200 dark:border-zinc-900"></div>
                             </div>
                             <div className="flex-1 min-w-0">
-                                <h4 className="text-sm font-semibold text-white truncate">{selectedEmployeeForDetail.name}</h4>
+                                <h4 className="text-sm font-semibold text-slate-900 dark:text-white truncate">{selectedEmployeeForDetail.name}</h4>
                                 <div className="flex items-center gap-2 mt-0.5">
                                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">Havuzda</span>
                                     {transferHistory.filter((t: any) => t.status === 'active').length > 0 && (
-                                        <span className="text-[10px] text-zinc-500">{transferHistory.filter((t: any) => t.status === 'active').length} aktif transfer</span>
+                                        <span className="text-[10px] text-slate-500 dark:text-zinc-500">{transferHistory.filter((t: any) => t.status === 'active').length} aktif transfer</span>
                                     )}
                                 </div>
                             </div>
@@ -1771,24 +1771,24 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                         {/* TARIH & SAAT — Kompakt grid */}
                         <div className="space-y-3">
                             <div className="flex items-center gap-2">
-                                <CalendarRange size={13} className="text-zinc-500" />
-                                <span className="text-xs font-medium text-zinc-400">Tarih & Saat</span>
+                                <CalendarRange size={13} className="text-slate-500 dark:text-zinc-500" />
+                                <span className="text-xs font-medium text-slate-600 dark:text-zinc-400">Tarih & Saat</span>
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                                 <div className="space-y-1">
-                                    <span className="text-[10px] text-zinc-600 font-medium uppercase tracking-wider">Başlangıç</span>
+                                    <span className="text-[10px] text-slate-400 dark:text-zinc-600 font-medium uppercase tracking-wider">Başlangıç</span>
                                     <input type="date" value={transferDates.startDate} onChange={(e) => setTransferDates({...transferDates, startDate: e.target.value})}
-                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 transition-all" />
+                                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 transition-all" />
                                 </div>
                                 <div className="space-y-1">
-                                    <span className="text-[10px] text-zinc-600 font-medium uppercase tracking-wider">Bitiş</span>
+                                    <span className="text-[10px] text-slate-400 dark:text-zinc-600 font-medium uppercase tracking-wider">Bitiş</span>
                                     <input type="date" value={transferDates.endDate} onChange={(e) => setTransferDates({...transferDates, endDate: e.target.value})}
-                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 transition-all" />
+                                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 transition-all" />
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                                 <div className="relative">
-                                    <Clock size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600" />
+                                    <Clock size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-600" />
                                     <input type="time" value={transferDates.startTime} onChange={(e) => {
                                         const val = e.target.value;
                                         const [h, m] = val.split(':').map(Number);
@@ -1796,12 +1796,12 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                         const autoEnd = `${String(endH).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
                                         setTransferDates({...transferDates, startTime: val, endTime: autoEnd});
                                     }}
-                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-8 pr-3 py-2 text-xs text-white focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 transition-all" />
+                                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl pl-8 pr-3 py-2 text-xs text-slate-900 dark:text-white focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 transition-all" />
                                 </div>
                                 <div className="relative">
-                                    <Clock size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600" />
+                                    <Clock size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-600" />
                                     <input type="time" value={transferDates.endTime} onChange={(e) => setTransferDates({...transferDates, endTime: e.target.value})}
-                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-8 pr-3 py-2 text-xs text-white focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 transition-all" />
+                                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl pl-8 pr-3 py-2 text-xs text-slate-900 dark:text-white focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 transition-all" />
                                 </div>
                             </div>
                         </div>
@@ -1809,8 +1809,8 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                         {/* HEDEF ŞUBE SEÇİMİ */}
                         <div className="space-y-3">
                             <div className="flex items-center gap-2">
-                                <Building2 size={13} className="text-zinc-500" />
-                                <span className="text-xs font-medium text-zinc-400">Hangi şubeye gönderilecek?</span>
+                                <Building2 size={13} className="text-slate-500 dark:text-zinc-500" />
+                                <span className="text-xs font-medium text-slate-600 dark:text-zinc-400">Hangi şubeye gönderilecek?</span>
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                                 {Object.values(Branch).map(branch => {
@@ -1820,11 +1820,11 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                             className={`relative flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-all duration-200 ${
                                                 isActive
                                                     ? 'bg-orange-500/15 border-orange-500 ring-1 ring-orange-500/30'
-                                                    : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-600'
+                                                    : 'bg-white dark:bg-zinc-900/50 border-slate-200 dark:border-zinc-800 hover:border-zinc-600'
                                             }`}
                                         >
-                                            <div className={`w-2.5 h-2.5 rounded-full shrink-0 transition-colors ${isActive ? 'bg-orange-500 shadow-[0_0_6px_rgba(249,115,22,0.5)]' : 'bg-zinc-700'}`}></div>
-                                            <span className={`text-xs font-semibold ${isActive ? 'text-orange-300' : 'text-zinc-400'}`}>{branch}</span>
+                                            <div className={`w-2.5 h-2.5 rounded-full shrink-0 transition-colors ${isActive ? 'bg-orange-500 shadow-[0_0_6px_rgba(249,115,22,0.5)]' : 'bg-slate-200 dark:bg-zinc-700'}`}></div>
+                                            <span className={`text-xs font-semibold ${isActive ? 'text-orange-300' : 'text-slate-600 dark:text-zinc-400'}`}>{branch}</span>
                                         </button>
                                     );
                                 })}
@@ -1859,27 +1859,27 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                             return (
                                 <div className="space-y-2.5">
                                     <div className="flex items-center gap-2">
-                                        <Clock size={13} className="text-zinc-500" />
-                                        <span className="text-xs font-medium text-zinc-400">Günün programı</span>
+                                        <Clock size={13} className="text-slate-500 dark:text-zinc-500" />
+                                        <span className="text-xs font-medium text-slate-600 dark:text-zinc-400">Günün programı</span>
                                         {activeTransfers.length > 0 && (
-                                            <span className="text-[10px] text-zinc-600 ml-auto">{activeTransfers.length} mevcut görev</span>
+                                            <span className="text-[10px] text-slate-400 dark:text-zinc-600 ml-auto">{activeTransfers.length} mevcut görev</span>
                                         )}
                                     </div>
-                                    <div className="rounded-xl border border-zinc-800 overflow-hidden">
+                                    <div className="rounded-xl border border-slate-200 dark:border-zinc-800 overflow-hidden">
                                         {allEntries.map((entry, i) => (
-                                            <div key={entry.id} className={`flex items-center px-3 py-2.5 ${i > 0 ? 'border-t border-zinc-800/60' : ''} ${
-                                                entry.isNew ? 'bg-orange-500/8' : entry.overlaps ? 'bg-red-500/8' : 'bg-zinc-900/30'
+                                            <div key={entry.id} className={`flex items-center px-3 py-2.5 ${i > 0 ? 'border-t border-slate-200 dark:border-zinc-800/60' : ''} ${
+                                                entry.isNew ? 'bg-orange-500/8' : entry.overlaps ? 'bg-red-500/8' : 'bg-white dark:bg-zinc-900/30'
                                             }`}>
                                                 {/* Saat aralığı */}
                                                 <div className="w-[90px] shrink-0">
-                                                    <span className={`text-xs font-mono font-semibold ${entry.isNew ? 'text-orange-400' : entry.overlaps ? 'text-red-400' : 'text-zinc-300'}`}>
+                                                    <span className={`text-xs font-mono font-semibold ${entry.isNew ? 'text-orange-400' : entry.overlaps ? 'text-red-400' : 'text-slate-700 dark:text-zinc-300'}`}>
                                                         {formatTime(entry.start)} - {formatTime(entry.end)}
                                                     </span>
                                                 </div>
                                                 {/* Şube adı */}
                                                 <div className="flex items-center gap-2 flex-1 min-w-0">
                                                     <div className={`w-1.5 h-6 rounded-full shrink-0 ${entry.isNew ? 'bg-orange-500' : entry.overlaps ? 'bg-red-500' : 'bg-zinc-600'}`}></div>
-                                                    <span className={`text-xs font-medium truncate ${entry.isNew ? 'text-orange-300' : entry.overlaps ? 'text-red-300' : 'text-zinc-400'}`}>
+                                                    <span className={`text-xs font-medium truncate ${entry.isNew ? 'text-orange-300' : entry.overlaps ? 'text-red-300' : 'text-slate-600 dark:text-zinc-400'}`}>
                                                         {entry.branch}
                                                     </span>
                                                 </div>
@@ -1892,14 +1892,14 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                                             <AlertTriangle size={9}/> ÇAKIŞMA
                                                         </span>
                                                     ) : (
-                                                        <span className="text-[9px] font-medium px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-500">MEVCUT</span>
+                                                        <span className="text-[9px] font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-500">MEVCUT</span>
                                                     )}
                                                 </div>
                                             </div>
                                         ))}
                                         {allEntries.length === 1 && (
-                                            <div className="px-3 py-2 border-t border-zinc-800/60 bg-zinc-900/20">
-                                                <span className="text-[10px] text-zinc-600 italic">Bu tarihte başka görev bulunmuyor</span>
+                                            <div className="px-3 py-2 border-t border-slate-200 dark:border-zinc-800/60 bg-white dark:bg-zinc-900/20">
+                                                <span className="text-[10px] text-slate-400 dark:text-zinc-600 italic">Bu tarihte başka görev bulunmuyor</span>
                                             </div>
                                         )}
                                     </div>
@@ -1924,8 +1924,8 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                         <button onClick={handleTransfer} disabled={isLoading}
                             className={`w-full py-3.5 rounded-2xl font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2.5 shadow-xl ${
                                 hasAnyConflict
-                                    ? 'bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white shadow-red-900/30'
-                                    : 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white shadow-orange-900/30'
+                                    ? 'bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-slate-900 dark:text-white shadow-red-900/30'
+                                    : 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-slate-900 dark:text-white shadow-orange-900/30'
                             } disabled:opacity-50 disabled:cursor-not-allowed`}
                         >
                             {isLoading ? <Loader2 className="animate-spin" size={18}/> : (
@@ -1954,19 +1954,19 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                     <div className="bg-gradient-to-b from-zinc-900 to-zinc-950 border border-indigo-700/40 rounded-2xl shadow-[0_0_60px_rgba(99,102,241,0.15)] w-full max-w-md overflow-hidden">
                         <div className="relative">
                             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-500"></div>
-                            <div className="p-5 flex justify-between items-center border-b border-zinc-800">
+                            <div className="p-5 flex justify-between items-center border-b border-slate-200 dark:border-zinc-800">
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center">
                                         <Zap size={20} className="text-indigo-300" />
                                     </div>
                                     <div>
-                                        <h3 className="text-base font-bold text-white">{t('pay.overtimeModalTitle')}</h3>
-                                        <p className="text-[11px] text-zinc-400 mt-0.5">{t('pay.overtimeModalSubtitle')}</p>
+                                        <h3 className="text-base font-bold text-slate-900 dark:text-white">{t('pay.overtimeModalTitle')}</h3>
+                                        <p className="text-[11px] text-slate-600 dark:text-zinc-400 mt-0.5">{t('pay.overtimeModalSubtitle')}</p>
                                     </div>
                                 </div>
                                 <button
                                     onClick={() => setOvertimeLogId(null)}
-                                    className="text-zinc-500 hover:text-white p-1.5 rounded-lg hover:bg-zinc-800"
+                                    className="text-slate-500 dark:text-zinc-500 hover:text-slate-900 dark:hover:text-white p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-100 dark:hover:bg-zinc-800"
                                     disabled={overtimeSubmitting}
                                 >
                                     <X size={18} />
@@ -1976,19 +1976,19 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
 
                         <div className="p-5 space-y-4">
                             {log && (
-                                <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs">
-                                    <div className="flex justify-between items-center text-zinc-400 mb-1">
+                                <div className="bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl p-3 text-xs">
+                                    <div className="flex justify-between items-center text-slate-600 dark:text-zinc-400 mb-1">
                                         <span>{formatDate(log.date, { day: 'numeric', month: 'long', weekday: 'long' })}</span>
-                                        <span className="font-mono text-zinc-300">{log.startTime} - {log.endTime}</span>
+                                        <span className="font-mono text-slate-700 dark:text-zinc-300">{log.startTime} - {log.endTime}</span>
                                     </div>
-                                    <div className="text-zinc-500 text-[11px]">
-                                        {t('pay.overtimeCurrentTotal')}: <span className="text-white font-semibold">{formatHoursHumanTR(log.totalHours)}</span>
+                                    <div className="text-slate-500 dark:text-zinc-500 text-[11px]">
+                                        {t('pay.overtimeCurrentTotal')}: <span className="text-slate-900 dark:text-white font-semibold">{formatHoursHumanTR(log.totalHours)}</span>
                                     </div>
                                 </div>
                             )}
 
                             <div>
-                                <label className="text-xs font-medium text-zinc-400 mb-2 block">{t('pay.overtimePresets')}</label>
+                                <label className="text-xs font-medium text-slate-600 dark:text-zinc-400 mb-2 block">{t('pay.overtimePresets')}</label>
                                 <div className="grid grid-cols-5 gap-1.5">
                                     {presets.map(min => (
                                         <button
@@ -1998,8 +1998,8 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                             disabled={overtimeSubmitting}
                                             className={`py-2 text-xs font-semibold rounded-lg border transition-all ${
                                                 overtimeMinutes === min
-                                                    ? 'bg-indigo-600 text-white border-indigo-500'
-                                                    : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:bg-zinc-800 hover:text-white'
+                                                    ? 'bg-indigo-600 text-slate-900 dark:text-white border-indigo-500'
+                                                    : 'bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 border-slate-200 dark:border-zinc-800 hover:bg-slate-200 dark:hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-white'
                                             }`}
                                         >
                                             +{min}dk
@@ -2009,7 +2009,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                             </div>
 
                             <div>
-                                <label className="text-xs font-medium text-zinc-400 mb-2 block">{t('pay.overtimeCustom')}</label>
+                                <label className="text-xs font-medium text-slate-600 dark:text-zinc-400 mb-2 block">{t('pay.overtimeCustom')}</label>
                                 <div className="flex items-center gap-2">
                                     <input
                                         type="number"
@@ -2019,9 +2019,9 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                         value={overtimeMinutes}
                                         onChange={e => setOvertimeMinutes(parseInt(e.target.value, 10) || 0)}
                                         disabled={overtimeSubmitting}
-                                        className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-indigo-500 font-mono"
+                                        className="flex-1 bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:border-indigo-500 font-mono"
                                     />
-                                    <span className="text-xs text-zinc-500">{t('pay.minutes')}</span>
+                                    <span className="text-xs text-slate-500 dark:text-zinc-500">{t('pay.minutes')}</span>
                                 </div>
                             </div>
 
@@ -2039,18 +2039,18 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                             </p>
                         </div>
 
-                        <div className="p-4 border-t border-zinc-800 flex gap-2">
+                        <div className="p-4 border-t border-slate-200 dark:border-zinc-800 flex gap-2">
                             <button
                                 onClick={() => setOvertimeLogId(null)}
                                 disabled={overtimeSubmitting}
-                                className="flex-1 px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+                                className="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
                             >
                                 {t('common.cancel') || 'İptal'}
                             </button>
                             <button
                                 onClick={handleSubmitOvertime}
                                 disabled={overtimeSubmitting || safeMin < 1 || safeMin > 720}
-                                className="flex-1 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="flex-1 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-slate-900 dark:text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {overtimeSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
                                 {t('pay.overtimeSubmit')}
@@ -2064,17 +2064,17 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
         {/* QR SCAN MODAL */}
         {showQrModal && (
             <div className="absolute inset-0 z-[100] flex items-start justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden my-8">
-                    <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
-                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden my-8">
+                    <div className="p-4 border-b border-slate-200 dark:border-zinc-800 flex justify-between items-center">
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
                             <QrCode size={20} className="text-emerald-500" /> {t('qr.title')}
                         </h3>
-                        <button onClick={() => setShowQrModal(false)} className="text-zinc-500 hover:text-white">
+                        <button onClick={() => setShowQrModal(false)} className="text-slate-500 dark:text-zinc-500 hover:text-slate-900 dark:hover:text-white">
                             <X size={20} />
                         </button>
                     </div>
                     <Suspense fallback={
-                        <div className="p-12 flex items-center justify-center text-zinc-400">
+                        <div className="p-12 flex items-center justify-center text-slate-600 dark:text-zinc-400">
                             <Loader2 className="animate-spin mr-2" size={20}/> Yükleniyor...
                         </div>
                     }>
@@ -2097,42 +2097,42 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
             const isEditing = !!editingLogId;
             return (
             <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-                    <div className="p-6 border-b border-zinc-800 flex justify-between items-center">
-                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+                    <div className="p-6 border-b border-slate-200 dark:border-zinc-800 flex justify-between items-center">
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
                             <Clock size={20} className="text-indigo-500" /> {isEditing ? t('pay.editHours') : t('pay.addHours')}
                         </h3>
-                        <button onClick={handleCloseTimeModal} className="text-zinc-500 hover:text-white"><X size={20} /></button>
+                        <button onClick={handleCloseTimeModal} className="text-slate-500 dark:text-zinc-500 hover:text-slate-900 dark:hover:text-white"><X size={20} /></button>
                     </div>
                     <form onSubmit={handleSaveTimeLog} className="p-6 space-y-4">
                         <div className="grid grid-cols-2 gap-4">
-                             <div className="space-y-1"><label className="text-xs text-zinc-400">{t('cal.startDate')}</label><input type="date" required value={timeForm.date} onChange={e => setTimeForm({...timeForm, date: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-white"/></div>
-                             <div className="space-y-1"><label className="text-xs text-zinc-400">Şube</label><select value={timeForm.branch} onChange={e => setTimeForm({...timeForm, branch: e.target.value as Branch})} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-white">{Object.values(Branch).map(b=><option key={b} value={b}>{b}</option>)}</select></div>
+                             <div className="space-y-1"><label className="text-xs text-slate-600 dark:text-zinc-400">{t('cal.startDate')}</label><input type="date" required value={timeForm.date} onChange={e => setTimeForm({...timeForm, date: e.target.value})} className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded p-2 text-slate-900 dark:text-white"/></div>
+                             <div className="space-y-1"><label className="text-xs text-slate-600 dark:text-zinc-400">Şube</label><select value={timeForm.branch} onChange={e => setTimeForm({...timeForm, branch: e.target.value as Branch})} className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded p-2 text-slate-900 dark:text-white">{Object.values(Branch).map(b=><option key={b} value={b}>{b}</option>)}</select></div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                             <div className="space-y-1"><label className="text-xs text-zinc-400">{t('cal.startTime')}</label><input type="time" required value={timeForm.startTime} onChange={e => setTimeForm({...timeForm, startTime: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-white"/></div>
-                             <div className="space-y-1"><label className="text-xs text-zinc-400">{t('cal.endTime')}</label><input type="time" required value={timeForm.endTime} onChange={e => setTimeForm({...timeForm, endTime: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-white"/></div>
+                             <div className="space-y-1"><label className="text-xs text-slate-600 dark:text-zinc-400">{t('cal.startTime')}</label><input type="time" required value={timeForm.startTime} onChange={e => setTimeForm({...timeForm, startTime: e.target.value})} className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded p-2 text-slate-900 dark:text-white"/></div>
+                             <div className="space-y-1"><label className="text-xs text-slate-600 dark:text-zinc-400">{t('cal.endTime')}</label><input type="time" required value={timeForm.endTime} onChange={e => setTimeForm({...timeForm, endTime: e.target.value})} className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded p-2 text-slate-900 dark:text-white"/></div>
                         </div>
                         <div className="grid grid-cols-2 gap-4 items-end">
                              <div className="space-y-1">
-                                <label className="text-xs text-zinc-400">{t('pay.breakDuration')}</label>
+                                <label className="text-xs text-slate-600 dark:text-zinc-400">{t('pay.breakDuration')}</label>
                                 <input type="number" min={0} max={480} step={5} value={timeForm.breakDuration}
                                     onChange={e => setTimeForm({...timeForm, breakDuration: Math.max(0, parseInt(e.target.value || '0', 10))})}
-                                    className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-white"/>
+                                    className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded p-2 text-slate-900 dark:text-white"/>
                              </div>
                              <div className="text-right">
-                                <div className="text-[10px] uppercase tracking-wider text-zinc-500">{t('pay.totalHours')}</div>
+                                <div className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-zinc-500">{t('pay.totalHours')}</div>
                                 <div className="text-lg font-bold text-emerald-400 tabular-nums">{formatHoursHumanTR(previewHours)}</div>
                              </div>
                         </div>
                         {isEditing && (
-                            <div className="text-[11px] text-zinc-500 italic border-t border-zinc-800 pt-3">
+                            <div className="text-[11px] text-slate-500 dark:text-zinc-500 italic border-t border-slate-200 dark:border-zinc-800 pt-3">
                                 {t('pay.editAutoRecalc')}
                             </div>
                         )}
                         <div className="pt-4 flex gap-3">
-                            <button type="button" onClick={handleCloseTimeModal} className="flex-1 py-2 bg-zinc-800 text-white rounded">{t('tasks.cancel')}</button>
-                            <button type="submit" className="flex-1 py-2 bg-indigo-600 text-white rounded">
+                            <button type="button" onClick={handleCloseTimeModal} className="flex-1 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white rounded">{t('tasks.cancel')}</button>
+                            <button type="submit" className="flex-1 py-2 bg-indigo-600 text-slate-900 dark:text-white rounded">
                                 {isLoading ? <Loader2 className="animate-spin mx-auto" size={16}/> : t('pay.save')}
                             </button>
                         </div>
@@ -2142,20 +2142,20 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
             );
         })()}
 
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-3 px-4 py-3 md:px-6 md:py-4 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-sm shrink-0">
-            <h2 className="text-lg font-bold text-white tracking-tight">{t('pay.title')}</h2>
-            <div className="flex w-full md:w-auto bg-zinc-900 p-1 rounded-xl border border-zinc-800">
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-3 px-4 py-3 md:px-6 md:py-4 border-b border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/80 backdrop-blur-sm shrink-0">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">{t('pay.title')}</h2>
+            <div className="flex w-full md:w-auto bg-white dark:bg-zinc-900 p-1 rounded-xl border border-slate-200 dark:border-zinc-800">
                 {currentUser.role === Role.ADMIN && (
                     <button 
                         onClick={() => setCurrentTab('STAFF')} 
-                        className={`flex-1 md:flex-none text-center px-4 py-1.5 text-xs font-medium rounded-lg transition-all ${currentTab === 'STAFF' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
+                        className={`flex-1 md:flex-none text-center px-4 py-1.5 text-xs font-medium rounded-lg transition-all ${currentTab === 'STAFF' ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white shadow' : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-slate-700 dark:text-zinc-300'}`}
                     >
                         {t('pay.tabStaff')}
                     </button>
                 )}
                 <button 
                     onClick={() => setCurrentTab('MONTHLY')} 
-                    className={`flex-1 md:flex-none text-center px-4 py-1.5 text-xs font-medium rounded-lg transition-all ${currentTab === 'MONTHLY' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
+                    className={`flex-1 md:flex-none text-center px-4 py-1.5 text-xs font-medium rounded-lg transition-all ${currentTab === 'MONTHLY' ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white shadow' : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-slate-700 dark:text-zinc-300'}`}
                 >
                     {currentUser.role === Role.ADMIN ? 'Bordro' : t('pay.tabMonthly')}
                 </button>
@@ -2163,7 +2163,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                 {currentUser.role === Role.ADMIN && (
                     <button
                         onClick={() => setCurrentTab('FINANCIAL')}
-                        className={`flex-1 md:flex-none text-center px-4 py-1.5 text-xs font-medium rounded-lg transition-all ${currentTab === 'FINANCIAL' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
+                        className={`flex-1 md:flex-none text-center px-4 py-1.5 text-xs font-medium rounded-lg transition-all ${currentTab === 'FINANCIAL' ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white shadow' : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-slate-700 dark:text-zinc-300'}`}
                     >
                         {t('pay.tabFinancial')}
                     </button>
@@ -2172,7 +2172,7 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                 {currentUser.email === SUPER_ADMIN_EMAIL && (
                     <button
                         onClick={() => setCurrentTab('APPROVALS')}
-                        className={`flex-1 md:flex-none text-center px-4 py-1.5 text-xs font-medium rounded-lg transition-all flex items-center justify-center gap-1.5 ${currentTab === 'APPROVALS' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
+                        className={`flex-1 md:flex-none text-center px-4 py-1.5 text-xs font-medium rounded-lg transition-all flex items-center justify-center gap-1.5 ${currentTab === 'APPROVALS' ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white shadow' : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-slate-700 dark:text-zinc-300'}`}
                     >
                         <Shield size={12} />
                         Onaylar
@@ -2187,17 +2187,17 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
         <div className="flex-1 overflow-hidden flex flex-col md:flex-row relative">
             {/* SOL PANEL (LİSTE) - SADECE ADMIN GÖREBİLİR - APPROVALS sekmesinde gizli */}
              {currentUser.role === Role.ADMIN && currentTab !== 'APPROVALS' && (
-                 <div className={`w-full md:w-[480px] border-r border-zinc-800 flex-col bg-zinc-950 h-full ${selectedEmployeeId ? 'hidden md:flex' : 'flex'}`}>
+                 <div className={`w-full md:w-[480px] border-r border-slate-200 dark:border-zinc-800 flex-col bg-slate-50 dark:bg-zinc-950 h-full ${selectedEmployeeId ? 'hidden md:flex' : 'flex'}`}>
                   <div className="p-6 pb-4">
                      <div className="flex justify-between items-center mb-6">
-                         <div><h3 className="text-xl font-bold text-white">{t('pay.tabStaff')}</h3><p className="text-xs text-zinc-500">{filteredEmployees.length} kişi</p></div>
+                         <div><h3 className="text-xl font-bold text-slate-900 dark:text-white">{t('pay.tabStaff')}</h3><p className="text-xs text-slate-500 dark:text-zinc-500">{filteredEmployees.length} kişi</p></div>
                          <div className="flex items-center gap-2">
                              {/* ADMIN LİSTESİ BUTONU */}
                              {currentUser.role === Role.ADMIN && adminEmployees.length > 0 && (
                                  <div className="relative">
                                      <button
                                          onClick={() => setShowAdminList(!showAdminList)}
-                                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${showAdminList ? 'bg-red-900/20 text-red-400 border-red-900/40' : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-red-400 hover:border-red-900/30'}`}
+                                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${showAdminList ? 'bg-red-900/20 text-red-400 border-red-900/40' : 'bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 border-slate-200 dark:border-zinc-800 hover:text-red-400 hover:border-red-900/30'}`}
                                      >
                                          <Shield size={14} />
                                          <span>Admin</span>
@@ -2205,25 +2205,25 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                          <ChevronRight size={12} className={`transition-transform duration-200 ${showAdminList ? 'rotate-90' : ''}`} />
                                      </button>
                                      {showAdminList && (
-                                         <div className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] md:w-64 max-w-64 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl z-50 overflow-hidden">
-                                             <div className="p-3 border-b border-zinc-800 flex items-center gap-2">
+                                         <div className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] md:w-64 max-w-64 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl shadow-2xl z-50 overflow-hidden">
+                                             <div className="p-3 border-b border-slate-200 dark:border-zinc-800 flex items-center gap-2">
                                                  <Shield size={14} className="text-red-500" />
-                                                 <span className="text-xs font-bold text-white">Admin Listesi</span>
+                                                 <span className="text-xs font-bold text-slate-900 dark:text-white">Admin Listesi</span>
                                              </div>
                                              <div className="max-h-64 overflow-y-auto p-2 space-y-1">
                                                  {adminEmployees.map(admin => (
                                                      <div
                                                          key={admin.id}
                                                          onClick={() => { handleSelectEmployee(admin.id); setCurrentTab('STAFF'); setShowAdminList(false); }}
-                                                         className={`p-2.5 rounded-lg cursor-pointer transition-all border ${selectedEmployeeId === admin.id ? 'bg-red-900/20 border-red-500/30' : 'bg-zinc-950/50 border-zinc-800/50 hover:border-red-900/30 hover:bg-zinc-900/50'}`}
+                                                         className={`p-2.5 rounded-lg cursor-pointer transition-all border ${selectedEmployeeId === admin.id ? 'bg-red-900/20 border-red-500/30' : 'bg-slate-50 dark:bg-zinc-950/50 border-slate-200 dark:border-zinc-800/50 hover:border-red-900/30 hover:bg-slate-100 dark:hover:bg-white dark:hover:bg-zinc-900/50'}`}
                                                      >
                                                          <div className="flex items-center gap-3">
                                                              <img src={admin.avatarUrl} className="w-8 h-8 rounded-full object-cover border border-red-900/30" referrerPolicy="no-referrer" />
                                                              <div className="flex-1 min-w-0">
-                                                                 <h4 className="text-xs font-semibold text-white truncate">{admin.name}</h4>
-                                                                 <p className="text-[10px] text-zinc-500 truncate">{admin.email}</p>
+                                                                 <h4 className="text-xs font-semibold text-slate-900 dark:text-white truncate">{admin.name}</h4>
+                                                                 <p className="text-[10px] text-slate-500 dark:text-zinc-500 truncate">{admin.email}</p>
                                                              </div>
-                                                             <ChevronRight size={14} className="text-zinc-600 shrink-0" />
+                                                             <ChevronRight size={14} className="text-slate-400 dark:text-zinc-600 shrink-0" />
                                                          </div>
                                                      </div>
                                                  ))}
@@ -2233,25 +2233,25 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                  </div>
                              )}
                              {/* ADD BUTTON NOW FOR ALL ADMINS */}
-                             {currentUser.role === Role.ADMIN && (<button onClick={handleAddNew} className="w-8 h-8 flex items-center justify-center bg-indigo-600 rounded-full text-white hover:bg-indigo-500 shadow-lg"><Plus size={18} /></button>)}
+                             {currentUser.role === Role.ADMIN && (<button onClick={handleAddNew} className="w-8 h-8 flex items-center justify-center bg-indigo-600 rounded-full text-slate-900 dark:text-white hover:bg-indigo-500 shadow-lg"><Plus size={18} /></button>)}
                          </div>
                      </div>
-                     <div className="relative mb-4"><Search size={16} className="absolute left-3 top-3 text-zinc-500" /><input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t('pay.search')} className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-zinc-200 outline-none focus:border-indigo-500"/></div>
+                     <div className="relative mb-4"><Search size={16} className="absolute left-3 top-3 text-slate-500 dark:text-zinc-500" /><input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t('pay.search')} className="w-full bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-800 dark:text-zinc-200 outline-none focus:border-indigo-500"/></div>
                      
                      {/* ŞUBE FİLTRESİ KALDIRILDI - Tüm personel havuzda */}
                   </div>
                   <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-28 md:pb-4 space-y-2">
-                    {isLoading && employees.length === 0 ? <div className="text-center p-4 text-zinc-500">{t('common.loading')}</div> : filteredEmployees.map(emp => (
-                        <div key={emp.id} onClick={() => handleSelectEmployee(emp.id)} className={`group p-3 rounded-xl cursor-pointer transition-all border ${selectedEmployeeId === emp.id ? 'bg-zinc-900 border-indigo-500/30 shadow' : 'bg-transparent border-transparent hover:bg-zinc-900 hover:border-zinc-800'}`}>
+                    {isLoading && employees.length === 0 ? <div className="text-center p-4 text-slate-500 dark:text-zinc-500">{t('common.loading')}</div> : filteredEmployees.map(emp => (
+                        <div key={emp.id} onClick={() => handleSelectEmployee(emp.id)} className={`group p-3 rounded-xl cursor-pointer transition-all border ${selectedEmployeeId === emp.id ? 'bg-white dark:bg-zinc-900 border-indigo-500/30 shadow' : 'bg-transparent border-transparent hover:bg-slate-100 dark:hover:bg-white dark:hover:bg-zinc-900 hover:border-slate-200 dark:border-zinc-800'}`}>
                             <div className="flex items-center gap-4">
                                 <div className="relative">
                                     <img src={emp.avatarUrl} className="w-12 h-12 rounded-full object-cover" referrerPolicy="no-referrer" />
-                                    <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-zinc-950 bg-emerald-500"></div>
+                                    <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-200 dark:border-zinc-950 bg-emerald-500"></div>
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <h4 className={`text-sm font-semibold truncate ${selectedEmployeeId === emp.id ? 'text-white' : 'text-zinc-300'}`}>{emp.name}</h4>
+                                    <h4 className={`text-sm font-semibold truncate ${selectedEmployeeId === emp.id ? 'text-slate-900 dark:text-white' : 'text-slate-700 dark:text-zinc-300'}`}>{emp.name}</h4>
                                     <div className="flex items-center gap-2 mt-0.5">
-                                        <span className="text-[11px] text-zinc-500">{emp.role}</span>
+                                        <span className="text-[11px] text-slate-500 dark:text-zinc-500">{emp.role}</span>
                                     </div>
                                 </div>
                                 
@@ -2264,14 +2264,14 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                             setTargetBranch(Branch.DOM); // Modal varsayılan şubesini ayarla
                                             setShowTransferModal(true);
                                         }}
-                                        className="hidden md:flex items-center justify-center w-8 h-8 rounded-lg bg-zinc-800 text-zinc-400 hover:text-white hover:bg-orange-600 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 z-20 shadow-lg transform active:scale-95 border border-transparent hover:border-orange-400"
+                                        className="hidden md:flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-orange-600 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 z-20 shadow-lg transform active:scale-95 border border-transparent hover:border-orange-400"
                                         title={t('cal.transfer')}
                                     >
                                         <ArrowRightLeft size={16} />
                                     </button>
                                 )}
 
-                                <div className="md:hidden text-zinc-600"><ChevronRight size={18} /></div>
+                                <div className="md:hidden text-slate-400 dark:text-zinc-600"><ChevronRight size={18} /></div>
                             </div>
                         </div>
                     ))}

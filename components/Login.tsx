@@ -107,7 +107,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     };
 
     return (
-        <div className="fixed inset-0 w-full h-full bg-zinc-950 overflow-hidden z-[9999]">
+        <div className="fixed inset-0 w-full h-full bg-slate-50 dark:bg-zinc-950 overflow-hidden z-[9999]">
              <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-indigo-900/10 rounded-full blur-3xl pointer-events-none"></div>
              <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-blue-900/10 rounded-full blur-3xl pointer-events-none"></div>
 
@@ -115,7 +115,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                  <div className="min-h-full w-full flex items-center justify-center p-4">
                      <div className="w-full max-w-md relative z-10 my-8">
                         <div className="text-center mb-10">
-                            <div className="inline-flex items-center justify-center w-24 h-24 rounded-2xl bg-zinc-900 border border-zinc-800 mb-6 shadow-xl shadow-indigo-900/20 overflow-hidden">
+                            <div className="inline-flex items-center justify-center w-24 h-24 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 mb-6 shadow-xl shadow-indigo-900/20 overflow-hidden">
                                  <img 
                                     src={BAC_LOGO_URL} 
                                     alt="BAC Logo" 
@@ -123,36 +123,36 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                                     referrerPolicy="no-referrer"
                                  />
                             </div>
-                            <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">{t('login.title')}</h1>
-                            <p className="text-zinc-500">{t('login.subtitle')}</p>
+                            <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight">{t('login.title')}</h1>
+                            <p className="text-slate-500 dark:text-zinc-500">{t('login.subtitle')}</p>
                         </div>
 
-                        <div className="glass-panel p-8 rounded-2xl border border-zinc-800 shadow-2xl bg-zinc-900/50 backdrop-blur-md relative">
+                        <div className="glass-panel p-8 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-2xl bg-white dark:bg-zinc-900/50 backdrop-blur-md relative">
 <GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} />
                             <form onSubmit={handleSubmit} className="space-y-6">
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium text-zinc-400 ml-1">{t('login.email')}</label>
+                                    <label className="text-xs font-medium text-slate-600 dark:text-zinc-400 ml-1">{t('login.email')}</label>
                                     <div className="relative">
-                                        <Mail className="absolute left-3 top-3 text-zinc-500 w-5 h-5" />
+                                        <Mail className="absolute left-3 top-3 text-slate-500 dark:text-zinc-500 w-5 h-5" />
                                         <input 
                                             type="email" 
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
-                                            className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder:text-zinc-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
+                                            className="w-full bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-slate-900 dark:text-white placeholder:text-slate-400 dark:text-zinc-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
                                             placeholder="ornek@mail.com"
                                         />
                                     </div>
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium text-zinc-400 ml-1">{t('login.password')}</label>
+                                    <label className="text-xs font-medium text-slate-600 dark:text-zinc-400 ml-1">{t('login.password')}</label>
                                     <div className="relative">
-                                        <Lock className="absolute left-3 top-3 text-zinc-500 w-5 h-5" />
+                                        <Lock className="absolute left-3 top-3 text-slate-500 dark:text-zinc-500 w-5 h-5" />
                                         <input 
                                             type="password" 
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
-                                            className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder:text-zinc-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
+                                            className="w-full bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-slate-900 dark:text-white placeholder:text-slate-400 dark:text-zinc-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
                                             placeholder="••••••••"
                                         />
                                     </div>
@@ -163,10 +163,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                                     className="flex items-center gap-2 cursor-pointer group w-fit"
                                     onClick={() => setRememberMe(!rememberMe)}
                                 >
-                                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${rememberMe ? 'bg-indigo-600 border-indigo-500' : 'bg-zinc-900 border-zinc-700 group-hover:border-zinc-500'}`}>
-                                        {rememberMe && <Check size={14} className="text-white" />}
+                                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${rememberMe ? 'bg-indigo-600 border-indigo-500' : 'bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-700 group-hover:border-zinc-500'}`}>
+                                        {rememberMe && <Check size={14} className="text-slate-900 dark:text-white" />}
                                     </div>
-                                    <span className={`text-sm select-none transition-colors ${rememberMe ? 'text-indigo-400' : 'text-zinc-500 group-hover:text-zinc-400'}`}>
+                                    <span className={`text-sm select-none transition-colors ${rememberMe ? 'text-indigo-400' : 'text-slate-500 dark:text-zinc-500 group-hover:text-slate-600 dark:hover:text-slate-600 dark:text-zinc-400'}`}>
                                         {t('layout.rememberMe')}
                                     </span>
                                 </div>
@@ -174,14 +174,14 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                                 <button 
                                     type="submit" 
                                     disabled={loading}
-                                    className="w-full py-4 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-900/20 flex items-center justify-center gap-2 group transition-all active:scale-95"
+                                    className="w-full py-4 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-slate-900 dark:text-white font-bold rounded-xl shadow-lg shadow-indigo-900/20 flex items-center justify-center gap-2 group transition-all active:scale-95"
                                 >
                                     {loading ? <Loader2 className="animate-spin" size={20} /> : <span className="flex items-center gap-2">{t('login.btn')} <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" /></span>}
                                 </button>
                             </form>
                         </div>
 
-                        <p className="text-center text-xs text-zinc-600 mt-8">
+                        <p className="text-center text-xs text-slate-400 dark:text-zinc-600 mt-8">
                             &copy; 2024 BAC Handels Management System
                         </p>
                      </div>

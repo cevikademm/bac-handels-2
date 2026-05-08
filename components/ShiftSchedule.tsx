@@ -505,7 +505,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
     <div className="h-full w-full flex flex-col bg-[#09090b] relative overflow-hidden">
 
       {/* HEADER */}
-      <div className="p-2 xl:p-4 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-30 shrink-0">
+      <div className="p-2 xl:p-4 border-b border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/80 backdrop-blur-md sticky top-0 z-30 shrink-0">
 
           {/* ── MOBİL HEADER ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '8px 4px' }} className="xl:hidden">
@@ -552,10 +552,10 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                   {Object.values(Branch).map(b => {
                       const count = branchShiftCounts.get(b) || 0;
                       return (
-                          <button key={b} onClick={() => setActiveBranch(b)} className={`relative px-5 py-2.5 rounded-xl text-sm font-bold transition-all border flex items-center justify-center min-h-[44px] ${activeBranch === b ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-zinc-900 text-zinc-500 border-zinc-800'}`}>
+                          <button key={b} onClick={() => setActiveBranch(b)} className={`relative px-5 py-2.5 rounded-xl text-sm font-bold transition-all border flex items-center justify-center min-h-[44px] ${activeBranch === b ? 'bg-indigo-600 text-slate-900 dark:text-white border-indigo-500' : 'bg-white dark:bg-zinc-900 text-slate-500 dark:text-zinc-500 border-slate-200 dark:border-zinc-800'}`}>
                               <span>{b}</span>
                               {count > 0 && (
-                                  <span className={`absolute -top-2 -right-2 min-w-[20px] h-5 flex items-center justify-center rounded-full text-[10px] font-black px-1.5 shadow-lg ring-2 ring-zinc-950 ${activeBranch === b ? 'bg-white text-indigo-600' : 'bg-emerald-500 text-white shadow-emerald-500/30'}`}>
+                                  <span className={`absolute -top-2 -right-2 min-w-[20px] h-5 flex items-center justify-center rounded-full text-[10px] font-black px-1.5 shadow-lg ring-2 ring-zinc-950 ${activeBranch === b ? 'bg-white text-indigo-600' : 'bg-emerald-500 text-slate-900 dark:text-white shadow-emerald-500/30'}`}>
                                       {count}
                                   </span>
                               )}
@@ -564,23 +564,23 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                   })}
               </div>
               <div className="flex items-center gap-2">
-                  <div className="flex items-center bg-zinc-900 rounded-xl border border-zinc-800 p-1">
-                      <button onClick={() => handleWeekChange('prev')} className="p-2 text-zinc-400 hover:text-white"><ChevronLeft size={20}/></button>
-                      <div className="px-4 text-center min-w-[140px] text-sm font-bold text-white">{formatDate(currentWeekStart, { day: 'numeric', month: 'short' })} - {formatDate(currentWeekEnd, { day: 'numeric', month: 'short' })}</div>
-                      <button onClick={() => handleWeekChange('next')} className="p-2 text-zinc-400 hover:text-white"><ChevronRight size={20}/></button>
+                  <div className="flex items-center bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 p-1">
+                      <button onClick={() => handleWeekChange('prev')} className="p-2 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"><ChevronLeft size={20}/></button>
+                      <div className="px-4 text-center min-w-[140px] text-sm font-bold text-slate-900 dark:text-white">{formatDate(currentWeekStart, { day: 'numeric', month: 'short' })} - {formatDate(currentWeekEnd, { day: 'numeric', month: 'short' })}</div>
+                      <button onClick={() => handleWeekChange('next')} className="p-2 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"><ChevronRight size={20}/></button>
                   </div>
                   {isAdmin && (
                       <div className="flex items-center gap-2">
-                          <button onClick={handleCopyNextWeek} className="p-3 flex items-center justify-center bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-400 hover:text-white min-h-[44px]" title={t('shift.copyTitle')}><Copy size={18} /></button>
-                          <button onClick={addNewRow} className="px-6 py-3 flex items-center justify-center bg-indigo-600 text-white rounded-xl font-bold shadow-lg min-h-[44px]" title={t('shift.newRow')}><Plus size={18} /></button>
-                          <button onClick={handleManualSave} className="px-6 py-3 flex items-center justify-center bg-green-600 text-white rounded-xl font-bold shadow-lg min-h-[44px]" title={t('shift.saveTitle')}>{isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}</button>
+                          <button onClick={handleCopyNextWeek} className="p-3 flex items-center justify-center bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white min-h-[44px]" title={t('shift.copyTitle')}><Copy size={18} /></button>
+                          <button onClick={addNewRow} className="px-6 py-3 flex items-center justify-center bg-indigo-600 text-slate-900 dark:text-white rounded-xl font-bold shadow-lg min-h-[44px]" title={t('shift.newRow')}><Plus size={18} /></button>
+                          <button onClick={handleManualSave} className="px-6 py-3 flex items-center justify-center bg-green-600 text-slate-900 dark:text-white rounded-xl font-bold shadow-lg min-h-[44px]" title={t('shift.saveTitle')}>{isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}</button>
                       </div>
                   )}
               </div>
           </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar bg-zinc-950 p-2 xl:p-4">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar bg-slate-50 dark:bg-zinc-950 p-2 xl:p-4">
 
             {/* ── ONAY/YAYIN DURUMU BANNER'I ──
                 Admin: durum + Yayınla / Yayını Geri Çek butonları
@@ -596,10 +596,10 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                         ? <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
                         : <Lock size={18} className="text-amber-400 shrink-0" />}
                     <div className="min-w-0 flex-1">
-                        <div className="text-sm font-semibold text-white">
+                        <div className="text-sm font-semibold text-slate-900 dark:text-white">
                             {isPublished ? t('shift.statusPublished') : t('shift.statusDraft')}
                         </div>
-                        <div className="text-[11px] text-zinc-400 mt-0.5">
+                        <div className="text-[11px] text-slate-600 dark:text-zinc-400 mt-0.5">
                             {isPublished
                                 ? t('shift.statusPublishedDesc')
                                     .replace('{by}', publication?.publishedByName || '—')
@@ -611,7 +611,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                         <button
                             onClick={unpublishWeek}
                             disabled={publishLoading}
-                            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 disabled:opacity-50"
+                            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg bg-slate-100 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-800 dark:text-zinc-200 border border-slate-300 dark:border-zinc-700 disabled:opacity-50"
                         >
                             {publishLoading ? <Loader2 size={14} className="animate-spin" /> : <Undo2 size={14} />}
                             {t('shift.unpublish')}
@@ -620,7 +620,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                         <button
                             onClick={publishWeek}
                             disabled={publishLoading || rosterData.length === 0}
-                            className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-slate-900 dark:text-white shadow-lg shadow-emerald-900/40 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {publishLoading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
                             {t('shift.publish')}
@@ -631,10 +631,10 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
 
             {/* Personel + yayında değil → büyük "henüz onaylanmadı" kutusu */}
             {!isAdmin && !isPublished && !isLoading && (
-                <div className="mt-2 mb-4 mx-auto max-w-2xl bg-zinc-900/50 border border-amber-900/40 rounded-2xl p-8 text-center">
+                <div className="mt-2 mb-4 mx-auto max-w-2xl bg-white dark:bg-zinc-900/50 border border-amber-900/40 rounded-2xl p-8 text-center">
                     <Lock size={32} className="text-amber-400 mx-auto mb-3" />
-                    <h3 className="text-base font-semibold text-white mb-1">{t('shift.notPublishedTitle')}</h3>
-                    <p className="text-sm text-zinc-400">{t('shift.notPublishedDesc')}</p>
+                    <h3 className="text-base font-semibold text-slate-900 dark:text-white mb-1">{t('shift.notPublishedTitle')}</h3>
+                    <p className="text-sm text-slate-600 dark:text-zinc-400">{t('shift.notPublishedDesc')}</p>
                 </div>
             )}
 
@@ -642,42 +642,42 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                 TABLO GÖRÜNÜMÜ — Yatay kaydırmalı (mobil + masaüstü)
                ══════════════════════════════════════════════════ */}
             <div className={`h-full pb-20 ${!isAdmin && !isPublished ? 'hidden' : ''}`}>
-                <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 overflow-x-auto shadow-2xl relative" style={{ WebkitOverflowScrolling: 'touch' }}>
+                <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 overflow-x-auto shadow-2xl relative" style={{ WebkitOverflowScrolling: 'touch' }}>
 <GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} />
-                    {isLoading && (<div className="absolute inset-0 z-50 bg-zinc-950/80 backdrop-blur-sm flex items-center justify-center"><Loader2 size={40} className="text-blue-500 animate-spin" /></div>)}
+                    {isLoading && (<div className="absolute inset-0 z-50 bg-slate-50 dark:bg-zinc-950/80 backdrop-blur-sm flex items-center justify-center"><Loader2 size={40} className="text-blue-500 animate-spin" /></div>)}
                     <table className="w-full border-collapse min-w-[800px]">
                         <thead>
-                            <tr className="bg-zinc-950 border-b border-zinc-800">
-                                <th className="p-4 w-32 border-r border-zinc-800 sticky left-0 z-20 bg-zinc-950 text-indigo-400 text-xs uppercase font-black after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-zinc-800">{t('common.timeLabel')}</th>
+                            <tr className="bg-slate-50 dark:bg-zinc-950 border-b border-slate-200 dark:border-zinc-800">
+                                <th className="p-4 w-32 border-r border-slate-200 dark:border-zinc-800 sticky left-0 z-20 bg-slate-50 dark:bg-zinc-950 text-indigo-400 text-xs uppercase font-black after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-slate-100 dark:bg-zinc-800">{t('common.timeLabel')}</th>
                                 {DAYS.map((day, idx) => {
                                     const d = new Date(currentWeekStart); d.setDate(d.getDate() + idx);
                                     const isToday = new Date().toDateString() === d.toDateString();
-                                    return (<th key={day} className={`p-4 text-center border-r border-zinc-800/50 ${isToday ? 'bg-red-600/10 text-red-500' : 'text-zinc-500'}`}><span className="text-xs font-black uppercase">{day}</span></th>);
+                                    return (<th key={day} className={`p-4 text-center border-r border-slate-200 dark:border-zinc-800/50 ${isToday ? 'bg-red-600/10 text-red-500' : 'text-slate-500 dark:text-zinc-500'}`}><span className="text-xs font-black uppercase">{day}</span></th>);
                                 })}
                                 {isAdmin && <th className="w-16"></th>}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-800/50">
                             {displayedRows.length === 0 ? (
-                                <tr><td colSpan={9} className="p-20 text-center text-zinc-600 italic">{t('common.noRecord')}</td></tr>
+                                <tr><td colSpan={9} className="p-20 text-center text-slate-400 dark:text-zinc-600 italic">{t('common.noRecord')}</td></tr>
                             ) : (
                                 displayedRows.map((row) => (
-                                    <tr key={row.id} className="group hover:bg-zinc-800/20">
-                                        <td className="p-2 border-r border-zinc-800 sticky left-0 z-10 bg-zinc-950 shadow-[2px_0_8px_rgba(0,0,0,0.5)]">
-                                            {isAdmin ? (<input type="text" value={row.timeLabel} onChange={(e) => handleTimeLabelChange(row.id, e.target.value)} onBlur={() => { saveRowToDb(row); fetchOtherBranchData(); }} className="w-full bg-transparent text-center font-bold text-zinc-200 outline-none" placeholder="00:00-00:00"/>) : (<div className="text-center font-bold text-white">{row.timeLabel}</div>)}
+                                    <tr key={row.id} className="group hover:bg-slate-200 dark:hover:bg-slate-100 dark:hover:bg-zinc-800/20">
+                                        <td className="p-2 border-r border-slate-200 dark:border-zinc-800 sticky left-0 z-10 bg-slate-50 dark:bg-zinc-950 shadow-[2px_0_8px_rgba(0,0,0,0.5)]">
+                                            {isAdmin ? (<input type="text" value={row.timeLabel} onChange={(e) => handleTimeLabelChange(row.id, e.target.value)} onBlur={() => { saveRowToDb(row); fetchOtherBranchData(); }} className="w-full bg-transparent text-center font-bold text-slate-800 dark:text-zinc-200 outline-none" placeholder="00:00-00:00"/>) : (<div className="text-center font-bold text-slate-900 dark:text-white">{row.timeLabel}</div>)}
                                         </td>
                                         {row.assignments.map((empId, dayIdx) => {
                                             const conflict = empId ? getConflict(empId, dayIdx, row.timeLabel) : null;
                                             return (
-                                            <td key={dayIdx} className={`p-2 border-r border-zinc-800/30 ${conflict ? 'bg-red-900/10' : ''}`}>
+                                            <td key={dayIdx} className={`p-2 border-r border-slate-200 dark:border-zinc-800/30 ${conflict ? 'bg-red-900/10' : ''}`}>
                                                 <div className="flex flex-col items-center">
                                                     <div className="flex justify-center h-8 w-full">
                                                         {isAdmin ? (
-                                                            <select value={empId} onChange={(e) => handleAssignmentChange(row.id, dayIdx, e.target.value)} className={`w-full bg-transparent text-center text-xs outline-none cursor-pointer ${conflict ? 'text-red-400 font-black' : empId ? 'text-white font-black' : 'text-zinc-800'}`}>
-                                                                <option value="" className="bg-zinc-900 text-white">-</option>
+                                                            <select value={empId} onChange={(e) => handleAssignmentChange(row.id, dayIdx, e.target.value)} className={`w-full bg-transparent text-center text-xs outline-none cursor-pointer ${conflict ? 'text-red-400 font-black' : empId ? 'text-slate-900 dark:text-white font-black' : 'text-zinc-800'}`}>
+                                                                <option value="" className="bg-white dark:bg-zinc-900 text-slate-900 dark:text-white">-</option>
                                                                 {filteredEmployees.map(emp => {
                                                                     const empConflict = getEmployeeConflicts.get(`${row.id}_${emp.id}`)?.get(dayIdx);
-                                                                    return (<option key={emp.id} value={emp.id} className={`bg-zinc-900 ${empConflict ? 'text-red-400' : 'text-white'}`}>{emp.name}{empConflict ? ' ⚠️' : ''}</option>);
+                                                                    return (<option key={emp.id} value={emp.id} className={`bg-white dark:bg-zinc-900 ${empConflict ? 'text-red-400' : 'text-slate-900 dark:text-white'}`}>{emp.name}{empConflict ? ' ⚠️' : ''}</option>);
                                                                 })}
                                                             </select>
                                                         ) : (<span className={`text-sm ${empId === currentUser.id ? 'text-green-500 font-black' : 'text-zinc-900'}`}>{empId === currentUser.id ? currentUser.name : '-'}</span>)}
@@ -692,7 +692,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                                             </td>
                                             );
                                         })}
-                                        {isAdmin && (<td className="p-2 text-center opacity-0 group-hover:opacity-100"><button onClick={() => deleteRow(row.id!)} className="text-zinc-700 hover:text-red-500"><Trash2 size={16} /></button></td>)}
+                                        {isAdmin && (<td className="p-2 text-center opacity-0 group-hover:opacity-100"><button onClick={() => deleteRow(row.id!)} className="text-slate-300 dark:text-zinc-700 hover:text-red-500"><Trash2 size={16} /></button></td>)}
                                     </tr>
                                 ))
                             )}

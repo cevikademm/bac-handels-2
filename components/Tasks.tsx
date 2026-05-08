@@ -428,8 +428,8 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
                 key={task.id} 
                 className={`w-full group relative overflow-hidden rounded-2xl border transition-all duration-300 mb-4
                 ${isDone 
-                    ? 'bg-zinc-900/30 border-zinc-800 opacity-80 hover:opacity-100' 
-                    : 'bg-zinc-900/60 backdrop-blur-sm hover:translate-y-[-2px] hover:shadow-xl border-white/5 hover:border-zinc-700'
+                    ? 'bg-white dark:bg-zinc-900/30 border-slate-200 dark:border-zinc-800 opacity-80 hover:opacity-100' 
+                    : 'bg-white dark:bg-zinc-900/60 backdrop-blur-sm hover:translate-y-[-2px] hover:shadow-xl border-white/5 hover:border-slate-300 dark:border-zinc-700'
                 } 
                 ${isHighPriority && !isDone ? 'border-red-500/20 hover:border-red-500/40' : ''}`}
             >
@@ -450,7 +450,7 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
                                         <span className={`text-[10px] px-1.5 py-0.5 rounded border flex items-center gap-1 ${
                                             isInProgress 
                                             ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' 
-                                            : 'bg-zinc-800 text-zinc-400 border-zinc-700'
+                                            : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border-slate-300 dark:border-zinc-700'
                                         }`}>
                                             {isInProgress ? <Loader2 size={10} className="animate-spin" /> : <ListTodo size={10} />}
                                             {isInProgress ? t('tasks.statusProgress') : t('tasks.statusTodo')}
@@ -466,7 +466,7 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
 
                                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                     {task.status === 'done' && (
-                                        <button onClick={() => reopenTask(task.id)} title={t('tasks.reopenTask')} className="p-1.5 bg-zinc-800 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors">
+                                        <button onClick={() => reopenTask(task.id)} title={t('tasks.reopenTask')} className="p-1.5 bg-slate-100 dark:bg-zinc-800 rounded-lg text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-300 dark:hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">
                                             <Undo2 size={14} />
                                         </button>
                                     )}
@@ -477,14 +477,14 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
                                             <button 
                                                 onClick={() => handleEditTask(task)} 
                                                 title={t('tasks.editTitle')}
-                                                className="p-1.5 bg-zinc-800 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors"
+                                                className="p-1.5 bg-slate-100 dark:bg-zinc-800 rounded-lg text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-300 dark:hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
                                             >
                                                 <Edit2 size={14} />
                                             </button>
                                             <button 
                                                 onClick={() => handleDeleteTask(task.id)} 
                                                 title={t('tasks.cancelDelete')}
-                                                className="p-1.5 bg-zinc-800 rounded-lg text-zinc-400 hover:text-red-400 hover:bg-red-900/20 transition-colors"
+                                                className="p-1.5 bg-slate-100 dark:bg-zinc-800 rounded-lg text-slate-600 dark:text-zinc-400 hover:text-red-400 hover:bg-red-900/20 transition-colors"
                                             >
                                                 <Trash2 size={14} />
                                             </button>
@@ -497,7 +497,7 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
                             <SmartText 
                                 as="h4" 
                                 text={task.title} 
-                                className={`text-base font-bold leading-tight mt-1 ${task.status === 'done' ? 'text-zinc-500 line-through' : 'text-zinc-100'}`} 
+                                className={`text-base font-bold leading-tight mt-1 ${task.status === 'done' ? 'text-slate-500 dark:text-zinc-500 line-through' : 'text-slate-900 dark:text-zinc-100'}`} 
                             />
                             
                             {isDone && (
@@ -519,17 +519,17 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
                         <SmartText 
                             as="p"
                             text={task.description} 
-                            className="text-xs text-zinc-400 mb-4 line-clamp-2 leading-relaxed" 
+                            className="text-xs text-slate-600 dark:text-zinc-400 mb-4 line-clamp-2 leading-relaxed" 
                         />
                     )}
 
                     {/* Progress Bar */}
                     <div className="mb-4">
-                        <div className="flex justify-between items-center text-[10px] text-zinc-500 mb-1.5">
+                        <div className="flex justify-between items-center text-[10px] text-slate-500 dark:text-zinc-500 mb-1.5">
                             <span className="font-medium">Durum</span>
-                            <span className={`font-mono ${displayProgress === 100 ? 'text-green-400' : 'text-zinc-300'}`}>%{displayProgress}</span>
+                            <span className={`font-mono ${displayProgress === 100 ? 'text-green-400' : 'text-slate-700 dark:text-zinc-300'}`}>%{displayProgress}</span>
                         </div>
-                        <div className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
+                        <div className="w-full h-1 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
                             <div className={`h-full rounded-full transition-all duration-700 ease-out ${displayProgress === 100 ? 'bg-green-500' : 'bg-gradient-to-r from-indigo-500 to-purple-500'}`} style={{ width: `${displayProgress}%` }}></div>
                         </div>
                     </div>
@@ -551,21 +551,21 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
                                         title={isLocked ? t('tasks.checklistOnlyOwner') : ''}
                                     >
                                          <div className="flex items-center gap-3 overflow-hidden">
-                                             <div className={`w-4 h-4 rounded flex-shrink-0 flex items-center justify-center border transition-all ${item.completed ? (isLocked ? 'bg-zinc-700 border-zinc-600' : 'bg-green-500/20 border-green-500/50') : 'border-zinc-600 group-hover/item:border-zinc-400'}`}>
+                                             <div className={`w-4 h-4 rounded flex-shrink-0 flex items-center justify-center border transition-all ${item.completed ? (isLocked ? 'bg-slate-200 dark:bg-zinc-700 border-zinc-600' : 'bg-green-500/20 border-green-500/50') : 'border-zinc-600 group-hover/item:border-zinc-400'}`}>
                                                 {item.completed && !isLocked && <CheckCircle2 size={10} className="text-green-400" />}
-                                                {isLocked && <Lock size={8} className="text-zinc-400" />}
+                                                {isLocked && <Lock size={8} className="text-slate-600 dark:text-zinc-400" />}
                                              </div>
                                              {/* SMART TEXT: CHECKLIST ITEM */}
                                              <SmartText 
                                                 text={item.text} 
-                                                className={`text-xs truncate transition-colors ${item.completed ? 'text-zinc-600 line-through' : 'text-zinc-300'}`}
+                                                className={`text-xs truncate transition-colors ${item.completed ? 'text-slate-400 dark:text-zinc-600 line-through' : 'text-slate-700 dark:text-zinc-300'}`}
                                              />
                                          </div>
                                          
                                          {item.completed && completer && (
                                              <div className="flex items-center gap-1.5 pl-2 flex-shrink-0">
-                                                 <span className="text-[9px] text-zinc-500 font-medium hidden sm:inline">{completer.name.split(' ')[0]}</span>
-                                                 <img src={completer.avatarUrl} className="w-4 h-4 rounded-full opacity-80 border border-zinc-800" title={`Tamamlayan: ${completer.name}`} referrerPolicy="no-referrer" />
+                                                 <span className="text-[9px] text-slate-500 dark:text-zinc-500 font-medium hidden sm:inline">{completer.name.split(' ')[0]}</span>
+                                                 <img src={completer.avatarUrl} className="w-4 h-4 rounded-full opacity-80 border border-slate-200 dark:border-zinc-800" title={`Tamamlayan: ${completer.name}`} referrerPolicy="no-referrer" />
                                              </div>
                                          )}
                                     </div>
@@ -579,21 +579,21 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
                         <div className="flex items-center -space-x-2 pl-1">
                             {assignees.slice(0, 3).map(user => (
                                 <div key={user.id} className="relative group/avatar">
-                                    <img src={user.avatarUrl} className="w-7 h-7 rounded-full border-2 border-zinc-900 object-cover transition-transform hover:scale-110 hover:z-10" referrerPolicy="no-referrer" />
-                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-black text-white text-[10px] rounded opacity-0 group-hover/avatar:opacity-100 whitespace-nowrap pointer-events-none">
+                                    <img src={user.avatarUrl} className="w-7 h-7 rounded-full border-2 border-slate-200 dark:border-zinc-900 object-cover transition-transform hover:scale-110 hover:z-10" referrerPolicy="no-referrer" />
+                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-black text-slate-900 dark:text-white text-[10px] rounded opacity-0 group-hover/avatar:opacity-100 whitespace-nowrap pointer-events-none">
                                         {user.name}
                                     </div>
                                 </div>
                             ))}
                             {assignees.length > 3 && (
-                                <div className="w-7 h-7 rounded-full bg-zinc-800 border-2 border-zinc-900 flex items-center justify-center text-[9px] font-bold text-zinc-400">+{assignees.length - 3}</div>
+                                <div className="w-7 h-7 rounded-full bg-slate-100 dark:bg-zinc-800 border-2 border-slate-200 dark:border-zinc-900 flex items-center justify-center text-[9px] font-bold text-slate-600 dark:text-zinc-400">+{assignees.length - 3}</div>
                             )}
                         </div>
                         
                         <div className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium ${
                             new Date(task.dueDate) < new Date() && task.status !== 'done' 
                             ? 'bg-red-900/20 text-red-400 border border-red-900/30' 
-                            : 'bg-zinc-800 text-zinc-400'
+                            : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400'
                         }`}>
                             <Calendar size={10} />
                             <span>{formatDate(task.dueDate, { day: 'numeric', month: 'short' })}</span>
@@ -629,16 +629,16 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
             {/* NEW TASK MODAL */}
             {showAddModal && (
                 <div className="fixed inset-0 z-[100] flex justify-center sm:items-center bg-black/80 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
-                    <div className="bg-zinc-900 border-zinc-800 sm:border sm:rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col h-full sm:h-auto sm:max-h-[85dvh] ring-1 ring-white/10 animate-in slide-in-from-bottom-10 sm:zoom-in-95">
+                    <div className="bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 sm:border sm:rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col h-full sm:h-auto sm:max-h-[85dvh] ring-1 ring-white/10 animate-in slide-in-from-bottom-10 sm:zoom-in-95">
                         
-                        <div className="p-5 border-b border-zinc-800 flex justify-between items-center bg-zinc-950/80 backdrop-blur-xl shrink-0 gap-4">
+                        <div className="p-5 border-b border-slate-200 dark:border-zinc-800 flex justify-between items-center bg-slate-50 dark:bg-zinc-950/80 backdrop-blur-xl shrink-0 gap-4">
                             <div className="flex-1 min-w-0">
-                                <h3 className="text-xl font-bold text-white flex items-center gap-2 truncate">
+                                <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 truncate">
                                     <CheckSquare size={22} className="text-indigo-500 shrink-0" /> 
                                     <span className="truncate">{editingTaskId ? t('tasks.editTask') : t('tasks.newTask')}</span>
                                 </h3>
                             </div>
-                            <button onClick={() => { setShowAddModal(false); setEditingTaskId(null); }} className="p-2 bg-zinc-800/50 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors">
+                            <button onClick={() => { setShowAddModal(false); setEditingTaskId(null); }} className="p-2 bg-slate-100 dark:bg-zinc-800/50 rounded-lg text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors">
                                 <X size={20} />
                             </button>
                         </div>
@@ -647,15 +647,15 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
                             <form id="taskForm" onSubmit={handleSaveTask} className="space-y-6">
                                 {/* Title */}
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">{t('tasks.titleLabel')} <span className="text-red-500">*</span></label>
-                                    <input type="text" required value={newTaskForm.title} onChange={(e) => setNewTaskForm({...newTaskForm, title: e.target.value})} placeholder="..." className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all" />
+                                    <label className="text-xs font-medium text-slate-600 dark:text-zinc-400 uppercase tracking-wider">{t('tasks.titleLabel')} <span className="text-red-500">*</span></label>
+                                    <input type="text" required value={newTaskForm.title} onChange={(e) => setNewTaskForm({...newTaskForm, title: e.target.value})} placeholder="..." className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all" />
                                 </div>
 
                                 {/* BRANCH & ASSIGNEE SELECTOR */}
-                                <div className="p-5 bg-zinc-950/50 border border-zinc-800 rounded-2xl space-y-5">
+                                <div className="p-5 bg-slate-50 dark:bg-zinc-950/50 border border-slate-200 dark:border-zinc-800 rounded-2xl space-y-5">
                                     {/* 1. Branch Select */}
                                     <div className="space-y-2">
-                                        <label className="text-xs font-medium text-zinc-400 flex items-center gap-2"><Building2 size={14} className="text-indigo-400"/> {t('tasks.branchLabel')}</label>
+                                        <label className="text-xs font-medium text-slate-600 dark:text-zinc-400 flex items-center gap-2"><Building2 size={14} className="text-indigo-400"/> {t('tasks.branchLabel')}</label>
                                         <div className="flex flex-wrap gap-2">
                                             <button
                                                 type="button"
@@ -666,7 +666,7 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
                                                         setSelectedBranches(Object.values(Branch));
                                                     }
                                                 }}
-                                                className={`px-3 py-1.5 text-xs rounded-lg border transition-all ${selectedBranches.length === Object.values(Branch).length ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-900/20' : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:border-zinc-700'}`}
+                                                className={`px-3 py-1.5 text-xs rounded-lg border transition-all ${selectedBranches.length === Object.values(Branch).length ? 'bg-indigo-600 text-slate-900 dark:text-white border-indigo-500 shadow-lg shadow-indigo-900/20' : 'bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:border-zinc-700'}`}
                                             >
                                                 {t('tasks.allBranches')}
                                             </button>
@@ -675,7 +675,7 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
                                                     key={branch}
                                                     type="button"
                                                     onClick={() => toggleBranchSelection(branch)}
-                                                    className={`px-3 py-1.5 text-xs rounded-lg border transition-all ${selectedBranches.includes(branch) ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-900/20' : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:border-zinc-700'}`}
+                                                    className={`px-3 py-1.5 text-xs rounded-lg border transition-all ${selectedBranches.includes(branch) ? 'bg-indigo-600 text-slate-900 dark:text-white border-indigo-500 shadow-lg shadow-indigo-900/20' : 'bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:border-zinc-700'}`}
                                                 >
                                                     {branch}
                                                 </button>
@@ -685,9 +685,9 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
 
                                     {/* 2. Employee Select (Filtered) */}
                                     <div className="space-y-2">
-                                        <label className="text-xs font-medium text-zinc-400 flex items-center gap-2"><Users size={14} className="text-indigo-400"/> {t('tasks.staffLabel')} <span className="text-red-500">*</span></label>
+                                        <label className="text-xs font-medium text-slate-600 dark:text-zinc-400 flex items-center gap-2"><Users size={14} className="text-indigo-400"/> {t('tasks.staffLabel')} <span className="text-red-500">*</span></label>
                                         {false ? (
-                                            <div className="text-xs text-zinc-600 italic px-2 py-2 border border-dashed border-zinc-800 rounded-lg text-center">{t('tasks.warnBranch')}</div>
+                                            <div className="text-xs text-slate-400 dark:text-zinc-600 italic px-2 py-2 border border-dashed border-slate-200 dark:border-zinc-800 rounded-lg text-center">{t('tasks.warnBranch')}</div>
                                         ) : (
                                             <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
                                                 {employees.map(emp => {
@@ -695,10 +695,10 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
                                                     const isTransferred = false; // Transfer feature disabled
 
                                                     return (
-                                                        <div key={emp.id} onClick={() => toggleAssignee(emp.id)} className={`cursor-pointer flex items-center gap-3 px-3 py-2 rounded-xl border transition-all min-w-[160px] flex-shrink-0 ${isSelected ? 'bg-indigo-500/10 border-indigo-500 text-white' : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700 text-zinc-400'}`}>
+                                                        <div key={emp.id} onClick={() => toggleAssignee(emp.id)} className={`cursor-pointer flex items-center gap-3 px-3 py-2 rounded-xl border transition-all min-w-[160px] flex-shrink-0 ${isSelected ? 'bg-indigo-500/10 border-indigo-500 text-slate-900 dark:text-white' : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:border-zinc-700 text-slate-600 dark:text-zinc-400'}`}>
                                                             <div className="relative">
                                                                 <img src={emp.avatarUrl} className={`w-8 h-8 rounded-full ${isTransferred ? 'border-2 border-orange-500' : ''}`} referrerPolicy="no-referrer" />
-                                                                {isSelected && <div className="absolute -top-1 -right-1 w-3 h-3 bg-indigo-500 rounded-full border-2 border-zinc-900"></div>}
+                                                                {isSelected && <div className="absolute -top-1 -right-1 w-3 h-3 bg-indigo-500 rounded-full border-2 border-slate-200 dark:border-zinc-900"></div>}
                                                             </div>
                                                             <div className="flex flex-col overflow-hidden">
                                                                 <span className={`text-xs truncate flex items-center gap-1 ${isTransferred ? 'text-orange-500 font-bold' : 'font-medium'}`}>
@@ -711,7 +711,7 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
                                                     )
                                                 })}
                                                 {employees.length === 0 && (
-                                                     <div className="text-xs text-zinc-500 px-2">{t('tasks.noStaff')}</div>
+                                                     <div className="text-xs text-slate-500 dark:text-zinc-500 px-2">{t('tasks.noStaff')}</div>
                                                 )}
                                             </div>
                                         )}
@@ -720,20 +720,20 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
 
                                 {/* Checklist Builder */}
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium text-zinc-400 flex items-center gap-2"><ListPlus size={14}/> {t('tasks.checklist')}</label>
+                                    <label className="text-xs font-medium text-slate-600 dark:text-zinc-400 flex items-center gap-2"><ListPlus size={14}/> {t('tasks.checklist')}</label>
                                     <div className="flex gap-2">
-                                        <input type="text" value={newChecklistItem} onChange={(e) => setNewChecklistItem(e.target.value)} onKeyDown={handleAddChecklistItem} placeholder={t('tasks.addChecklist')} className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-indigo-500 outline-none" />
-                                        <button type="button" onClick={handleAddChecklistItem} className="px-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl"><Plus size={18} /></button>
+                                        <input type="text" value={newChecklistItem} onChange={(e) => setNewChecklistItem(e.target.value)} onKeyDown={handleAddChecklistItem} placeholder={t('tasks.addChecklist')} className="flex-1 bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:border-indigo-500 outline-none" />
+                                        <button type="button" onClick={handleAddChecklistItem} className="px-4 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 rounded-xl"><Plus size={18} /></button>
                                     </div>
                                     <div className="space-y-1 mt-2 max-h-[120px] overflow-y-auto pr-1 custom-scrollbar">
                                         {newTaskForm.checklist?.map(item => (
-                                            <div key={item.id} className="flex items-center justify-between group p-2 rounded-lg bg-zinc-900/30 border border-zinc-800/50 hover:bg-zinc-900/80 transition-colors">
+                                            <div key={item.id} className="flex items-center justify-between group p-2 rounded-lg bg-white dark:bg-zinc-900/30 border border-slate-200 dark:border-zinc-800/50 hover:bg-slate-100 dark:hover:bg-white dark:hover:bg-zinc-900/80 transition-colors">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
                                                     {/* SMART TEXT PREVIEW */}
-                                                    <span className="text-sm text-zinc-300">{item.text}</span>
+                                                    <span className="text-sm text-slate-700 dark:text-zinc-300">{item.text}</span>
                                                 </div>
-                                                <button type="button" onClick={() => handleRemoveChecklistItem(item.id)} className="text-zinc-600 hover:text-red-400 p-1"><Trash2 size={14} /></button>
+                                                <button type="button" onClick={() => handleRemoveChecklistItem(item.id)} className="text-slate-400 dark:text-zinc-600 hover:text-red-400 p-1"><Trash2 size={14} /></button>
                                             </div>
                                         ))}
                                     </div>
@@ -741,17 +741,17 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
 
                                 <div className="grid grid-cols-2 gap-6">
                                     <div className="space-y-2">
-                                        <label className="text-xs font-medium text-zinc-400">{t('tasks.dueDate')}</label>
+                                        <label className="text-xs font-medium text-slate-600 dark:text-zinc-400">{t('tasks.dueDate')}</label>
                                         <input 
                                             type="date" 
                                             required 
                                             value={newTaskForm.dueDate || ''} 
                                             onChange={(e) => setNewTaskForm({...newTaskForm, dueDate: e.target.value})} 
-                                            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-indigo-500 outline-none [color-scheme:dark] cursor-pointer" 
+                                            className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:border-indigo-500 outline-none [color-scheme:dark] cursor-pointer" 
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-xs font-medium text-zinc-400">{t('tasks.priority')}</label>
+                                        <label className="text-xs font-medium text-slate-600 dark:text-zinc-400">{t('tasks.priority')}</label>
                                         <div className="grid grid-cols-3 gap-2">
                                             {['Düşük', 'Orta', 'Yüksek'].map(p => (
                                                 <button
@@ -761,7 +761,7 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
                                                     className={`py-2.5 text-xs font-medium rounded-xl border transition-all ${
                                                         newTaskForm.priority === p 
                                                         ? (p === 'Yüksek' ? 'bg-red-500/20 text-red-400 border-red-500/50' : p === 'Orta' ? 'bg-amber-500/20 text-amber-400 border-amber-500/50' : 'bg-blue-500/20 text-blue-400 border-blue-500/50')
-                                                        : 'bg-zinc-950 text-zinc-500 border-zinc-800 hover:border-zinc-700'
+                                                        : 'bg-slate-50 dark:bg-zinc-950 text-slate-500 dark:text-zinc-500 border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:border-zinc-700'
                                                     }`}
                                                 >
                                                     {t(`priority.${p}`)}
@@ -771,11 +771,11 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
                                     </div>
                                 </div>
 
-                                <div className="pt-6 border-t border-zinc-800/50 space-y-3">
+                                <div className="pt-6 border-t border-slate-200 dark:border-zinc-800/50 space-y-3">
                                     <button 
                                         type="submit" 
                                         disabled={isLoading} 
-                                        className="w-full py-4 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold rounded-2xl shadow-xl shadow-indigo-900/20 flex items-center justify-center gap-3 active:scale-95 transition-all"
+                                        className="w-full py-4 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-slate-900 dark:text-white font-bold rounded-2xl shadow-xl shadow-indigo-900/20 flex items-center justify-center gap-3 active:scale-95 transition-all"
                                     >
                                         {isLoading ? <Loader2 className="animate-spin" size={24}/> : <Save size={24} />}
                                         <span className="text-base">{t('tasks.save')}</span>
@@ -784,7 +784,7 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
                                     <button 
                                         type="button"
                                         onClick={() => { setShowAddModal(false); setEditingTaskId(null); }}
-                                        className="w-full py-3 bg-zinc-900 text-zinc-400 font-medium rounded-xl hover:bg-zinc-800 transition-colors"
+                                        className="w-full py-3 bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 font-medium rounded-xl hover:bg-slate-200 dark:hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
                                     >
                                         {t('tasks.cancel')}
                                     </button>
@@ -799,24 +799,24 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
             <div className="px-8 pt-6 pb-2 relative z-10">
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                     <div>
-                        <h2 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
+                        <h2 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
                            {t('tasks.title')}
-                           <span className="text-sm font-normal text-zinc-500 bg-zinc-900 px-3 py-1 rounded-full border border-zinc-800">
+                           <span className="text-sm font-normal text-slate-500 dark:text-zinc-500 bg-white dark:bg-zinc-900 px-3 py-1 rounded-full border border-slate-200 dark:border-zinc-800">
                                 {currentUser.role === Role.ADMIN ? t('tasks.adminView') : t('tasks.staffView')}
                            </span>
                         </h2>
                         {/* MINI STATS BAR */}
                         <div className="flex gap-6 mt-6">
                             <div className="flex flex-col">
-                                <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold">{t('tasks.total')}</span>
-                                <span className="text-2xl font-light text-white">{stats.total}</span>
+                                <span className="text-[10px] text-slate-500 dark:text-zinc-500 uppercase tracking-wider font-bold">{t('tasks.total')}</span>
+                                <span className="text-2xl font-light text-slate-900 dark:text-white">{stats.total}</span>
                             </div>
-                            <div className="w-px h-8 bg-zinc-800 self-end mb-1"></div>
+                            <div className="w-px h-8 bg-slate-100 dark:bg-zinc-800 self-end mb-1"></div>
                             <div className="flex flex-col">
                                 <span className="text-[10px] text-indigo-400/70 uppercase tracking-wider font-bold">{t('tasks.active')}</span>
                                 <span className="text-2xl font-light text-indigo-400">{stats.todo + stats.inProgress}</span>
                             </div>
-                            <div className="w-px h-8 bg-zinc-800 self-end mb-1"></div>
+                            <div className="w-px h-8 bg-slate-100 dark:bg-zinc-800 self-end mb-1"></div>
                             <div className="flex flex-col">
                                 <span className="text-[10px] text-green-500/70 uppercase tracking-wider font-bold">{t('tasks.completed')}</span>
                                 <span className="text-2xl font-light text-green-500">{stats.done}</span>
@@ -825,16 +825,16 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
                     </div>
                     
                     <div className="flex items-center gap-3">
-                        <div className="flex bg-zinc-900/80 backdrop-blur-md p-1 rounded-xl border border-zinc-800">
+                        <div className="flex bg-white dark:bg-zinc-900/80 backdrop-blur-md p-1 rounded-xl border border-slate-200 dark:border-zinc-800">
                             <button 
                                 onClick={() => setActiveTab('ACTIVE')} 
-                                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'ACTIVE' ? 'bg-zinc-800 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'ACTIVE' ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white shadow-md' : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-slate-700 dark:text-zinc-300'}`}
                             >
                                 <Zap size={16} /> {t('tasks.tabActive')}
                             </button>
                              <button 
                                 onClick={() => setActiveTab('DONE')} 
-                                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'DONE' ? 'bg-zinc-800 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'DONE' ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white shadow-md' : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-slate-700 dark:text-zinc-300'}`}
                             >
                                 <CheckCircle size={16} /> {t('tasks.tabDone')}
                             </button>
@@ -853,7 +853,7 @@ const Tasks: React.FC<TasksProps> = ({ currentUser }) => {
             <div className="flex-1 overflow-x-auto p-8 relative z-10 flex flex-col items-center">
                  <div className="w-full max-w-4xl space-y-4 pb-20">
                      {currentTasks.length === 0 ? (
-                         <div className="flex flex-col items-center justify-center py-20 text-zinc-600 border-2 border-dashed border-zinc-800/50 rounded-3xl bg-zinc-900/10">
+                         <div className="flex flex-col items-center justify-center py-20 text-slate-400 dark:text-zinc-600 border-2 border-dashed border-slate-200 dark:border-zinc-800/50 rounded-3xl bg-white dark:bg-zinc-900/10">
                              <ListTodo size={48} className="mb-4 opacity-20"/>
                              <p className="text-sm font-medium">{t('tasks.emptyCat')}</p>
                              <p className="text-xs opacity-60 mt-1">...</p>

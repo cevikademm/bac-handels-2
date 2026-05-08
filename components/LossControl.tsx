@@ -764,7 +764,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
     return (
       <div className="flex items-center justify-center h-full">
         <Loader2 className="animate-spin text-indigo-400" size={32} />
-        <span className="ml-3 text-zinc-400">{t('loss.loadingData')}</span>
+        <span className="ml-3 text-slate-600 dark:text-zinc-400">{t('loss.loadingData')}</span>
       </div>
     );
   }
@@ -776,7 +776,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
           href={`https://wa.me/${ADMIN_WHATSAPP}?text=${encodeURIComponent('Merhaba, stokta bir sorun var. Detay: ')}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="fixed bottom-24 right-4 md:bottom-8 md:right-8 z-40 flex items-center gap-2 px-4 py-3 bg-[#25D366] hover:bg-[#1ebe5a] active:scale-95 rounded-full shadow-lg shadow-emerald-500/40 text-white font-semibold text-xs md:text-sm transition-all"
+          className="fixed bottom-24 right-4 md:bottom-8 md:right-8 z-40 flex items-center gap-2 px-4 py-3 bg-[#25D366] hover:bg-[#1ebe5a] active:scale-95 rounded-full shadow-lg shadow-emerald-500/40 text-slate-900 dark:text-white font-semibold text-xs md:text-sm transition-all"
           title={t('loss.contactAdminTitle')}
           aria-label={t('loss.contactAdminAria')}
         >
@@ -788,17 +788,17 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <h1 className="text-lg md:text-2xl font-bold text-white flex items-center gap-2">
+          <h1 className="text-lg md:text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <ShieldAlert className="text-red-400 shrink-0" size={22} />
             <span className="truncate">{isLossAdmin ? t('loss.title') : t('loss.titleStock')}</span>
           </h1>
-          <p className="text-zinc-500 text-xs md:text-sm mt-0.5 hidden sm:block">
+          <p className="text-slate-500 dark:text-zinc-500 text-xs md:text-sm mt-0.5 hidden sm:block">
             {isLossAdmin ? t('loss.subtitleAdmin') : t('loss.subtitleStaff')}
           </p>
         </div>
         <button
           onClick={fetchAllData}
-          className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 active:scale-95 rounded-lg text-zinc-300 text-xs md:text-sm transition-all"
+          className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-slate-200 dark:hover:bg-zinc-700 active:scale-95 rounded-lg text-slate-700 dark:text-zinc-300 text-xs md:text-sm transition-all"
           title="Yenile"
         >
           <RefreshCw size={14} />
@@ -807,7 +807,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
       </div>
 
       {/* Sub-tabs */}
-      <div className="flex gap-1 bg-zinc-900/50 p-1 rounded-xl border border-zinc-800 overflow-x-auto custom-scrollbar -mx-1 px-1">
+      <div className="flex gap-1 bg-white dark:bg-zinc-900/50 p-1 rounded-xl border border-slate-200 dark:border-zinc-800 overflow-x-auto custom-scrollbar -mx-1 px-1">
         {[
           { id: 'overview', label: t('loss.tabOverview'), icon: BarChart3, adminOnly: false, superOnly: false },
           { id: 'stock', label: t('loss.tabStock'), icon: Package, adminOnly: false, superOnly: false },
@@ -821,7 +821,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
             className={`flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-all whitespace-nowrap shrink-0 ${
               activeSubTab === tab.id
                 ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-600/30'
-                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
+                : 'text-slate-600 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-slate-800 dark:text-zinc-200 hover:bg-slate-200 dark:hover:bg-slate-100 dark:hover:bg-zinc-800'
             }`}
           >
             <tab.icon size={14} />
@@ -835,7 +835,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
         <select
           value={filterBranch}
           onChange={e => setFilterBranch(e.target.value)}
-          className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300 w-full sm:w-auto"
+          className="bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-zinc-300 w-full sm:w-auto"
         >
           <option value="ALL">{t('loss.allBranches')}</option>
           {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
@@ -843,7 +843,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
         <select
           value={filterProduct}
           onChange={e => setFilterProduct(e.target.value)}
-          className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300 w-full sm:w-auto"
+          className="bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-zinc-300 w-full sm:w-auto"
           title={t('loss.productFilter')}
         >
           <option value="ALL">{t('loss.allProducts')}</option>
@@ -852,7 +852,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
         <select
           value={filterDateRange}
           onChange={e => setFilterDateRange(e.target.value as any)}
-          className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300 w-full sm:w-auto"
+          className="bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-zinc-300 w-full sm:w-auto"
         >
           <option value="today">{t('loss.periodToday')}</option>
           <option value="week">{t('loss.periodWeek')}</option>
@@ -866,22 +866,22 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
         <div className="space-y-6">
           {/* Summary Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-3 md:p-4">
-              <div className="text-zinc-500 text-[10px] md:text-xs mb-1 leading-tight">{t('loss.totalStockIn')}</div>
-              <div className="text-xl md:text-2xl font-bold text-white">{stockEntries.reduce((s, e) => s + e.quantity, 0)}</div>
+            <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl p-3 md:p-4">
+              <div className="text-slate-500 dark:text-zinc-500 text-[10px] md:text-xs mb-1 leading-tight">{t('loss.totalStockIn')}</div>
+              <div className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white">{stockEntries.reduce((s, e) => s + e.quantity, 0)}</div>
             </div>
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-3 md:p-4">
-              <div className="text-zinc-500 text-[10px] md:text-xs mb-1 leading-tight">{t('loss.totalApprovedSales')}</div>
+            <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl p-3 md:p-4">
+              <div className="text-slate-500 dark:text-zinc-500 text-[10px] md:text-xs mb-1 leading-tight">{t('loss.totalApprovedSales')}</div>
               <div className="text-xl md:text-2xl font-bold text-emerald-400">
                 {salesData.filter(s => s.status === 'Onaylandı').reduce((s, e) => s + e.quantity, 0)}
               </div>
             </div>
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-3 md:p-4">
-              <div className="text-zinc-500 text-[10px] md:text-xs mb-1 leading-tight">Aktif Alarm</div>
+            <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl p-3 md:p-4">
+              <div className="text-slate-500 dark:text-zinc-500 text-[10px] md:text-xs mb-1 leading-tight">Aktif Alarm</div>
               <div className="text-xl md:text-2xl font-bold text-red-400">{alerts.filter(a => !a.resolved).length}</div>
             </div>
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-3 md:p-4">
-              <div className="text-zinc-500 text-[10px] md:text-xs mb-1 leading-tight">{t('loss.totalLoss')}</div>
+            <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl p-3 md:p-4">
+              <div className="text-slate-500 dark:text-zinc-500 text-[10px] md:text-xs mb-1 leading-tight">{t('loss.totalLoss')}</div>
               <div className="text-xl md:text-2xl font-bold text-orange-400">
                 {alerts.filter(a => a.alert_type === 'kayip').reduce((s, a) => s + a.difference, 0)}
               </div>
@@ -889,8 +889,8 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
           </div>
 
           {/* Trend Chart */}
-          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-3 md:p-4">
-            <h3 className="text-xs md:text-sm font-semibold text-zinc-300 mb-3 md:mb-4">{t('loss.last7Chart')}</h3>
+          <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl p-3 md:p-4">
+            <h3 className="text-xs md:text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-3 md:mb-4">{t('loss.last7Chart')}</h3>
             <ResponsiveContainer width="100%" height={200}>
               <LineChart data={trendData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
@@ -910,12 +910,12 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
           {/* Branch Quick Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
             {branchSummary.map(bs => (
-              <div key={bs.branch} className={`bg-zinc-900/50 border rounded-xl p-3 md:p-4 ${
-                bs.highAlerts > 0 ? 'border-red-600/50' : bs.alertCount > 0 ? 'border-orange-600/30' : 'border-zinc-800'
+              <div key={bs.branch} className={`bg-white dark:bg-zinc-900/50 border rounded-xl p-3 md:p-4 ${
+                bs.highAlerts > 0 ? 'border-red-600/50' : bs.alertCount > 0 ? 'border-orange-600/30' : 'border-slate-200 dark:border-zinc-800'
               }`}>
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-semibold text-white flex items-center gap-2">
-                    <MapPin size={14} className="text-zinc-500" />
+                  <h4 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                    <MapPin size={14} className="text-slate-500 dark:text-zinc-500" />
                     {bs.branch}
                   </h4>
                   {bs.highAlerts > 0 && (
@@ -926,25 +926,25 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                 </div>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-zinc-500">{t('loss.stockInLabel')}</span>
-                    <span className="text-zinc-200">{bs.totalStocked}</span>
+                    <span className="text-slate-500 dark:text-zinc-500">{t('loss.stockInLabel')}</span>
+                    <span className="text-slate-800 dark:text-zinc-200">{bs.totalStocked}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-zinc-500">{t('loss.salesLabel')}</span>
+                    <span className="text-slate-500 dark:text-zinc-500">{t('loss.salesLabel')}</span>
                     <span className="text-emerald-400">{bs.totalSold}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-zinc-500">Beklenen Kalan:</span>
-                    <span className="text-zinc-200">{bs.expectedRemaining}</span>
+                    <span className="text-slate-500 dark:text-zinc-500">Beklenen Kalan:</span>
+                    <span className="text-slate-800 dark:text-zinc-200">{bs.expectedRemaining}</span>
                   </div>
                   {bs.totalCounted !== null && (
                     <>
                       <div className="flex justify-between">
-                        <span className="text-zinc-500">{t('loss.countLabel')}</span>
-                        <span className="text-zinc-200">{bs.totalCounted}</span>
+                        <span className="text-slate-500 dark:text-zinc-500">{t('loss.countLabel')}</span>
+                        <span className="text-slate-800 dark:text-zinc-200">{bs.totalCounted}</span>
                       </div>
-                      <div className="flex justify-between border-t border-zinc-800 pt-2">
-                        <span className="text-zinc-500 font-medium">Fark:</span>
+                      <div className="flex justify-between border-t border-slate-200 dark:border-zinc-800 pt-2">
+                        <span className="text-slate-500 dark:text-zinc-500 font-medium">Fark:</span>
                         <span className={`font-bold ${bs.loss && bs.loss > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
                           {bs.loss !== null ? (bs.loss > 0 ? `-${bs.loss} ${t('loss.lossWord')}` : bs.loss < 0 ? `+${Math.abs(bs.loss)} ${t('loss.surplusWord')}` : t('loss.equal')) : '—'}
                         </span>
@@ -965,14 +965,14 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
           <div className={`grid ${isLossAdmin ? 'grid-cols-2 sm:flex' : 'grid-cols-1'} gap-2 sm:gap-3`}>
             <button
               onClick={() => setShowStockForm(true)}
-              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 rounded-lg text-white text-xs sm:text-sm font-medium transition-all"
+              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 rounded-lg text-slate-900 dark:text-white text-xs sm:text-sm font-medium transition-all"
             >
               <Plus size={16} /> {t('loss.btnNewStock')}
             </button>
             {isLossAdmin && (
               <button
                 onClick={() => setShowCountForm(true)}
-                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 rounded-lg text-white text-xs sm:text-sm font-medium transition-all"
+                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 rounded-lg text-slate-900 dark:text-white text-xs sm:text-sm font-medium transition-all"
               >
                 <Search size={16} /> {t('loss.btnAddCount')}
               </button>
@@ -981,72 +981,72 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
 
           {/* Stock Entry Form Modal */}
           {showStockForm && (
-            <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-5 space-y-4">
-              <h3 className="text-lg font-semibold text-white">{editingEntry ? t('loss.editStockEntry') : t('loss.newStockEntry')}</h3>
+            <div className="bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-xl p-5 space-y-4">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{editingEntry ? t('loss.editStockEntry') : t('loss.newStockEntry')}</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-zinc-400 mb-1 block">{t('loss.product')}</label>
+                  <label className="text-xs text-slate-600 dark:text-zinc-400 mb-1 block">{t('loss.product')}</label>
                   <select
                     value={stockForm.product_name}
                     onChange={e => setStockForm(p => ({ ...p, product_name: e.target.value }))}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200"
+                    className="w-full bg-slate-100 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-zinc-200"
                   >
                     <option value="">{t('loss.selectPlaceholder')}</option>
                     {products.map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-zinc-400 mb-1 block">{t('loss.branch')}</label>
+                  <label className="text-xs text-slate-600 dark:text-zinc-400 mb-1 block">{t('loss.branch')}</label>
                   <select
                     value={stockForm.branch}
                     onChange={e => setStockForm(p => ({ ...p, branch: e.target.value }))}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200"
+                    className="w-full bg-slate-100 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-zinc-200"
                   >
                     {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-zinc-400 mb-1 block">Adet</label>
+                  <label className="text-xs text-slate-600 dark:text-zinc-400 mb-1 block">Adet</label>
                   <input
                     type="number"
                     min={1}
                     value={stockForm.quantity}
                     onChange={e => setStockForm(p => ({ ...p, quantity: Number(e.target.value) }))}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200"
+                    className="w-full bg-slate-100 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-zinc-200"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-zinc-400 mb-1 block">Tarih</label>
+                  <label className="text-xs text-slate-600 dark:text-zinc-400 mb-1 block">Tarih</label>
                   <input
                     type="date"
                     value={stockForm.entry_date}
                     onChange={e => setStockForm(p => ({ ...p, entry_date: e.target.value }))}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200"
+                    className="w-full bg-slate-100 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-zinc-200"
                   />
                 </div>
               </div>
               <div>
-                <label className="text-xs text-zinc-400 mb-1 block">Not (Opsiyonel)</label>
+                <label className="text-xs text-slate-600 dark:text-zinc-400 mb-1 block">Not (Opsiyonel)</label>
                 <input
                   type="text"
                   value={stockForm.note}
                   onChange={e => setStockForm(p => ({ ...p, note: e.target.value }))}
                   placeholder={t('loss.invoicePlaceholder')}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200"
+                  className="w-full bg-slate-100 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-zinc-200"
                 />
               </div>
               <div className="flex gap-3">
                 <button
                   onClick={handleSaveStockEntry}
                   disabled={isSaving || !stockForm.product_name || stockForm.quantity <= 0}
-                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-lg text-white text-sm font-medium transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-lg text-slate-900 dark:text-white text-sm font-medium transition-colors"
                 >
                   {isSaving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
                   Kaydet
                 </button>
                 <button
                   onClick={closeStockForm}
-                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-300 text-sm transition-colors"
+                  className="px-4 py-2 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-slate-200 dark:hover:bg-zinc-700 rounded-lg text-slate-700 dark:text-zinc-300 text-sm transition-colors"
                 >
                   {t('loss.cancel')}
                 </button>
@@ -1056,72 +1056,72 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
 
           {/* Count Form Modal */}
           {showCountForm && (
-            <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-5 space-y-4">
-              <h3 className="text-lg font-semibold text-white">{editingCount ? t('loss.editCount') : t('loss.newCount')}</h3>
+            <div className="bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-xl p-5 space-y-4">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{editingCount ? t('loss.editCount') : t('loss.newCount')}</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-zinc-400 mb-1 block">{t('loss.product')}</label>
+                  <label className="text-xs text-slate-600 dark:text-zinc-400 mb-1 block">{t('loss.product')}</label>
                   <select
                     value={countForm.product_name}
                     onChange={e => setCountForm(p => ({ ...p, product_name: e.target.value }))}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200"
+                    className="w-full bg-slate-100 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-zinc-200"
                   >
                     <option value="">{t('loss.selectPlaceholder')}</option>
                     {products.map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-zinc-400 mb-1 block">{t('loss.branch')}</label>
+                  <label className="text-xs text-slate-600 dark:text-zinc-400 mb-1 block">{t('loss.branch')}</label>
                   <select
                     value={countForm.branch}
                     onChange={e => setCountForm(p => ({ ...p, branch: e.target.value }))}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200"
+                    className="w-full bg-slate-100 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-zinc-200"
                   >
                     {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-zinc-400 mb-1 block">{t('loss.countedQty')}</label>
+                  <label className="text-xs text-slate-600 dark:text-zinc-400 mb-1 block">{t('loss.countedQty')}</label>
                   <input
                     type="number"
                     min={0}
                     value={countForm.counted_quantity}
                     onChange={e => setCountForm(p => ({ ...p, counted_quantity: Number(e.target.value) }))}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200"
+                    className="w-full bg-slate-100 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-zinc-200"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-zinc-400 mb-1 block">Tarih</label>
+                  <label className="text-xs text-slate-600 dark:text-zinc-400 mb-1 block">Tarih</label>
                   <input
                     type="date"
                     value={countForm.count_date}
                     onChange={e => setCountForm(p => ({ ...p, count_date: e.target.value }))}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200"
+                    className="w-full bg-slate-100 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-zinc-200"
                   />
                 </div>
               </div>
               <div>
-                <label className="text-xs text-zinc-400 mb-1 block">Not</label>
+                <label className="text-xs text-slate-600 dark:text-zinc-400 mb-1 block">Not</label>
                 <input
                   type="text"
                   value={countForm.note}
                   onChange={e => setCountForm(p => ({ ...p, note: e.target.value }))}
                   placeholder={t('loss.countDetailPlaceholder')}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200"
+                  className="w-full bg-slate-100 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-zinc-200"
                 />
               </div>
               <div className="flex gap-3">
                 <button
                   onClick={handleSaveCount}
                   disabled={isSaving || !countForm.product_name}
-                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-lg text-white text-sm font-medium transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-lg text-slate-900 dark:text-white text-sm font-medium transition-colors"
                 >
                   {isSaving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
                   Kaydet
                 </button>
                 <button
                   onClick={closeCountForm}
-                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-300 text-sm transition-colors"
+                  className="px-4 py-2 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-slate-200 dark:hover:bg-zinc-700 rounded-lg text-slate-700 dark:text-zinc-300 text-sm transition-colors"
                 >
                   {t('loss.cancel')}
                 </button>
@@ -1130,19 +1130,19 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
           )}
 
           {/* Mevcut Stok Durumu — (şube + ürün) bazında giriş, satılan, kalan */}
-          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden">
-            <div className="px-3 md:px-4 py-3 border-b border-zinc-800 flex items-center justify-between gap-2 flex-wrap">
-              <h3 className="text-xs md:text-sm font-semibold text-zinc-300">Mevcut Stok Durumu</h3>
-              <div className="flex items-center gap-1 bg-zinc-900 rounded-lg p-1 border border-zinc-800">
+          <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl overflow-hidden">
+            <div className="px-3 md:px-4 py-3 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-2 flex-wrap">
+              <h3 className="text-xs md:text-sm font-semibold text-slate-700 dark:text-zinc-300">Mevcut Stok Durumu</h3>
+              <div className="flex items-center gap-1 bg-white dark:bg-zinc-900 rounded-lg p-1 border border-slate-200 dark:border-zinc-800">
                 <button
                   onClick={() => setStockPeriod('week')}
-                  className={`px-3 py-1 text-[11px] md:text-xs font-bold rounded transition-all ${stockPeriod === 'week' ? 'bg-indigo-600 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  className={`px-3 py-1 text-[11px] md:text-xs font-bold rounded transition-all ${stockPeriod === 'week' ? 'bg-indigo-600 text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-slate-700 dark:text-zinc-300'}`}
                 >
                   Son 7 Gün
                 </button>
                 <button
                   onClick={() => setStockPeriod('month')}
-                  className={`px-3 py-1 text-[11px] md:text-xs font-bold rounded transition-all ${stockPeriod === 'month' ? 'bg-indigo-600 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  className={`px-3 py-1 text-[11px] md:text-xs font-bold rounded transition-all ${stockPeriod === 'month' ? 'bg-indigo-600 text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-slate-700 dark:text-zinc-300'}`}
                 >
                   Son 30 Gün
                 </button>
@@ -1150,8 +1150,8 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-zinc-900">
-                  <tr className="text-zinc-500 text-xs">
+                <thead className="bg-white dark:bg-zinc-900">
+                  <tr className="text-slate-500 dark:text-zinc-500 text-xs">
                     <th className="px-3 md:px-4 py-2 text-left">Şube</th>
                     <th className="px-3 md:px-4 py-2 text-left">Ürün</th>
                     <th className="px-3 md:px-4 py-2 text-right">Toplam Giriş</th>
@@ -1161,19 +1161,19 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                 </thead>
                 <tbody>
                   {currentStock.map(r => (
-                    <tr key={`${r.branch}|${r.product}`} className="border-t border-zinc-800/50 hover:bg-zinc-800/30">
-                      <td className="px-3 md:px-4 py-2 text-zinc-300 whitespace-nowrap">{r.branch}</td>
-                      <td className="px-3 md:px-4 py-2 text-zinc-200">{r.product}</td>
-                      <td className="px-3 md:px-4 py-2 text-right text-zinc-300 tabular-nums">{r.stocked}</td>
+                    <tr key={`${r.branch}|${r.product}`} className="border-t border-slate-200 dark:border-zinc-800/50 hover:bg-slate-200 dark:hover:bg-slate-100 dark:hover:bg-zinc-800/30">
+                      <td className="px-3 md:px-4 py-2 text-slate-700 dark:text-zinc-300 whitespace-nowrap">{r.branch}</td>
+                      <td className="px-3 md:px-4 py-2 text-slate-800 dark:text-zinc-200">{r.product}</td>
+                      <td className="px-3 md:px-4 py-2 text-right text-slate-700 dark:text-zinc-300 tabular-nums">{r.stocked}</td>
                       <td className="px-3 md:px-4 py-2 text-right text-emerald-400 font-medium tabular-nums">−{r.sold}</td>
-                      <td className={`px-3 md:px-4 py-2 text-right font-bold tabular-nums ${r.remaining < 0 ? 'text-red-400' : r.remaining < 5 ? 'text-orange-400' : 'text-white'}`}>
+                      <td className={`px-3 md:px-4 py-2 text-right font-bold tabular-nums ${r.remaining < 0 ? 'text-red-400' : r.remaining < 5 ? 'text-orange-400' : 'text-slate-900 dark:text-white'}`}>
                         {r.remaining}
                       </td>
                     </tr>
                   ))}
                   {currentStock.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-zinc-600">Bu filtreyle eşleşen kayıt yok</td>
+                      <td colSpan={5} className="px-4 py-8 text-center text-slate-400 dark:text-zinc-600">Bu filtreyle eşleşen kayıt yok</td>
                     </tr>
                   )}
                 </tbody>
@@ -1182,14 +1182,14 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
           </div>
 
           {/* Stock History Table */}
-          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-zinc-800">
-              <h3 className="text-sm font-semibold text-zinc-300">Son Stok Girişleri</h3>
+          <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-200 dark:border-zinc-800">
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-zinc-300">Son Stok Girişleri</h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-zinc-900">
-                  <tr className="text-zinc-500 text-xs">
+                <thead className="bg-white dark:bg-zinc-900">
+                  <tr className="text-slate-500 dark:text-zinc-500 text-xs">
                     <th className="px-4 py-2 text-left">Tarih</th>
                     <th className="px-4 py-2 text-left">Şube</th>
                     <th className="px-4 py-2 text-left">Ürün</th>
@@ -1200,25 +1200,25 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                 </thead>
                 <tbody>
                   {stockEntries.slice(0, 20).map(entry => (
-                    <tr key={entry.id} className="border-t border-zinc-800/50 hover:bg-zinc-800/30">
-                      <td className="px-4 py-2 text-zinc-400">{entry.entry_date}</td>
-                      <td className="px-4 py-2 text-zinc-300">{entry.branch}</td>
-                      <td className="px-4 py-2 text-zinc-200">{entry.product_name}</td>
-                      <td className="px-4 py-2 text-right text-white font-medium">{entry.quantity}</td>
-                      <td className="px-4 py-2 text-zinc-500">{entry.note || '—'}</td>
+                    <tr key={entry.id} className="border-t border-slate-200 dark:border-zinc-800/50 hover:bg-slate-200 dark:hover:bg-slate-100 dark:hover:bg-zinc-800/30">
+                      <td className="px-4 py-2 text-slate-600 dark:text-zinc-400">{entry.entry_date}</td>
+                      <td className="px-4 py-2 text-slate-700 dark:text-zinc-300">{entry.branch}</td>
+                      <td className="px-4 py-2 text-slate-800 dark:text-zinc-200">{entry.product_name}</td>
+                      <td className="px-4 py-2 text-right text-slate-900 dark:text-white font-medium">{entry.quantity}</td>
+                      <td className="px-4 py-2 text-slate-500 dark:text-zinc-500">{entry.note || '—'}</td>
                       {isLossAdmin && (
                         <td className="px-4 py-2">
                           <div className="flex justify-end gap-1">
                             <button
                               onClick={() => openEditEntry(entry)}
-                              className="p-1.5 rounded text-zinc-400 hover:text-indigo-400 hover:bg-indigo-600/10 transition-colors"
+                              className="p-1.5 rounded text-slate-600 dark:text-zinc-400 hover:text-indigo-400 hover:bg-indigo-600/10 transition-colors"
                               title="Düzenle"
                             >
                               <Pencil size={14} />
                             </button>
                             <button
                               onClick={() => handleDeleteEntry(entry.id)}
-                              className="p-1.5 rounded text-zinc-400 hover:text-red-400 hover:bg-red-600/10 transition-colors"
+                              className="p-1.5 rounded text-slate-600 dark:text-zinc-400 hover:text-red-400 hover:bg-red-600/10 transition-colors"
                               title="Sil"
                             >
                               <Trash2 size={14} />
@@ -1230,7 +1230,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                   ))}
                   {stockEntries.length === 0 && (
                     <tr>
-                      <td colSpan={isLossAdmin ? 6 : 5} className="px-4 py-8 text-center text-zinc-600">Henüz stok girişi yok</td>
+                      <td colSpan={isLossAdmin ? 6 : 5} className="px-4 py-8 text-center text-slate-400 dark:text-zinc-600">Henüz stok girişi yok</td>
                     </tr>
                   )}
                 </tbody>
@@ -1239,14 +1239,14 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
           </div>
 
           {/* Count History */}
-          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-zinc-800">
-              <h3 className="text-sm font-semibold text-zinc-300">Son Sayımlar</h3>
+          <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-200 dark:border-zinc-800">
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-zinc-300">Son Sayımlar</h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-zinc-900">
-                  <tr className="text-zinc-500 text-xs">
+                <thead className="bg-white dark:bg-zinc-900">
+                  <tr className="text-slate-500 dark:text-zinc-500 text-xs">
                     <th className="px-4 py-2 text-left">Tarih</th>
                     <th className="px-4 py-2 text-left">Şube</th>
                     <th className="px-4 py-2 text-left">Ürün</th>
@@ -1257,25 +1257,25 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                 </thead>
                 <tbody>
                   {stockCounts.slice(0, 20).map(count => (
-                    <tr key={count.id} className="border-t border-zinc-800/50 hover:bg-zinc-800/30">
-                      <td className="px-4 py-2 text-zinc-400">{count.count_date}</td>
-                      <td className="px-4 py-2 text-zinc-300">{count.branch}</td>
-                      <td className="px-4 py-2 text-zinc-200">{count.product_name}</td>
-                      <td className="px-4 py-2 text-right text-white font-medium">{count.counted_quantity}</td>
-                      <td className="px-4 py-2 text-zinc-500">{count.note || '—'}</td>
+                    <tr key={count.id} className="border-t border-slate-200 dark:border-zinc-800/50 hover:bg-slate-200 dark:hover:bg-slate-100 dark:hover:bg-zinc-800/30">
+                      <td className="px-4 py-2 text-slate-600 dark:text-zinc-400">{count.count_date}</td>
+                      <td className="px-4 py-2 text-slate-700 dark:text-zinc-300">{count.branch}</td>
+                      <td className="px-4 py-2 text-slate-800 dark:text-zinc-200">{count.product_name}</td>
+                      <td className="px-4 py-2 text-right text-slate-900 dark:text-white font-medium">{count.counted_quantity}</td>
+                      <td className="px-4 py-2 text-slate-500 dark:text-zinc-500">{count.note || '—'}</td>
                       {isLossAdmin && (
                         <td className="px-4 py-2">
                           <div className="flex justify-end gap-1">
                             <button
                               onClick={() => openEditCount(count)}
-                              className="p-1.5 rounded text-zinc-400 hover:text-indigo-400 hover:bg-indigo-600/10 transition-colors"
+                              className="p-1.5 rounded text-slate-600 dark:text-zinc-400 hover:text-indigo-400 hover:bg-indigo-600/10 transition-colors"
                               title="Düzenle"
                             >
                               <Pencil size={14} />
                             </button>
                             <button
                               onClick={() => handleDeleteCount(count.id)}
-                              className="p-1.5 rounded text-zinc-400 hover:text-red-400 hover:bg-red-600/10 transition-colors"
+                              className="p-1.5 rounded text-slate-600 dark:text-zinc-400 hover:text-red-400 hover:bg-red-600/10 transition-colors"
                               title="Sil"
                             >
                               <Trash2 size={14} />
@@ -1287,7 +1287,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                   ))}
                   {stockCounts.length === 0 && (
                     <tr>
-                      <td colSpan={isLossAdmin ? 6 : 5} className="px-4 py-8 text-center text-zinc-600">Henüz sayım yok</td>
+                      <td colSpan={isLossAdmin ? 6 : 5} className="px-4 py-8 text-center text-slate-400 dark:text-zinc-600">Henüz sayım yok</td>
                     </tr>
                   )}
                 </tbody>
@@ -1304,7 +1304,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
             <div className="bg-emerald-900/20 border border-emerald-700/30 rounded-xl p-8 text-center">
               <CheckCircle2 className="mx-auto text-emerald-400 mb-3" size={40} />
               <h3 className="text-emerald-300 font-semibold text-lg">Aktif Alarm Yok</h3>
-              <p className="text-zinc-500 mt-1">Tüm şubelerde stok-satış dengesi normal görünüyor.</p>
+              <p className="text-slate-500 dark:text-zinc-500 mt-1">Tüm şubelerde stok-satış dengesi normal görünüyor.</p>
             </div>
           ) : (
             alerts.filter(a => !a.resolved).map(alert => (
@@ -1322,12 +1322,12 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                     {alert.alert_type === 'fazla' && <TrendingUp className="text-blue-400" size={20} />}
                     {alert.alert_type === 'anormal_satis' && <AlertTriangle className="text-orange-400" size={20} />}
                     <div>
-                      <h4 className="text-white font-medium text-sm">
+                      <h4 className="text-slate-900 dark:text-white font-medium text-sm">
                         {alert.alert_type === 'kayip' && `Kayıp Tespit: ${alert.product_name}`}
                         {alert.alert_type === 'fazla' && `Stok Fazlası: ${alert.product_name}`}
                         {alert.alert_type === 'anormal_satis' && `Anormal Satış Aktivitesi`}
                       </h4>
-                      <p className="text-zinc-400 text-xs mt-0.5">
+                      <p className="text-slate-600 dark:text-zinc-400 text-xs mt-0.5">
                         {alert.branch} • {alert.date}
                       </p>
                     </div>
@@ -1343,21 +1343,21 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                 {alert.alert_type !== 'anormal_satis' && (
                   <div className="mt-3 grid grid-cols-3 gap-4 text-sm">
                     <div>
-                      <span className="text-zinc-500 text-xs">Beklenen</span>
-                      <div className="text-zinc-200 font-medium">{alert.expected_stock}</div>
+                      <span className="text-slate-500 dark:text-zinc-500 text-xs">Beklenen</span>
+                      <div className="text-slate-800 dark:text-zinc-200 font-medium">{alert.expected_stock}</div>
                     </div>
                     <div>
-                      <span className="text-zinc-500 text-xs">Sayılan</span>
-                      <div className="text-zinc-200 font-medium">{alert.actual_stock}</div>
+                      <span className="text-slate-500 dark:text-zinc-500 text-xs">Sayılan</span>
+                      <div className="text-slate-800 dark:text-zinc-200 font-medium">{alert.actual_stock}</div>
                     </div>
                     <div>
-                      <span className="text-zinc-500 text-xs">Fark</span>
+                      <span className="text-slate-500 dark:text-zinc-500 text-xs">Fark</span>
                       <div className="text-red-400 font-bold">{alert.difference} adet</div>
                     </div>
                   </div>
                 )}
                 {alert.note && (
-                  <p className="mt-2 text-xs text-zinc-500 italic">{alert.note}</p>
+                  <p className="mt-2 text-xs text-slate-500 dark:text-zinc-500 italic">{alert.note}</p>
                 )}
               </div>
             ))
@@ -1368,8 +1368,8 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
       {/* === REPORT TAB === */}
       {activeSubTab === 'report' && (
         <div className="space-y-4 md:space-y-6">
-          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-3 md:p-5">
-            <h3 className="text-sm md:text-lg font-semibold text-white mb-3 md:mb-4">Şube Performans Karşılaştırması</h3>
+          <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl p-3 md:p-5">
+            <h3 className="text-sm md:text-lg font-semibold text-slate-900 dark:text-white mb-3 md:mb-4">Şube Performans Karşılaştırması</h3>
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={branchSummary}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
@@ -1388,14 +1388,14 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
           </div>
 
           {/* Detailed Branch Table */}
-          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-zinc-800">
-              <h3 className="text-sm font-semibold text-zinc-300">Detaylı Şube Raporu</h3>
+          <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-200 dark:border-zinc-800">
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-zinc-300">Detaylı Şube Raporu</h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-zinc-900">
-                  <tr className="text-zinc-500 text-xs">
+                <thead className="bg-white dark:bg-zinc-900">
+                  <tr className="text-slate-500 dark:text-zinc-500 text-xs">
                     <th className="px-4 py-2 text-left">Şube</th>
                     <th className="px-4 py-2 text-right">Stok Giriş</th>
                     <th className="px-4 py-2 text-right">Satış</th>
@@ -1407,14 +1407,14 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                 </thead>
                 <tbody>
                   {branchSummary.map(bs => (
-                    <tr key={bs.branch} className="border-t border-zinc-800/50 hover:bg-zinc-800/30">
-                      <td className="px-4 py-3 text-zinc-200 font-medium">{bs.branch}</td>
-                      <td className="px-4 py-3 text-right text-zinc-300">{bs.totalStocked}</td>
+                    <tr key={bs.branch} className="border-t border-slate-200 dark:border-zinc-800/50 hover:bg-slate-200 dark:hover:bg-slate-100 dark:hover:bg-zinc-800/30">
+                      <td className="px-4 py-3 text-slate-800 dark:text-zinc-200 font-medium">{bs.branch}</td>
+                      <td className="px-4 py-3 text-right text-slate-700 dark:text-zinc-300">{bs.totalStocked}</td>
                       <td className="px-4 py-3 text-right text-emerald-400">{bs.totalSold}</td>
-                      <td className="px-4 py-3 text-right text-zinc-300">{bs.expectedRemaining}</td>
-                      <td className="px-4 py-3 text-right text-zinc-300">{bs.totalCounted !== null ? bs.totalCounted : '—'}</td>
+                      <td className="px-4 py-3 text-right text-slate-700 dark:text-zinc-300">{bs.expectedRemaining}</td>
+                      <td className="px-4 py-3 text-right text-slate-700 dark:text-zinc-300">{bs.totalCounted !== null ? bs.totalCounted : '—'}</td>
                       <td className={`px-4 py-3 text-right font-bold ${
-                        bs.loss === null ? 'text-zinc-600' :
+                        bs.loss === null ? 'text-slate-400 dark:text-zinc-600' :
                         bs.loss > 0 ? 'text-red-400' :
                         bs.loss < 0 ? 'text-blue-400' : 'text-emerald-400'
                       }`}>
@@ -1443,14 +1443,14 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
           </div>
 
           {/* Recent Sales Activity - for verification */}
-          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-zinc-800">
-              <h3 className="text-sm font-semibold text-zinc-300">Son Satış Aktivitesi (Tüm Durumlar)</h3>
+          <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-200 dark:border-zinc-800">
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-zinc-300">Son Satış Aktivitesi (Tüm Durumlar)</h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-zinc-900">
-                  <tr className="text-zinc-500 text-xs">
+                <thead className="bg-white dark:bg-zinc-900">
+                  <tr className="text-slate-500 dark:text-zinc-500 text-xs">
                     <th className="px-4 py-2 text-left">Tarih</th>
                     <th className="px-4 py-2 text-left">Personel</th>
                     <th className="px-4 py-2 text-left">Şube</th>
@@ -1461,12 +1461,12 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                 </thead>
                 <tbody>
                   {filteredSales.slice(0, 30).map(sale => (
-                    <tr key={sale.id} className="border-t border-zinc-800/50 hover:bg-zinc-800/30">
-                      <td className="px-4 py-2 text-zinc-400">{sale.sale_date}</td>
-                      <td className="px-4 py-2 text-zinc-200">{getEmpName(sale.employee_id)}</td>
-                      <td className="px-4 py-2 text-zinc-300">{sale.branch}</td>
-                      <td className="px-4 py-2 text-zinc-200">{sale.product_name}</td>
-                      <td className="px-4 py-2 text-right text-white font-medium">{sale.quantity}</td>
+                    <tr key={sale.id} className="border-t border-slate-200 dark:border-zinc-800/50 hover:bg-slate-200 dark:hover:bg-slate-100 dark:hover:bg-zinc-800/30">
+                      <td className="px-4 py-2 text-slate-600 dark:text-zinc-400">{sale.sale_date}</td>
+                      <td className="px-4 py-2 text-slate-800 dark:text-zinc-200">{getEmpName(sale.employee_id)}</td>
+                      <td className="px-4 py-2 text-slate-700 dark:text-zinc-300">{sale.branch}</td>
+                      <td className="px-4 py-2 text-slate-800 dark:text-zinc-200">{sale.product_name}</td>
+                      <td className="px-4 py-2 text-right text-slate-900 dark:text-white font-medium">{sale.quantity}</td>
                       <td className="px-4 py-2 text-center">
                         <span className={`text-xs px-2 py-0.5 rounded-full ${
                           sale.status === 'Onaylandı' ? 'bg-emerald-600/20 text-emerald-400' :
@@ -1496,7 +1496,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                 <div className="relative w-3 h-3 bg-emerald-400 rounded-full" />
               </div>
               <div>
-                <div className="text-xs md:text-sm font-bold text-white flex items-center gap-1.5">
+                <div className="text-xs md:text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                   <Sparkles size={14} className="text-violet-300" /> Canlı Algoritma Aktif
                 </div>
                 <div className="text-[10px] md:text-xs text-violet-200/70">
@@ -1506,7 +1506,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
             </div>
             <button
               onClick={fetchAllData}
-              className="text-xs md:text-sm flex items-center gap-1.5 px-3 py-1.5 bg-violet-600/30 hover:bg-violet-600/50 border border-violet-500/40 rounded-lg text-white font-bold transition-all"
+              className="text-xs md:text-sm flex items-center gap-1.5 px-3 py-1.5 bg-violet-600/30 hover:bg-violet-600/50 border border-violet-500/40 rounded-lg text-slate-900 dark:text-white font-bold transition-all"
             >
               <RefreshCw size={14} /> Yenile
             </button>
@@ -1515,7 +1515,7 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
           {/* Auto Insights — anlamlı tek-cümle tespitler */}
           {autoInsights.length > 0 && (
             <div className="space-y-2">
-              <h3 className="text-sm md:text-base font-bold text-white flex items-center gap-2">
+              <h3 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Zap size={16} className="text-yellow-400" /> Anlık İçgörüler
               </h3>
               <div className="grid gap-2">
@@ -1601,15 +1601,15 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
           })()}
 
           {/* Şube Sıralaması (Branch Leaderboard) */}
-          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden">
-            <div className="px-3 md:px-4 py-3 border-b border-zinc-800 flex items-center gap-2">
+          <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl overflow-hidden">
+            <div className="px-3 md:px-4 py-3 border-b border-slate-200 dark:border-zinc-800 flex items-center gap-2">
               <BarChart3 size={16} className="text-emerald-400" />
-              <h3 className="text-xs md:text-sm font-bold text-zinc-200">Şube Sıralaması (Son 30 Gün)</h3>
+              <h3 className="text-xs md:text-sm font-bold text-slate-800 dark:text-zinc-200">Şube Sıralaması (Son 30 Gün)</h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-zinc-900">
-                  <tr className="text-zinc-500 text-[10px] md:text-xs">
+                <thead className="bg-white dark:bg-zinc-900">
+                  <tr className="text-slate-500 dark:text-zinc-500 text-[10px] md:text-xs">
                     <th className="px-3 py-2 text-left">#</th>
                     <th className="px-3 py-2 text-left">Şube</th>
                     <th className="px-3 py-2 text-right">Onaylı</th>
@@ -1621,41 +1621,41 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                 </thead>
                 <tbody>
                   {branchScores.map((b, i) => (
-                    <tr key={b.branch} className="border-t border-zinc-800/50">
+                    <tr key={b.branch} className="border-t border-slate-200 dark:border-zinc-800/50">
                       <td className="px-3 py-2">
                         <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-black ${
                           i === 0 ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/40' :
-                          i === 1 ? 'bg-zinc-400/20 text-zinc-300 border border-zinc-400/40' :
+                          i === 1 ? 'bg-zinc-400/20 text-slate-700 dark:text-zinc-300 border border-zinc-400/40' :
                           i === 2 ? 'bg-orange-700/20 text-orange-400 border border-orange-700/40' :
-                          'bg-zinc-800 text-zinc-500'
+                          'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-500'
                         }`}>{i + 1}</span>
                       </td>
-                      <td className="px-3 py-2 text-zinc-200 font-medium">{b.branch}</td>
+                      <td className="px-3 py-2 text-slate-800 dark:text-zinc-200 font-medium">{b.branch}</td>
                       <td className="px-3 py-2 text-right text-emerald-400 tabular-nums">{b.approved}</td>
                       <td className="px-3 py-2 text-right text-yellow-400 tabular-nums">{b.pending}</td>
                       <td className="px-3 py-2 text-right text-red-400 tabular-nums">{b.lossCount}</td>
                       <td className="px-3 py-2 text-right text-orange-400 tabular-nums">{b.offShift}</td>
-                      <td className={`px-3 py-2 text-right font-black tabular-nums ${b.score < 0 ? 'text-red-400' : 'text-white'}`}>{b.score}</td>
+                      <td className={`px-3 py-2 text-right font-black tabular-nums ${b.score < 0 ? 'text-red-400' : 'text-slate-900 dark:text-white'}`}>{b.score}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <div className="px-3 md:px-4 py-2 border-t border-zinc-800 text-[10px] text-zinc-500 italic">
+            <div className="px-3 md:px-4 py-2 border-t border-slate-200 dark:border-zinc-800 text-[10px] text-slate-500 dark:text-zinc-500 italic">
               Skor formülü: onaylı × 10 − kayıp × 5 − red × 2 − mesai_dışı × 1
             </div>
           </div>
 
           {/* Personel Performans Tablosu */}
-          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden">
-            <div className="px-3 md:px-4 py-3 border-b border-zinc-800 flex items-center gap-2">
+          <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl overflow-hidden">
+            <div className="px-3 md:px-4 py-3 border-b border-slate-200 dark:border-zinc-800 flex items-center gap-2">
               <Users size={16} className="text-violet-400" />
-              <h3 className="text-xs md:text-sm font-bold text-zinc-200">Personel Performansı (Son 30 Gün)</h3>
+              <h3 className="text-xs md:text-sm font-bold text-slate-800 dark:text-zinc-200">Personel Performansı (Son 30 Gün)</h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-zinc-900">
-                  <tr className="text-zinc-500 text-[10px] md:text-xs">
+                <thead className="bg-white dark:bg-zinc-900">
+                  <tr className="text-slate-500 dark:text-zinc-500 text-[10px] md:text-xs">
                     <th className="px-3 py-2 text-left">#</th>
                     <th className="px-3 py-2 text-left">Personel</th>
                     <th className="px-3 py-2 text-right">Onaylı</th>
@@ -1667,20 +1667,20 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                 </thead>
                 <tbody>
                   {employeePerf.slice(0, 15).map((e, i) => (
-                    <tr key={e.id} className="border-t border-zinc-800/50">
-                      <td className="px-3 py-2 text-zinc-500 tabular-nums">{i + 1}</td>
-                      <td className="px-3 py-2 text-zinc-200 font-medium truncate max-w-[160px]">{e.name}</td>
+                    <tr key={e.id} className="border-t border-slate-200 dark:border-zinc-800/50">
+                      <td className="px-3 py-2 text-slate-500 dark:text-zinc-500 tabular-nums">{i + 1}</td>
+                      <td className="px-3 py-2 text-slate-800 dark:text-zinc-200 font-medium truncate max-w-[160px]">{e.name}</td>
                       <td className="px-3 py-2 text-right text-emerald-400 font-bold tabular-nums">{e.approved}</td>
                       <td className="px-3 py-2 text-right text-yellow-400 tabular-nums">{e.pending}</td>
                       <td className="px-3 py-2 text-right text-red-400 tabular-nums">{e.rejected}</td>
                       <td className={`px-3 py-2 text-right tabular-nums ${e.approvalRate >= 80 ? 'text-emerald-400' : e.approvalRate >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
                         {e.approvalRate.toFixed(0)}%
                       </td>
-                      <td className="px-3 py-2 text-zinc-400 text-xs">{e.topBranch}</td>
+                      <td className="px-3 py-2 text-slate-600 dark:text-zinc-400 text-xs">{e.topBranch}</td>
                     </tr>
                   ))}
                   {employeePerf.length === 0 && (
-                    <tr><td colSpan={7} className="px-3 py-8 text-center text-zinc-600">Son 30 günde satış girişi yok</td></tr>
+                    <tr><td colSpan={7} className="px-3 py-8 text-center text-slate-400 dark:text-zinc-600">Son 30 günde satış girişi yok</td></tr>
                   )}
                 </tbody>
               </table>
@@ -1688,26 +1688,26 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
           </div>
 
           {/* Eşleşme Önerileri (Pairing) */}
-          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden">
-            <div className="px-3 md:px-4 py-3 border-b border-zinc-800 flex items-center gap-2">
+          <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl overflow-hidden">
+            <div className="px-3 md:px-4 py-3 border-b border-slate-200 dark:border-zinc-800 flex items-center gap-2">
               <Sparkles size={16} className="text-pink-400" />
-              <h3 className="text-xs md:text-sm font-bold text-zinc-200">Personel Eşleşme Önerileri</h3>
-              <span className="ml-auto text-[10px] text-zinc-500 italic">Vardiya + satış verisi karşılaştırması</span>
+              <h3 className="text-xs md:text-sm font-bold text-slate-800 dark:text-zinc-200">Personel Eşleşme Önerileri</h3>
+              <span className="ml-auto text-[10px] text-slate-500 dark:text-zinc-500 italic">Vardiya + satış verisi karşılaştırması</span>
             </div>
             <div className="p-3 md:p-4 space-y-4">
               {pairingRecs.length === 0 ? (
-                <div className="text-center text-zinc-600 italic text-sm py-6">
+                <div className="text-center text-slate-400 dark:text-zinc-600 italic text-sm py-6">
                   Yeterli vardiya/satış verisi yok — analiz için en az 2 ortak gün gerekiyor.
                 </div>
               ) : (
                 pairingRecs.map(b => (
-                  <div key={b.branch} className="bg-zinc-950/60 border border-zinc-800/60 rounded-lg p-3">
+                  <div key={b.branch} className="bg-slate-50 dark:bg-zinc-950/60 border border-slate-200 dark:border-zinc-800/60 rounded-lg p-3">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <MapPin size={14} className="text-emerald-400" />
-                        <span className="font-bold text-white text-sm">{b.branch}</span>
+                        <span className="font-bold text-slate-900 dark:text-white text-sm">{b.branch}</span>
                       </div>
-                      <span className="text-[10px] text-zinc-500">Şube günlük ort: <span className="text-zinc-300 font-bold">{b.branchAvg.toFixed(1)}</span></span>
+                      <span className="text-[10px] text-slate-500 dark:text-zinc-500">Şube günlük ort: <span className="text-slate-700 dark:text-zinc-300 font-bold">{b.branchAvg.toFixed(1)}</span></span>
                     </div>
                     <div className="space-y-2">
                       {b.pairs.map((p, idx) => (
@@ -1715,17 +1715,17 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                           key={`${p.e1}|${p.e2}`}
                           className={`flex items-center justify-between gap-2 p-2.5 rounded-lg border ${
                             p.synergy >= 20 ? 'bg-emerald-950/40 border-emerald-700/40' :
-                            p.synergy >= 0 ? 'bg-zinc-900/60 border-zinc-700/40' :
+                            p.synergy >= 0 ? 'bg-white dark:bg-zinc-900/60 border-slate-300 dark:border-zinc-700/40' :
                             'bg-orange-950/30 border-orange-700/30'
                           }`}
                         >
                           <div className="flex items-center gap-2 min-w-0 flex-1">
                             <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black ${
-                              idx === 0 ? 'bg-yellow-500/30 text-yellow-300' : 'bg-zinc-800 text-zinc-400'
+                              idx === 0 ? 'bg-yellow-500/30 text-yellow-300' : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400'
                             }`}>{idx + 1}</span>
                             <div className="min-w-0">
-                              <div className="text-xs md:text-sm font-bold text-zinc-100 truncate">{p.name1} + {p.name2}</div>
-                              <div className="text-[10px] text-zinc-500">{p.coDays} ortak gün · ort. {p.avgSales.toFixed(1)} satış/gün</div>
+                              <div className="text-xs md:text-sm font-bold text-slate-900 dark:text-zinc-100 truncate">{p.name1} + {p.name2}</div>
+                              <div className="text-[10px] text-slate-500 dark:text-zinc-500">{p.coDays} ortak gün · ort. {p.avgSales.toFixed(1)} satış/gün</div>
                             </div>
                           </div>
                           <div className={`shrink-0 text-right font-black text-xs md:text-sm tabular-nums ${
@@ -1737,8 +1737,8 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
                       ))}
                     </div>
                     {b.pairs[0] && b.pairs[0].synergy > 10 && (
-                      <div className="mt-3 text-[11px] text-zinc-400 italic leading-relaxed">
-                        💡 <span className="text-zinc-300 font-bold">{b.pairs[0].name1}</span> ve <span className="text-zinc-300 font-bold">{b.pairs[0].name2}</span> bu şubede şube ortalamasının <span className="text-emerald-400 font-bold">%{b.pairs[0].synergy.toFixed(0)}</span> üstünde satış üretiyor — birlikte planlamak satışları artırabilir.
+                      <div className="mt-3 text-[11px] text-slate-600 dark:text-zinc-400 italic leading-relaxed">
+                        💡 <span className="text-slate-700 dark:text-zinc-300 font-bold">{b.pairs[0].name1}</span> ve <span className="text-slate-700 dark:text-zinc-300 font-bold">{b.pairs[0].name2}</span> bu şubede şube ortalamasının <span className="text-emerald-400 font-bold">%{b.pairs[0].synergy.toFixed(0)}</span> üstünde satış üretiyor — birlikte planlamak satışları artırabilir.
                       </div>
                     )}
                   </div>
@@ -1749,8 +1749,8 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
 
           {/* Şube Performans Karşılaştırma Grafiği */}
           {branchScores.length > 0 && (
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-3 md:p-5">
-              <h3 className="text-xs md:text-sm font-bold text-zinc-200 mb-3 flex items-center gap-2">
+            <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl p-3 md:p-5">
+              <h3 className="text-xs md:text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3 flex items-center gap-2">
                 <TUp size={16} className="text-blue-400" /> Şube Karşılaştırma — Skor & Onaylı Satış
               </h3>
               <ResponsiveContainer width="100%" height={260}>

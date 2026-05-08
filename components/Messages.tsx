@@ -450,25 +450,25 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
     });
 
     return (
-        <div className="flex h-full flex-col md:flex-row relative overflow-hidden bg-zinc-950">
+        <div className="flex h-full flex-col md:flex-row relative overflow-hidden bg-slate-50 dark:bg-zinc-950">
             
             {/* COMPOSE MODAL */}
             {showCompose && (
                 <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden animate-in fade-in zoom-in-95">
-                        <div className="p-5 border-b border-zinc-800 flex justify-between items-center bg-zinc-950/50">
-                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden animate-in fade-in zoom-in-95">
+                        <div className="p-5 border-b border-slate-200 dark:border-zinc-800 flex justify-between items-center bg-slate-50 dark:bg-zinc-950/50">
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
                                 <Mail size={20} className="text-indigo-500" /> {t('msg.compose')}
                             </h3>
-                            <button onClick={() => setShowCompose(false)} className="text-zinc-500 hover:text-white"><X size={20} /></button>
+                            <button onClick={() => setShowCompose(false)} className="text-slate-500 dark:text-zinc-500 hover:text-slate-900 dark:hover:text-white"><X size={20} /></button>
                         </div>
                         <form onSubmit={handleComposeSend} className="p-6 space-y-4">
                             <div className="space-y-2">
-                                <label className="text-xs font-medium text-zinc-400">{t('msg.recipient')}</label>
+                                <label className="text-xs font-medium text-slate-600 dark:text-zinc-400">{t('msg.recipient')}</label>
                                 <select 
                                     value={composeForm.receiverId} 
                                     onChange={e => setComposeForm({...composeForm, receiverId: e.target.value})}
-                                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-indigo-500 outline-none"
+                                    className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:border-indigo-500 outline-none"
                                 >
                                     {/* Personel için tek seçenek */}
                                     {currentUser.role !== Role.ADMIN && (
@@ -488,26 +488,26 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
                                 </select>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-xs font-medium text-zinc-400">{t('msg.subject')} (Opsiyonel)</label>
+                                <label className="text-xs font-medium text-slate-600 dark:text-zinc-400">{t('msg.subject')} (Opsiyonel)</label>
                                 <input 
                                     type="text" 
                                     value={composeForm.subject}
                                     onChange={e => setComposeForm({...composeForm, subject: e.target.value})}
-                                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-indigo-500 outline-none"
+                                    className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:border-indigo-500 outline-none"
                                 />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-xs font-medium text-zinc-400">{t('msg.content')}</label>
+                                <label className="text-xs font-medium text-slate-600 dark:text-zinc-400">{t('msg.content')}</label>
                                 <textarea 
                                     value={composeForm.content}
                                     onChange={e => setComposeForm({...composeForm, content: e.target.value})}
-                                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-indigo-500 outline-none min-h-[100px]"
+                                    className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:border-indigo-500 outline-none min-h-[100px]"
                                 />
                             </div>
                             <button 
                                 type="submit" 
                                 disabled={isSending}
-                                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium shadow-lg flex items-center justify-center gap-2"
+                                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-slate-900 dark:text-white rounded-xl font-medium shadow-lg flex items-center justify-center gap-2"
                             >
                                 {isSending ? <Loader2 className="animate-spin" size={18}/> : t('msg.send')}
                             </button>
@@ -517,24 +517,24 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
             )}
 
             {/* LIST PANEL (SOL) */}
-            <div className={`w-full md:w-1/3 min-w-[300px] border-r border-zinc-800 flex flex-col bg-zinc-950/50 absolute md:relative inset-0 z-10 md:z-auto transition-transform duration-300 ${activeChatPartnerId ? '-translate-x-full md:translate-x-0' : 'translate-x-0'}`}>
-                <div className="p-4 border-b border-zinc-800">
+            <div className={`w-full md:w-1/3 min-w-[300px] border-r border-slate-200 dark:border-zinc-800 flex flex-col bg-slate-50 dark:bg-zinc-950/50 absolute md:relative inset-0 z-10 md:z-auto transition-transform duration-300 ${activeChatPartnerId ? '-translate-x-full md:translate-x-0' : 'translate-x-0'}`}>
+                <div className="p-4 border-b border-slate-200 dark:border-zinc-800">
                     <div className="flex justify-between items-center mb-4">
-                        <h2 className="font-bold text-white text-lg">{t('msg.chats')}</h2>
-                        <button onClick={handleOpenCompose} className="bg-indigo-600 p-2 rounded-lg text-white hover:bg-indigo-500 shadow-lg flex items-center gap-2 px-3">
+                        <h2 className="font-bold text-slate-900 dark:text-white text-lg">{t('msg.chats')}</h2>
+                        <button onClick={handleOpenCompose} className="bg-indigo-600 p-2 rounded-lg text-slate-900 dark:text-white hover:bg-indigo-500 shadow-lg flex items-center gap-2 px-3">
                             <Plus size={18} /> <span className="text-xs font-bold">{t('msg.new')}</span>
                         </button>
                     </div>
                     <div className="relative">
-                        <Search size={16} className="absolute left-3 top-2.5 text-zinc-500" />
-                        <input type="text" placeholder={t('msg.search')} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:border-indigo-500 outline-none text-zinc-300" />
+                        <Search size={16} className="absolute left-3 top-2.5 text-slate-500 dark:text-zinc-500" />
+                        <input type="text" placeholder={t('msg.search')} className="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:border-indigo-500 outline-none text-slate-700 dark:text-zinc-300" />
                     </div>
                 </div>
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
                     {isLoading ? (
-                        <div className="flex justify-center p-8"><Loader2 className="animate-spin text-zinc-500"/></div>
+                        <div className="flex justify-center p-8"><Loader2 className="animate-spin text-slate-500 dark:text-zinc-500"/></div>
                     ) : messages.length === 0 ? (
-                        <div className="text-center p-8 text-zinc-600 text-sm">{t('msg.empty')}</div>
+                        <div className="text-center p-8 text-slate-400 dark:text-zinc-600 text-sm">{t('msg.empty')}</div>
                     ) : (
                         messages.map(msg => {
                             const isMe = msg.senderId === currentUser.id;
@@ -559,7 +559,7 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
                                 <div 
                                     key={msg.id}
                                     onClick={() => handleSelectChat(msg)}
-                                    className={`p-4 border-b border-zinc-800/50 cursor-pointer hover:bg-zinc-900/80 transition-all ${isActive ? 'bg-indigo-900/10 border-l-2 border-l-indigo-500' : 'border-l-2 border-l-transparent'} ${showUnread ? 'bg-zinc-900/40' : ''}`}
+                                    className={`p-4 border-b border-slate-200 dark:border-zinc-800/50 cursor-pointer hover:bg-slate-100 dark:hover:bg-white dark:hover:bg-zinc-900/80 transition-all ${isActive ? 'bg-indigo-900/10 border-l-2 border-l-indigo-500' : 'border-l-2 border-l-transparent'} ${showUnread ? 'bg-white dark:bg-zinc-900/40' : ''}`}
                                 >
                                     <div className="flex justify-between mb-1.5">
                                         <div className="flex items-center gap-2">
@@ -567,16 +567,16 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
                                             {/* Özel İkonlar */}
                                             {partnerId === ADMIN_BOARD_ID && <ShieldAlert size={14} className="text-indigo-400" />}
                                             
-                                            <span className={`text-sm font-medium ${showUnread ? 'text-white' : 'text-zinc-400'}`}>
+                                            <span className={`text-sm font-medium ${showUnread ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-zinc-400'}`}>
                                                 {partnerName}
                                             </span>
                                         </div>
-                                        <span className="text-[10px] text-zinc-600">
+                                        <span className="text-[10px] text-slate-400 dark:text-zinc-600">
                                             {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                         </span>
                                     </div>
-                                    <p className="text-xs text-zinc-500 truncate">
-                                        {isMe && <span className="text-zinc-600">{t('msg.you') + ': '}</span>}{msg.content}
+                                    <p className="text-xs text-slate-500 dark:text-zinc-500 truncate">
+                                        {isMe && <span className="text-slate-400 dark:text-zinc-600">{t('msg.you') + ': '}</span>}{msg.content}
                                     </p>
                                 </div>
                             )
@@ -586,13 +586,13 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
             </div>
 
             {/* CHAT PANEL (SAĞ) */}
-            <div className={`flex-1 flex flex-col bg-zinc-950 absolute md:relative inset-0 z-20 md:z-auto transition-transform duration-300 ${activeChatPartnerId ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`}>
+            <div className={`flex-1 flex flex-col bg-slate-50 dark:bg-zinc-950 absolute md:relative inset-0 z-20 md:z-auto transition-transform duration-300 ${activeChatPartnerId ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`}>
                 {activeChatPartnerId ? (
                     <>
-                        <div className="p-4 border-b border-zinc-800 bg-zinc-900/30 backdrop-blur-md flex items-center gap-3">
-                            <button onClick={() => setActiveChatPartnerId(null)} className="md:hidden text-zinc-400 hover:text-white"><ChevronLeft size={24} /></button>
+                        <div className="p-4 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/30 backdrop-blur-md flex items-center gap-3">
+                            <button onClick={() => setActiveChatPartnerId(null)} className="md:hidden text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"><ChevronLeft size={24} /></button>
                             
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-800 to-zinc-800 flex items-center justify-center text-white font-bold border border-zinc-700 overflow-hidden relative">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-800 to-zinc-800 flex items-center justify-center text-slate-900 dark:text-white font-bold border border-slate-300 dark:border-zinc-700 overflow-hidden relative">
                                 {activeChatPartnerId === ADMIN_BOARD_ID ? (
                                     <ShieldAlert size={20} />
                                 ) : getAvatar(activeChatPartnerId) ? (
@@ -603,8 +603,8 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
                             </div>
                             
                             <div>
-                                <h2 className="text-base font-bold text-white">{getName(activeChatPartnerId)}</h2>
-                                <p className="text-xs text-zinc-500">
+                                <h2 className="text-base font-bold text-slate-900 dark:text-white">{getName(activeChatPartnerId)}</h2>
+                                <p className="text-xs text-slate-500 dark:text-zinc-500">
                                     {activeChatPartnerId === 'ALL' ? t('msg.generalChannel') :
                                      activeChatPartnerId === ADMIN_BOARD_ID ? t('msg.adminDept') : t('msg.staff')}
                                 </p>
@@ -623,7 +623,7 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
                                         {currentUser.role === Role.ADMIN && (
                                             <button 
                                                 onClick={() => handleDeleteMessage(msg.id)}
-                                                className={`p-1 text-zinc-600 hover:text-red-500 transition-opacity opacity-0 group-hover:opacity-100 ${isMe ? 'mr-2' : 'ml-2 order-2'}`}
+                                                className={`p-1 text-slate-400 dark:text-zinc-600 hover:text-red-500 transition-opacity opacity-0 group-hover:opacity-100 ${isMe ? 'mr-2' : 'ml-2 order-2'}`}
                                                 title={t('msg.deleteMsgTitle')}
                                             >
                                                 <Trash2 size={12} />
@@ -632,19 +632,19 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
 
                                         <div className={`max-w-[80%] md:max-w-[60%] rounded-2xl px-4 py-2.5 text-sm relative ${
                                             isMe 
-                                            ? 'bg-indigo-600 text-white rounded-br-none' 
-                                            : 'bg-zinc-800 text-zinc-200 rounded-bl-none border border-zinc-700'
+                                            ? 'bg-indigo-600 text-slate-900 dark:text-white rounded-br-none' 
+                                            : 'bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 rounded-bl-none border border-slate-300 dark:border-zinc-700'
                                         }`}>
                                             {/* GÖNDEREN İSMİ (Gelen mesajlarda göster) */}
                                             {!isMe && !isContinuous && (
-                                                <div className={`text-[10px] font-bold mb-1 ${isAdmin(msg.senderId) ? 'text-indigo-400 flex items-center gap-1' : 'text-zinc-400'}`}>
+                                                <div className={`text-[10px] font-bold mb-1 ${isAdmin(msg.senderId) ? 'text-indigo-400 flex items-center gap-1' : 'text-slate-600 dark:text-zinc-400'}`}>
                                                     {isAdmin(msg.senderId) && <ShieldAlert size={10} />}
                                                     {getName(msg.senderId)}
                                                 </div>
                                             )}
                                             
                                             <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
-                                            <div className={`text-[9px] mt-1 text-right flex items-center justify-end gap-1 ${isMe ? 'text-indigo-200' : 'text-zinc-500'}`}>
+                                            <div className={`text-[9px] mt-1 text-right flex items-center justify-end gap-1 ${isMe ? 'text-indigo-200' : 'text-slate-500 dark:text-zinc-500'}`}>
                                                 {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                                 {isMe && (msg.read ? <CheckCheck size={12}/> : <Check size={12}/>)}
                                             </div>
@@ -652,15 +652,15 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
                                     </div>
                                 )
                             })}
-                            {loadingConversation && <div className="text-center py-4"><Loader2 className="animate-spin inline text-zinc-600"/></div>}
+                            {loadingConversation && <div className="text-center py-4"><Loader2 className="animate-spin inline text-slate-400 dark:text-zinc-600"/></div>}
                         </div>
 
-                        <div className="p-4 border-t border-zinc-800 bg-zinc-900/30 pb-safe">
-                            <div className="flex gap-2 items-end bg-zinc-900 border border-zinc-800 rounded-2xl p-2">
+                        <div className="p-4 border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/30 pb-safe">
+                            <div className="flex gap-2 items-end bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-2">
                                 <textarea
                                     value={replyText}
                                     onChange={(e) => setReplyText(e.target.value)}
-                                    className="flex-1 bg-transparent border-none text-sm focus:ring-0 outline-none resize-none max-h-32 min-h-[44px] py-3 px-2 text-white placeholder:text-zinc-600"
+                                    className="flex-1 bg-transparent border-none text-sm focus:ring-0 outline-none resize-none max-h-32 min-h-[44px] py-3 px-2 text-slate-900 dark:text-white placeholder:text-slate-400 dark:text-zinc-600"
                                     placeholder={activeChatPartnerId === 'ALL' && currentUser.role !== Role.ADMIN ? t('msg.adminOnlyPlaceholder') : t('msg.write')}
                                     readOnly={activeChatPartnerId === 'ALL' && currentUser.role !== Role.ADMIN}
                                     rows={1}
@@ -669,7 +669,7 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
                                     <button 
                                         onClick={handleSendReply}
                                         disabled={isSending || !replyText.trim()}
-                                        className="mb-1 p-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl transition-colors shadow-lg"
+                                        className="mb-1 p-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-slate-900 dark:text-white rounded-xl transition-colors shadow-lg"
                                     >
                                         {isSending ? <Loader2 className="animate-spin" size={18}/> : <Send size={18} />}
                                     </button>
@@ -678,7 +678,7 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
                         </div>
                     </>
                 ) : (
-                    <div className="h-full hidden md:flex flex-col items-center justify-center text-zinc-500">
+                    <div className="h-full hidden md:flex flex-col items-center justify-center text-slate-500 dark:text-zinc-500">
                         <MessageSquare size={48} className="opacity-20 mb-4" />
                         <p>{t('msg.select')}</p>
                     </div>

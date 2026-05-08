@@ -445,7 +445,7 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                             <img src={currentUser.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=6366f1&color=fff`} className="w-full h-full rounded-full object-cover border-2 border-[#09090b]" alt="Profile" referrerPolicy="no-referrer" />
                             
                             <div className="absolute inset-0.5 rounded-full bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                {isUploadingAvatar ? <Loader2 size={20} className="text-white animate-spin" /> : <Upload size={20} className="text-white" />}
+                                {isUploadingAvatar ? <Loader2 size={20} className="text-slate-900 dark:text-white animate-spin" /> : <Upload size={20} className="text-slate-900 dark:text-white" />}
                             </div>
                             
                             <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={isUploadingAvatar} />
@@ -453,11 +453,11 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                          <div className="absolute bottom-0 right-0 w-5 h-5 bg-green-500 border-4 border-[#09090b] rounded-full z-10" title="Online"></div>
                     </div>
                     <div>
-                        <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-2">
+                        <h1 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">
                             <span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">{t('dash.title')}</span>
                         </h1>
                         <div className="flex items-center gap-3">
-                            <p className="text-zinc-400 text-sm flex items-center gap-2">
+                            <p className="text-slate-600 dark:text-zinc-400 text-sm flex items-center gap-2">
                                 <Activity size={14} className="text-green-500" /> 
                                 {t('dash.subtitle')}
                             </p>
@@ -468,7 +468,7 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                 <div className="flex items-center gap-2">
                     <button 
                         onClick={() => navigateTo('messages')}
-                        className="p-3 bg-zinc-900 border border-zinc-800 rounded-2xl text-indigo-400 hover:text-white hover:bg-indigo-600/20 transition-all shadow-lg relative group"
+                        className="p-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl text-indigo-400 hover:text-slate-900 dark:hover:text-white hover:bg-indigo-600/20 transition-all shadow-lg relative group"
                         title={t('nav.messages')}
                     >
                         <MessageSquare size={20} />
@@ -482,7 +482,7 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
               
               {/* Card 1: Active Personnel (STAFF ONLY) */}
-              <div className="rounded-3xl border border-zinc-800 bg-zinc-900/40 p-6 flex flex-col justify-between hover:bg-zinc-900/60 transition-all cursor-pointer group relative" onClick={() => navigateTo('payroll')}>
+              <div className="rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 p-6 flex flex-col justify-between hover:bg-white dark:hover:bg-zinc-900/60 transition-all cursor-pointer group relative" onClick={() => navigateTo('payroll')}>
 <GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} />
                   <div className="flex justify-between items-start">
                       <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-400 group-hover:scale-110 transition-transform shadow-lg shadow-blue-900/10">
@@ -491,16 +491,16 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                       <span className="text-xs font-bold bg-blue-500/10 text-blue-300 px-2.5 py-1 rounded-full border border-blue-500/20">+12%</span>
                   </div>
                   <div className="mt-6">
-                      <div className="text-4xl font-bold text-white tracking-tight">{dashboardEmployees.length}</div>
-                      <div className="text-sm text-zinc-500 font-medium">{t('dash.activeStaff')}</div>
+                      <div className="text-4xl font-bold text-slate-900 dark:text-white tracking-tight">{dashboardEmployees.length}</div>
+                      <div className="text-sm text-slate-500 dark:text-zinc-500 font-medium">{t('dash.activeStaff')}</div>
                   </div>
-                  <div className="mt-6 w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                  <div className="mt-6 w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
                       <div className="bg-blue-500 w-[80%] h-full rounded-full"></div>
                   </div>
               </div>
 
               {/* Card 2: Total Tasks -> GÜNCELLENDİ: SADECE AKTİF GÖREVLER */}
-              <div className="rounded-3xl border border-zinc-800 bg-zinc-900/40 p-6 flex flex-col justify-between hover:bg-zinc-900/60 transition-all cursor-pointer group relative" onClick={() => navigateTo('tasks')}>
+              <div className="rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 p-6 flex flex-col justify-between hover:bg-white dark:hover:bg-zinc-900/60 transition-all cursor-pointer group relative" onClick={() => navigateTo('tasks')}>
 <GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} />
                    <div className="flex justify-between items-start">
                       <div className="p-3 bg-indigo-500/10 rounded-2xl text-indigo-400 group-hover:scale-110 transition-transform shadow-lg shadow-indigo-900/10">
@@ -509,21 +509,21 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                   </div>
                   <div className="mt-6">
                       {/* DEĞİŞİKLİK: Burada dashboardTasks.length yerine pendingTasks.length kullanıldı */}
-                      <div className="text-4xl font-bold text-white tracking-tight">{pendingTasks.length}</div>
+                      <div className="text-4xl font-bold text-slate-900 dark:text-white tracking-tight">{pendingTasks.length}</div>
                       {/* Metin "Toplam Görevler" olarak kalıyor ancak içerik aktif görevleri gösteriyor */}
-                      <div className="text-sm text-zinc-500 font-medium flex items-center gap-1">
-                          {t('dash.totalTasks')} <span className="text-[10px] text-zinc-600">(Aktif)</span>
+                      <div className="text-sm text-slate-500 dark:text-zinc-500 font-medium flex items-center gap-1">
+                          {t('dash.totalTasks')} <span className="text-[10px] text-slate-400 dark:text-zinc-600">(Aktif)</span>
                       </div>
                   </div>
                   <div className="mt-6 flex -space-x-3">
                       {dashboardEmployees.slice(0,3).map(e => (
-                          <img key={e.id} src={e.avatarUrl} className="w-8 h-8 rounded-full border-2 border-zinc-950 opacity-80 grayscale group-hover:grayscale-0 transition-all" referrerPolicy="no-referrer" />
+                          <img key={e.id} src={e.avatarUrl} className="w-8 h-8 rounded-full border-2 border-slate-200 dark:border-zinc-950 opacity-80 grayscale group-hover:grayscale-0 transition-all" referrerPolicy="no-referrer" />
                       ))}
                   </div>
               </div>
 
                {/* Card 3: Operation Success Rate (Replaced Financial Cost) */}
-               <div className="rounded-3xl border border-zinc-800 bg-gradient-to-br from-zinc-900 to-black p-6 flex flex-col justify-between relative overflow-hidden group">
+               <div className="rounded-3xl border border-slate-200 dark:border-zinc-800 bg-gradient-to-br from-zinc-900 to-black p-6 flex flex-col justify-between relative overflow-hidden group">
 <GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} />
                   <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-[50px] pointer-events-none group-hover:bg-purple-500/20 transition-all"></div>
                   <div className="flex justify-between items-start relative z-10">
@@ -533,10 +533,10 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                       <span className="text-xs font-bold bg-purple-500/10 text-purple-300 px-2.5 py-1 rounded-full border border-purple-500/20">Genel</span>
                   </div>
                   <div className="mt-6 relative z-10">
-                      <div className="text-4xl font-bold text-white tracking-tight">%{completionRate}</div>
-                      <div className="text-sm text-zinc-500 font-medium">{t('dash.successRate')}</div>
+                      <div className="text-4xl font-bold text-slate-900 dark:text-white tracking-tight">%{completionRate}</div>
+                      <div className="text-sm text-slate-500 dark:text-zinc-500 font-medium">{t('dash.successRate')}</div>
                   </div>
-                  <div className="mt-6 w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                  <div className="mt-6 w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
                       <div className="bg-purple-500 h-full rounded-full transition-all duration-1000" style={{ width: `${completionRate}%` }}></div>
                   </div>
               </div>
@@ -546,22 +546,22 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
           {currentUser.role === Role.ADMIN && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                   {/* Branch Performance Chart */}
-                  <div className="lg:col-span-2 rounded-3xl border border-zinc-800 bg-zinc-900/30 p-6 flex flex-col relative">
+                  <div className="lg:col-span-2 rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/30 p-6 flex flex-col relative">
 <GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} />
                       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                          <h3 className="font-bold text-white flex items-center gap-2">
+                          <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
                               <MapPin size={18} className="text-purple-400"/> {t('dash.branchPerf')}
                           </h3>
-                          <div className="flex bg-zinc-950 p-1 rounded-lg border border-zinc-800">
+                          <div className="flex bg-slate-50 dark:bg-zinc-950 p-1 rounded-lg border border-slate-200 dark:border-zinc-800">
                               <button 
                                 onClick={() => setTimeFilter('WEEKLY')}
-                                className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${timeFilter === 'WEEKLY' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${timeFilter === 'WEEKLY' ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white shadow' : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-slate-700 dark:text-zinc-300'}`}
                               >
                                   {language === 'de' ? 'Woche' : 'Bu Hafta'}
                               </button>
                               <button 
                                 onClick={() => setTimeFilter('MONTHLY')}
-                                className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${timeFilter === 'MONTHLY' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${timeFilter === 'MONTHLY' ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white shadow' : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-slate-700 dark:text-zinc-300'}`}
                               >
                                   {language === 'de' ? 'Monat' : 'Bu Ay'}
                               </button>
@@ -586,9 +586,9 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                   </div>
 
                   {/* Notifications / Live Feed */}
-                  <div className="rounded-3xl border border-zinc-800 bg-zinc-900/30 p-6 flex flex-col h-[400px] relative">
+                  <div className="rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/30 p-6 flex flex-col h-[400px] relative">
 <GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} />
-                      <h3 className="font-bold text-white mb-4 flex items-center gap-2">
+                      <h3 className="font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                           <Bell size={18} className="text-amber-400"/> {t('dash.liveFeed')}
                       </h3>
                       <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-2">
@@ -596,20 +596,20 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                               <div key={idx} className="flex gap-3 group">
                                   <div className="flex flex-col items-center">
                                       <div className={`w-2 h-2 rounded-full mt-1.5 ${notif.type === 'ALERT' ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]' : 'bg-indigo-500'}`}></div>
-                                      <div className="w-px h-full bg-zinc-800 my-1 group-last:hidden"></div>
+                                      <div className="w-px h-full bg-slate-100 dark:bg-zinc-800 my-1 group-last:hidden"></div>
                                   </div>
                                   <div className="pb-4 w-full">
                                       <div className="flex justify-between items-start gap-2">
                                           <div className="flex flex-col">
-                                              {notif.title && <span className="text-[11px] font-bold text-zinc-500 mb-0.5">{notif.title}</span>}
-                                              <p className="text-sm text-zinc-300 group-hover:text-white transition-colors leading-snug">{notif.message}</p>
+                                              {notif.title && <span className="text-[11px] font-bold text-slate-500 dark:text-zinc-500 mb-0.5">{notif.title}</span>}
+                                              <p className="text-sm text-slate-700 dark:text-zinc-300 group-hover:text-slate-900 dark:hover:text-white transition-colors leading-snug">{notif.message}</p>
                                           </div>
-                                          <span className="text-[10px] text-zinc-500 whitespace-nowrap pt-0.5">{getRelativeTime(notif.timestamp, language)}</span>
+                                          <span className="text-[10px] text-slate-500 dark:text-zinc-500 whitespace-nowrap pt-0.5">{getRelativeTime(notif.timestamp, language)}</span>
                                       </div>
                                   </div>
                               </div>
                           )) : (
-                              <div className="h-full flex flex-col items-center justify-center text-zinc-600">
+                              <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-zinc-600">
                                   <Bell size={32} className="mb-2 opacity-20"/>
                                   <div className="text-sm">Bildirim yok.</div>
                               </div>
@@ -639,16 +639,16 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                 </div>
                 
                 <div className="flex-1 text-center md:text-left z-10">
-                    <h3 className="text-xl font-bold text-white mb-1 flex items-center justify-center md:justify-start gap-2">
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1 flex items-center justify-center md:justify-start gap-2">
                         {t('dash.adminAlert')}
-                        <span className="text-[10px] bg-red-600 text-white px-2 py-0.5 rounded-full font-bold animate-bounce">{t('dash.newBadge')}</span>
+                        <span className="text-[10px] bg-red-600 text-slate-900 dark:text-white px-2 py-0.5 rounded-full font-bold animate-bounce">{t('dash.newBadge')}</span>
                     </h3>
                     <p className="text-indigo-200 text-sm leading-relaxed max-w-2xl line-clamp-1">
                         {adminMessageAlert.message}
                     </p>
                 </div>
                 
-                <button onClick={() => navigateTo('messages')} className="relative z-10 px-8 py-3 bg-white text-indigo-900 text-sm font-bold rounded-xl transition-all shadow-lg hover:bg-zinc-100 hover:scale-105 active:scale-95 group">
+                <button onClick={() => navigateTo('messages')} className="relative z-10 px-8 py-3 bg-white text-indigo-900 text-sm font-bold rounded-xl transition-all shadow-lg hover:bg-slate-200 dark:hover:bg-zinc-100 hover:scale-105 active:scale-95 group">
                     {t('dash.readMessage')}
                     <ArrowUpRight className="inline-block ml-2 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" size={16} />
                 </button>
@@ -666,26 +666,26 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                </div>
                
                <div className="flex-1 text-center md:text-left z-10">
-                   <h3 className="text-xl font-bold text-white mb-2 flex items-center justify-center md:justify-start gap-2 uppercase tracking-wide">
+                   <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 flex items-center justify-center md:justify-start gap-2 uppercase tracking-wide">
                        ⚠️ {t('dash.transferAlert')}
                    </h3>
                    <div className="space-y-1 text-sm">
                         <p className="text-orange-200 font-medium">
                             {t('dash.transferAlertMsg')}
                         </p>
-                        <p className="text-zinc-300">
+                        <p className="text-slate-700 dark:text-zinc-300">
                             <span className="bg-orange-500/20 text-orange-200 px-2 py-0.5 rounded border border-orange-500/30 font-bold">{activeTransferEvent.title}</span>
                         </p>
-                        <p className="text-zinc-300">
+                        <p className="text-slate-700 dark:text-zinc-300">
                             {t('sales.date')}: <span className="text-orange-300 font-bold">{formatDate(activeTransferEvent.date)} - {activeTransferEvent.endDate ? formatDate(activeTransferEvent.endDate) : '...'}</span>
                         </p>
-                        <p className="text-zinc-300">
+                        <p className="text-slate-700 dark:text-zinc-300">
                             {t('common.timeLabel')}: <span className="text-orange-300 font-bold">{activeTransferEvent.startTime} - {activeTransferEvent.endTime}</span>
                         </p>
                    </div>
                </div>
                
-               <button onClick={() => navigateTo('calendar')} className="relative z-10 px-8 py-3 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white text-sm font-bold rounded-xl transition-all shadow-lg hover:shadow-orange-900/40 hover:scale-105 active:scale-95 group whitespace-nowrap">
+               <button onClick={() => navigateTo('calendar')} className="relative z-10 px-8 py-3 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-slate-900 dark:text-white text-sm font-bold rounded-xl transition-all shadow-lg hover:shadow-orange-900/40 hover:scale-105 active:scale-95 group whitespace-nowrap">
                    {t('dash.viewDetails')}
                    <ArrowRightLeft className="inline-block ml-2 group-hover:translate-x-1 transition-transform" size={16} />
                </button>
@@ -703,7 +703,7 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                         <img src={currentUser.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=6366f1&color=fff`} className="w-full h-full rounded-full object-cover border-2 border-[#09090b]" alt="Profile" referrerPolicy="no-referrer" />
                         
                         <div className="absolute inset-0.5 rounded-full bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            {isUploadingAvatar ? <Loader2 size={20} className="text-white animate-spin" /> : <Upload size={20} className="text-white" />}
+                            {isUploadingAvatar ? <Loader2 size={20} className="text-slate-900 dark:text-white animate-spin" /> : <Upload size={20} className="text-slate-900 dark:text-white" />}
                         </div>
                         
                         <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={isUploadingAvatar} />
@@ -711,19 +711,19 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                      <div className="absolute bottom-0 right-0 w-5 h-5 bg-green-500 border-4 border-[#09090b] rounded-full z-10" title="Online"></div>
                  </div>
                  <div>
-                    <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
+                    <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
                         {t('dash.welcome')}, {currentUser.name.split(' ')[0]}
                     </h1>
                     <div className="flex items-center gap-3 mt-1">
-                        <span className="text-xs font-medium px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">Havuz</span>
-                        <span className="text-xs text-zinc-500">{formatDate(new Date().toISOString(), { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+                        <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-300 dark:border-zinc-700">Havuz</span>
+                        <span className="text-xs text-slate-500 dark:text-zinc-500">{formatDate(new Date().toISOString(), { weekday: 'long', day: 'numeric', month: 'long' })}</span>
                     </div>
                 </div>
             </div>
             
             <button 
                 onClick={() => navigateTo('messages')}
-                className="p-3 bg-zinc-900 border border-zinc-800 rounded-2xl text-indigo-400 hover:text-white hover:bg-indigo-600/20 transition-all shadow-lg relative"
+                className="p-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl text-indigo-400 hover:text-slate-900 dark:hover:text-white hover:bg-indigo-600/20 transition-all shadow-lg relative"
             >
                 <MessageSquare size={20} />
                 <span className="absolute -top-1 -right-1 w-3 h-3 bg-indigo-500 rounded-full border-2 border-[#09090b]"></span>
@@ -734,35 +734,35 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
       {/* --- BÖLÜM 1: ÖNCELİKLİ GÖREVLER --- */}
       <div className="mb-8">
           <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-white uppercase tracking-wider flex items-center gap-2">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
                   <CheckSquare size={20} className="text-yellow-500"/> {t('dash.priorityTasks')}
               </h3>
-              <button onClick={() => navigateTo('tasks')} className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors bg-zinc-900 px-3 py-1 rounded-full border border-zinc-800">{t('dash.viewAll')}</button>
+              <button onClick={() => navigateTo('tasks')} className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors bg-white dark:bg-zinc-900 px-3 py-1 rounded-full border border-slate-200 dark:border-zinc-800">{t('dash.viewAll')}</button>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {myTasks.length > 0 ? (
                   myTasks.slice(0, 4).map(task => (
-                      <div key={task.id} onClick={() => navigateTo('tasks')} className="group p-4 bg-zinc-900/50 hover:bg-zinc-800/80 border border-zinc-800 rounded-2xl cursor-pointer transition-all hover:scale-[1.02] shadow-sm relative overflow-hidden">
+                      <div key={task.id} onClick={() => navigateTo('tasks')} className="group p-4 bg-white dark:bg-zinc-900/50 hover:bg-slate-100 dark:hover:bg-zinc-800/80 border border-slate-200 dark:border-zinc-800 rounded-2xl cursor-pointer transition-all hover:scale-[1.02] shadow-sm relative overflow-hidden">
                           {task.priority === 'Yüksek' && <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>}
                           <div className="flex justify-between items-start mb-3">
                               <span className={`text-[10px] px-2 py-0.5 rounded border font-medium ${
-                                  task.priority === 'Yüksek' ? 'bg-red-900/20 text-red-400 border-red-900/30' : 'bg-zinc-800 text-zinc-400 border-zinc-700'
+                                  task.priority === 'Yüksek' ? 'bg-red-900/20 text-red-400 border-red-900/30' : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border-slate-300 dark:border-zinc-700'
                               }`}>{t(`priority.${task.priority}`)}</span>
-                              <ArrowUpRight size={16} className="text-zinc-600 group-hover:text-white transition-colors"/>
+                              <ArrowUpRight size={16} className="text-slate-400 dark:text-zinc-600 group-hover:text-slate-900 dark:hover:text-white transition-colors"/>
                           </div>
-                          <h4 className="text-sm font-bold text-zinc-200 group-hover:text-white line-clamp-2 mb-2">{task.title}</h4>
+                          <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200 group-hover:text-slate-900 dark:hover:text-white line-clamp-2 mb-2">{task.title}</h4>
                           <div className="flex justify-between items-end mt-2">
-                                <span className="text-[10px] text-zinc-500">{t('tasks.dueDate')}: {formatDate(task.dueDate, {day:'numeric', month:'short'})}</span>
+                                <span className="text-[10px] text-slate-500 dark:text-zinc-500">{t('tasks.dueDate')}: {formatDate(task.dueDate, {day:'numeric', month:'short'})}</span>
                                 <div className="text-xs font-mono text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded">%{task.progress}</div>
                           </div>
-                          <div className="mt-2 w-full bg-zinc-800 h-1 rounded-full overflow-hidden">
+                          <div className="mt-2 w-full bg-slate-100 dark:bg-zinc-800 h-1 rounded-full overflow-hidden">
                               <div className="bg-indigo-500 h-full rounded-full" style={{ width: `${task.progress}%` }}></div>
                           </div>
                       </div>
                   ))
               ) : (
-                  <div className="col-span-4 flex flex-col items-center justify-center py-8 bg-zinc-900/20 border border-dashed border-zinc-800 rounded-2xl text-zinc-500">
+                  <div className="col-span-4 flex flex-col items-center justify-center py-8 bg-white dark:bg-zinc-900/20 border border-dashed border-slate-200 dark:border-zinc-800 rounded-2xl text-slate-500 dark:text-zinc-500">
                       <CheckCircle2 size={32} className="mb-2 opacity-20"/>
                       <p className="text-sm">{t('dash.noActiveTasks')}</p>
                   </div>
@@ -775,19 +775,19 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 w-full">
           
           {/* KART 1: MESAJLAR & BİLDİRİMLER - EĞER TRANSFER YOKSA TAM GENİŞLİK (col-span-2) */}
-          <div className={`rounded-3xl border border-zinc-800 bg-zinc-900/30 p-6 flex flex-col h-full min-h-[300px] relative ${recentTransfers.length === 0 ? 'lg:col-span-2' : ''}`}>
+          <div className={`rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/30 p-6 flex flex-col h-full min-h-[300px] relative ${recentTransfers.length === 0 ? 'lg:col-span-2' : ''}`}>
 <GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} />
               <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-sm font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider flex items-center gap-2">
                       <MessageSquare size={16} className="text-indigo-400"/> {t('dash.messages')}
                   </h3>
-                  <button onClick={() => navigateTo('messages')} className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-white transition-colors">
+                  <button onClick={() => navigateTo('messages')} className="p-1.5 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg text-slate-500 dark:text-zinc-500 hover:text-slate-900 dark:hover:text-white transition-colors">
                       <ArrowUpRight size={16}/>
                   </button>
               </div>
               <div className="flex-1 flex flex-col gap-3">
                   {recentMessages.length === 0 && filteredNotifications.length === 0 ? (
-                      <div className="flex-1 flex flex-col items-center justify-center text-zinc-600">
+                      <div className="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-zinc-600">
                           <Bell size={24} className="opacity-30 mb-2"/>
                           <p className="text-xs">Yeni bildirim yok</p>
                       </div>
@@ -798,32 +798,32 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                             <div 
                                 key={msg.id} 
                                 onClick={() => navigateTo('messages')}
-                                className={`flex gap-4 items-start p-3 rounded-xl border transition-all cursor-pointer hover:bg-zinc-900/60 hover:border-zinc-700 hover:scale-[1.01] ${!msg.read && msg.senderId !== currentUser.id ? 'bg-indigo-900/10 border-indigo-500/20' : 'bg-zinc-900/40 border-zinc-800/50'}`}
+                                className={`flex gap-4 items-start p-3 rounded-xl border transition-all cursor-pointer hover:bg-white dark:hover:bg-zinc-900/60 hover:border-slate-300 dark:border-zinc-700 hover:scale-[1.01] ${!msg.read && msg.senderId !== currentUser.id ? 'bg-indigo-900/10 border-indigo-500/20' : 'bg-white dark:bg-zinc-900/40 border-slate-200 dark:border-zinc-800/50'}`}
                             >
                                 <div className="relative flex-shrink-0">
-                                    <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-400 border border-zinc-700">
+                                    <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-zinc-400 border border-slate-300 dark:border-zinc-700">
                                         {getSenderName(msg.senderId).charAt(0)}
                                     </div>
-                                    {!msg.read && msg.senderId !== currentUser.id && <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-indigo-500 rounded-full border-2 border-zinc-950"></div>}
+                                    {!msg.read && msg.senderId !== currentUser.id && <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-indigo-500 rounded-full border-2 border-slate-200 dark:border-zinc-950"></div>}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex justify-between items-baseline mb-0.5">
-                                        <h4 className="text-xs font-bold text-zinc-200">{getSenderName(msg.senderId)}</h4>
-                                        <span className="text-[10px] text-zinc-500">{getRelativeTime(msg.timestamp, language)}</span>
+                                        <h4 className="text-xs font-bold text-slate-800 dark:text-zinc-200">{getSenderName(msg.senderId)}</h4>
+                                        <span className="text-[10px] text-slate-500 dark:text-zinc-500">{getRelativeTime(msg.timestamp, language)}</span>
                                     </div>
-                                    <p className="text-xs text-zinc-400 line-clamp-1">{msg.content}</p>
+                                    <p className="text-xs text-slate-600 dark:text-zinc-400 line-clamp-1">{msg.content}</p>
                                 </div>
                             </div>
                         ))}
                         {/* Sonra Bildirimler (Varsa ve mesaj azsa) */}
                         {recentMessages.length < 3 && filteredNotifications.slice(0, 3 - recentMessages.length).map(notif => (
-                             <div key={notif.id} className="flex gap-4 items-start p-3 rounded-xl border border-zinc-800/50 bg-zinc-900/40">
+                             <div key={notif.id} className="flex gap-4 items-start p-3 rounded-xl border border-slate-200 dark:border-zinc-800/50 bg-white dark:bg-zinc-900/40">
                                 <div className="flex-shrink-0 pt-1">
                                     <Bell size={14} className="text-amber-500"/>
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-xs text-zinc-300">{notif.message}</p>
-                                    <span className="text-[10px] text-zinc-600 mt-1 block">{getRelativeTime(notif.timestamp, language)}</span>
+                                    <p className="text-xs text-slate-700 dark:text-zinc-300">{notif.message}</p>
+                                    <span className="text-[10px] text-slate-400 dark:text-zinc-600 mt-1 block">{getRelativeTime(notif.timestamp, language)}</span>
                                 </div>
                              </div>
                         ))}
@@ -835,13 +835,13 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
           {/* KART 2: PERSONEL TRANSFERLERİ - SADECE AKTİF TRANSFER VARSA GÖSTER */}
           {/* Transfer card hidden - feature disabled */}
           {false && recentTransfers.length > 0 && (
-              <div className="rounded-3xl border border-zinc-800 bg-zinc-900/30 p-6 flex flex-col h-full min-h-[300px] relative">
+              <div className="rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/30 p-6 flex flex-col h-full min-h-[300px] relative">
 <GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} />
                   <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-sm font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
+                      <h3 className="text-sm font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider flex items-center gap-2">
                           <ArrowRightLeft size={16} className="text-orange-500"/> {t('dash.transfers')}
                       </h3>
-                      <button onClick={() => navigateTo('calendar')} className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-white transition-colors">
+                      <button onClick={() => navigateTo('calendar')} className="p-1.5 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg text-slate-500 dark:text-zinc-500 hover:text-slate-900 dark:hover:text-white transition-colors">
                           <ArrowUpRight size={16}/>
                       </button>
                   </div>
@@ -858,7 +858,7 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                               </div>
                               <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2">
-                                      <span className="text-sm font-bold text-white truncate">
+                                      <span className="text-sm font-bold text-slate-900 dark:text-white truncate">
                                           {tr.attendees.length === 1 
                                             ? dashboardEmployees.find(e => e.id === tr.attendees[0])?.name 
                                             : `${tr.attendees.length} Personel`}
@@ -869,14 +869,14 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                                   </div>
                               </div>
                               <div className="flex-shrink-0 text-right">
-                                  <span className="block text-xs font-bold text-white bg-orange-700/50 px-3 py-1.5 rounded-lg border border-orange-400/30">
+                                  <span className="block text-xs font-bold text-slate-900 dark:text-white bg-orange-700/50 px-3 py-1.5 rounded-lg border border-orange-400/30">
                                       {formatDate(tr.date, { day: 'numeric', month: 'short' })}
                                   </span>
                               </div>
                           </div>
                       ))}
                   </div>
-                  <button onClick={() => navigateTo('calendar')} className="mt-4 w-full py-2 text-xs font-medium text-zinc-500 hover:text-white hover:bg-zinc-800/50 rounded-lg transition-colors border border-dashed border-zinc-800">
+                  <button onClick={() => navigateTo('calendar')} className="mt-4 w-full py-2 text-xs font-medium text-slate-500 dark:text-zinc-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800/50 rounded-lg transition-colors border border-dashed border-slate-200 dark:border-zinc-800">
                       {t('dash.viewAll')}
                   </button>
               </div>
@@ -892,19 +892,19 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                   Tıklanınca payroll'a değil, doğrudan QR scanner modal'ı açılır. */}
               <div
                   onClick={() => setShowQrModal(true)}
-                  className="rounded-3xl border border-zinc-800 bg-gradient-to-br from-emerald-900/40 to-zinc-900 p-6 relative overflow-hidden group cursor-pointer hover:border-emerald-500/50 transition-all shadow-lg"
+                  className="rounded-3xl border border-slate-200 dark:border-zinc-800 bg-gradient-to-br from-emerald-900/40 to-zinc-900 p-6 relative overflow-hidden group cursor-pointer hover:border-emerald-500/50 transition-all shadow-lg"
               >
 <GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} />
                   <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                       <QrCode size={100} className="text-emerald-400" />
                   </div>
                   <div className="relative z-10">
-                      <div className="w-12 h-12 rounded-2xl bg-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-900/50 mb-4 group-hover:scale-110 transition-transform">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-600 flex items-center justify-center text-slate-900 dark:text-white shadow-lg shadow-emerald-900/50 mb-4 group-hover:scale-110 transition-transform">
                           <QrCode size={24} />
                       </div>
-                      <h3 className="text-lg font-bold text-white mb-1">QR ile Mesai</h3>
-                      <p className="text-sm text-zinc-400 mb-4">Şube QR'ını okutarak hızlıca giriş/çıkış yap.</p>
-                      <button className="px-4 py-2 bg-zinc-950 border border-zinc-700 text-white text-xs font-bold rounded-lg group-hover:bg-white group-hover:text-black transition-colors">
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">QR ile Mesai</h3>
+                      <p className="text-sm text-slate-600 dark:text-zinc-400 mb-4">Şube QR'ını okutarak hızlıca giriş/çıkış yap.</p>
+                      <button className="px-4 py-2 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-white text-xs font-bold rounded-lg group-hover:bg-white group-hover:text-black transition-colors">
                           QR Tara
                       </button>
                   </div>
@@ -914,10 +914,10 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
 
               {/* Task Status Pie Chart */}
               {currentUser.role === Role.ADMIN && (
-                <div className="rounded-3xl border border-zinc-800 bg-zinc-900/30 p-6 flex flex-col justify-between relative">
+                <div className="rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/30 p-6 flex flex-col justify-between relative">
 <GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} />
                     <div className="flex justify-between items-start mb-2">
-                        <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-1 flex items-center gap-2"><ListTodo size={16}/> {t('dash.taskDist')}</h3>
+                        <h3 className="text-sm font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider mb-1 flex items-center gap-2"><ListTodo size={16}/> {t('dash.taskDist')}</h3>
                     </div>
                     <div className="h-[180px] w-full relative">
                         <ResponsiveContainer width="100%" height="100%">
@@ -943,9 +943,9 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                         </ResponsiveContainer>
                         
                         <div className="absolute inset-0 flex items-center justify-center flex-col pointer-events-none pb-8">
-                            <span className="text-3xl font-bold text-white">{myTasks.length}</span>
-                            <span className="text-[10px] text-zinc-500 uppercase mb-1">{t('tasks.total')} (Aktif)</span>
-                            <div className="bg-zinc-800/80 px-2 py-0.5 rounded-full border border-zinc-700 mt-1">
+                            <span className="text-3xl font-bold text-slate-900 dark:text-white">{myTasks.length}</span>
+                            <span className="text-[10px] text-slate-500 dark:text-zinc-500 uppercase mb-1">{t('tasks.total')} (Aktif)</span>
+                            <div className="bg-slate-100 dark:bg-zinc-800/80 px-2 py-0.5 rounded-full border border-slate-300 dark:border-zinc-700 mt-1">
                                 <span className="text-xs font-bold text-green-400">%{myCompletionRate}</span>
                             </div>
                         </div>
@@ -955,9 +955,9 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
           </div>
 
           {/* COL 2: WORKLOAD & PRIORITY ANALYSIS */}
-          <div className="rounded-3xl border border-zinc-800 bg-zinc-900/30 p-6 flex flex-col relative lg:col-span-2">
+          <div className="rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/30 p-6 flex flex-col relative lg:col-span-2">
 <GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} />
-              <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2 mb-4">
+              <h3 className="text-sm font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-2 mb-4">
                   <BarChart3 size={16}/> {t('dash.workload')}
               </h3>
               <div className="flex-1 min-h-[300px]">
@@ -974,9 +974,9 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                       </BarChart>
                   </ResponsiveContainer>
               </div>
-              <div className="mt-4 p-3 bg-zinc-900/50 rounded-xl border border-zinc-800/50 flex items-center gap-4">
+              <div className="mt-4 p-3 bg-white dark:bg-zinc-900/50 rounded-xl border border-slate-200 dark:border-zinc-800/50 flex items-center gap-4">
                   <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400"><Briefcase size={20}/></div>
-                  <p className="text-xs text-zinc-400 leading-relaxed">
+                  <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
                       {/* GÜNCELLEME: BURADAKİ METİNDE DE AKTİF SAYI GÖSTERİLMELİ */}
                       <span className="text-indigo-400 font-bold">{t('dash.workload').split('&')[1]}:</span> {t('tasks.total')} {myTasks.length}. <span className="text-red-400 font-bold">{taskPriorityData.find(d=>d.name===t('priority.Yüksek'))?.adet || 0}</span> {t('priority.Yüksek').toLowerCase()}.
                   </p>
@@ -987,22 +987,22 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
       {/* QR MESAİ MODAL — Dashboard "QR ile Mesai" kartından açılır */}
       {showQrModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
-              <div className="flex items-center gap-2 text-white font-semibold">
+          <div className="w-full max-w-lg bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-zinc-800">
+              <div className="flex items-center gap-2 text-slate-900 dark:text-white font-semibold">
                 <QrCode size={18} className="text-emerald-400" />
                 QR ile Mesai
               </div>
               <button
                 onClick={() => setShowQrModal(false)}
-                className="text-zinc-400 hover:text-white"
+                className="text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
                 aria-label="Kapat"
               >
                 <X size={18} />
               </button>
             </div>
             <Suspense fallback={
-              <div className="p-12 flex items-center justify-center text-zinc-400">
+              <div className="p-12 flex items-center justify-center text-slate-600 dark:text-zinc-400">
                 <Loader2 className="animate-spin mr-2" size={20}/> Yükleniyor...
               </div>
             }>

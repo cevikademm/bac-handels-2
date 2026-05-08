@@ -358,37 +358,37 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
     return (
         <div className="h-full w-full overflow-y-auto custom-scrollbar p-4 md:p-8 pb-32">
             <div className="max-w-4xl mx-auto">
-                <h2 className="text-3xl font-bold text-white mb-8">{t('set.title')}</h2>
+                <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-8">{t('set.title')}</h2>
                 
                 <div className="grid gap-6">
                     
                     {/* AVATAR UPLOAD SETTINGS */}
-                    <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
-                        <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+                    <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl p-6">
+                        <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                             <Upload size={20} className="text-pink-500"/>
                             {t('set.profilePhoto')}
                         </h3>
-                        <div className="bg-zinc-900 rounded-lg p-4 border border-zinc-800/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                        <div className="bg-white dark:bg-zinc-900 rounded-lg p-4 border border-slate-200 dark:border-zinc-800/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                             <div className="flex items-center gap-4">
-                                <div className="w-16 h-16 rounded-full overflow-hidden bg-zinc-800 border-2 border-zinc-700">
+                                <div className="w-16 h-16 rounded-full overflow-hidden bg-slate-100 dark:bg-zinc-800 border-2 border-slate-300 dark:border-zinc-700">
                                     {currentUser?.avatarUrl ? (
                                         <img src={currentUser.avatarUrl} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                                     ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-zinc-500">?</div>
+                                        <div className="w-full h-full flex items-center justify-center text-slate-500 dark:text-zinc-500">?</div>
                                     )}
                                 </div>
                                 <div>
-                                    <p className="text-zinc-200 text-sm font-medium mb-1">
+                                    <p className="text-slate-800 dark:text-zinc-200 text-sm font-medium mb-1">
                                         {t('set.updatePhotoTitle')}
                                     </p>
-                                    <p className="text-xs text-zinc-500">
+                                    <p className="text-xs text-slate-500 dark:text-zinc-500">
                                         {t('set.updatePhotoHint')}
                                     </p>
                                 </div>
                             </div>
                             
                             <div className="flex items-center gap-2 w-full md:w-auto">
-                                <label className={`flex-1 md:flex-none cursor-pointer px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-lg shadow-indigo-900/20 ${isUploadingAvatar ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                <label className={`flex-1 md:flex-none cursor-pointer px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-slate-900 dark:text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-lg shadow-indigo-900/20 ${isUploadingAvatar ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                     {isUploadingAvatar ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
                                     <span>{isUploadingAvatar ? t('common.loading') : t('set.uploadPhoto')}</span>
                                     <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={isUploadingAvatar} />
@@ -398,21 +398,21 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                     </div>
 
                     {/* LANGUAGE SETTINGS */}
-                    <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
-                        <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+                    <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl p-6">
+                        <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                             <Globe size={20} className="text-blue-500"/>
                             {t('set.language')}
                         </h3>
-                        <div className="bg-zinc-900 rounded-lg p-1.5 border border-zinc-800/50 inline-flex gap-1">
+                        <div className="bg-white dark:bg-zinc-900 rounded-lg p-1.5 border border-slate-200 dark:border-zinc-800/50 inline-flex gap-1">
                             <button 
                                 onClick={() => setLanguage('tr')}
-                                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${language === 'tr' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${language === 'tr' ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white shadow' : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-slate-700 dark:text-zinc-300'}`}
                             >
                                 🇹🇷 Türkçe
                             </button>
                             <button
                                 onClick={() => setLanguage('de')}
-                                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${language === 'de' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${language === 'de' ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white shadow' : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-slate-700 dark:text-zinc-300'}`}
                             >
                                 🇩🇪 Deutsch
                             </button>
@@ -420,21 +420,21 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                     </div>
 
                     {/* THEME SETTINGS */}
-                    <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
-                        <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+                    <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl p-6">
+                        <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                             {theme === 'dark' ? <Moon size={20} className="text-indigo-400"/> : <Sun size={20} className="text-amber-500"/>}
                             {t('set.theme')}
                         </h3>
-                        <div className="bg-zinc-900 rounded-lg p-1.5 border border-zinc-800/50 inline-flex gap-1">
+                        <div className="bg-white dark:bg-zinc-900 rounded-lg p-1.5 border border-slate-200 dark:border-zinc-800/50 inline-flex gap-1">
                             <button
                                 onClick={() => setTheme('dark')}
-                                className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${theme === 'dark' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${theme === 'dark' ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white shadow' : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-slate-700 dark:text-zinc-300'}`}
                             >
                                 <Moon size={14} /> {t('set.themeDark')}
                             </button>
                             <button
                                 onClick={() => setTheme('light')}
-                                className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${theme === 'light' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${theme === 'light' ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white shadow' : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-slate-700 dark:text-zinc-300'}`}
                             >
                                 <Sun size={14} /> {t('set.themeLight')}
                             </button>
@@ -442,17 +442,17 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                     </div>
 
                     {/* NOTIFICATION SOUND SETTINGS */}
-                    <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
-                        <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+                    <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl p-6">
+                        <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                             <Volume2 size={20} className="text-amber-500"/>
                             {t('set.sound')}
                         </h3>
-                        <div className="bg-zinc-900 rounded-lg p-4 border border-zinc-800/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                        <div className="bg-white dark:bg-zinc-900 rounded-lg p-4 border border-slate-200 dark:border-zinc-800/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                             <div>
-                                <p className="text-zinc-200 text-sm font-medium mb-1">
+                                <p className="text-slate-800 dark:text-zinc-200 text-sm font-medium mb-1">
                                     {hasCustomSound ? t('set.soundDesc') : t('set.soundDef')}
                                 </p>
-                                <p className="text-xs text-zinc-500">
+                                <p className="text-xs text-slate-500 dark:text-zinc-500">
                                     {hasCustomSound 
                                         ? t('set.soundInfo')
                                         : t('set.soundDefInfo')}
@@ -462,13 +462,13 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                             <div className="flex items-center gap-2 w-full md:w-auto">
                                 <button 
                                     onClick={handleTestSound}
-                                    className="p-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg transition-colors border border-zinc-700"
+                                    className="p-2.5 bg-slate-100 dark:bg-zinc-800 hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 rounded-lg transition-colors border border-slate-300 dark:border-zinc-700"
                                     title={t('set.test')}
                                 >
                                     <Play size={16} />
                                 </button>
                                 
-                                <label className={`flex-1 md:flex-none cursor-pointer px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-lg shadow-indigo-900/20 ${soundLoading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                <label className={`flex-1 md:flex-none cursor-pointer px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-slate-900 dark:text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-lg shadow-indigo-900/20 ${soundLoading ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                     {soundLoading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
                                     <span>{soundLoading ? t('common.loading') : t('set.upload')}</span>
                                     <input type="file" accept="audio/*" className="hidden" onChange={handleFileUpload} disabled={soundLoading} />
@@ -477,7 +477,7 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                                 {hasCustomSound && (
                                     <button 
                                         onClick={handleResetSound}
-                                        className="p-2.5 bg-zinc-800 hover:bg-red-900/30 text-zinc-400 hover:text-red-400 border border-zinc-700 hover:border-red-900/50 rounded-lg transition-all"
+                                        className="p-2.5 bg-slate-100 dark:bg-zinc-800 hover:bg-red-900/30 text-slate-600 dark:text-zinc-400 hover:text-red-400 border border-slate-300 dark:border-zinc-700 hover:border-red-900/50 rounded-lg transition-all"
                                         title={t('set.reset')}
                                     >
                                         <RefreshCw size={16} />
@@ -504,43 +504,43 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                     )}
 
                     {/* PASSWORD CHANGE SECTION */}
-                    <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
-                        <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+                    <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl p-6">
+                        <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                             <KeyRound size={20} className="text-indigo-500"/>
                             {t('set.password')}
                         </h3>
-                        <p className="text-sm text-zinc-400 mb-6">{t('set.passDesc')}</p>
+                        <p className="text-sm text-slate-600 dark:text-zinc-400 mb-6">{t('set.passDesc')}</p>
                         
                         <form onSubmit={handlePasswordUpdate} className="space-y-4 max-w-lg">
                             <div className="space-y-2">
-                                <label className="text-xs font-medium text-zinc-400">{t('set.currentPass')}</label>
+                                <label className="text-xs font-medium text-slate-600 dark:text-zinc-400">{t('set.currentPass')}</label>
                                 <input 
                                     type="password" 
                                     value={passForm.current}
                                     onChange={(e) => setPassForm({...passForm, current: e.target.value})}
-                                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-indigo-500 outline-none transition-all placeholder:text-zinc-700"
+                                    className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:border-indigo-500 outline-none transition-all placeholder:text-zinc-700"
                                     placeholder="••••••••"
                                 />
                             </div>
                             
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium text-zinc-400">{t('set.newPass')}</label>
+                                    <label className="text-xs font-medium text-slate-600 dark:text-zinc-400">{t('set.newPass')}</label>
                                     <input 
                                         type="password" 
                                         value={passForm.new}
                                         onChange={(e) => setPassForm({...passForm, new: e.target.value})}
-                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-indigo-500 outline-none transition-all placeholder:text-zinc-700"
+                                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:border-indigo-500 outline-none transition-all placeholder:text-zinc-700"
                                         placeholder={t('set.passMin6')}
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium text-zinc-400">{t('set.confirmPass')}</label>
+                                    <label className="text-xs font-medium text-slate-600 dark:text-zinc-400">{t('set.confirmPass')}</label>
                                     <input 
                                         type="password" 
                                         value={passForm.confirm}
                                         onChange={(e) => setPassForm({...passForm, confirm: e.target.value})}
-                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-indigo-500 outline-none transition-all placeholder:text-zinc-700"
+                                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:border-indigo-500 outline-none transition-all placeholder:text-zinc-700"
                                         placeholder="••••••••"
                                     />
                                 </div>
@@ -550,7 +550,7 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                                 <button 
                                     type="submit" 
                                     disabled={passLoading}
-                                    className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-indigo-900/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-slate-900 dark:text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-indigo-900/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {passLoading ? <Loader2 size={16} className="animate-spin" /> : t('set.update')}
                                 </button>
@@ -560,22 +560,22 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
 
                     {/* ADMIN PASSWORD RESET SECTION */}
                     {currentUser?.role === Role.ADMIN && (
-                        <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
-                            <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+                        <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl p-6">
+                            <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                                 <Shield size={20} className="text-red-500"/>
                                 {t('set.staffPwReset')}
                             </h3>
-                            <p className="text-sm text-zinc-400 mb-6">
+                            <p className="text-sm text-slate-600 dark:text-zinc-400 mb-6">
                                 {t('set.staffPwResetDesc')}
                             </p>
                             
                             <form onSubmit={handleAdminPasswordReset} className="space-y-4 max-w-lg">
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium text-zinc-400">{t('set.staffSelectLabel')}</label>
+                                    <label className="text-xs font-medium text-slate-600 dark:text-zinc-400">{t('set.staffSelectLabel')}</label>
                                     <select 
                                         value={selectedEmployeeId}
                                         onChange={(e) => setSelectedEmployeeId(e.target.value)}
-                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-indigo-500 outline-none transition-all"
+                                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:border-indigo-500 outline-none transition-all"
                                     >
                                         <option value="">{t('set.staffSelectPlaceholder')}</option>
                                         {employees.map(emp => (
@@ -587,19 +587,19 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                                     <button
                                         type="submit"
                                         disabled={resetLoading || !selectedEmployeeId}
-                                        className="px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-red-900/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="px-6 py-2.5 bg-red-600 hover:bg-red-500 text-slate-900 dark:text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-red-900/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         {resetLoading ? <Loader2 size={16} className="animate-spin" /> : t('set.resetPasswordBtn')}
                                     </button>
                                 </div>
                             </form>
 
-                            <div className="mt-6 pt-6 border-t border-zinc-800">
-                                <p className="text-xs text-zinc-500 mb-3">{t('set.resetAllInfo')}</p>
+                            <div className="mt-6 pt-6 border-t border-slate-200 dark:border-zinc-800">
+                                <p className="text-xs text-slate-500 dark:text-zinc-500 mb-3">{t('set.resetAllInfo')}</p>
                                 <button
                                     onClick={handleResetAllPasswords}
                                     disabled={resetLoading}
-                                    className="px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-orange-900/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-slate-900 dark:text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-orange-900/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {resetLoading ? <Loader2 size={16} className="animate-spin" /> : t('set.resetAllBtn')}
                                 </button>
@@ -608,62 +608,62 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                     )}
 
                     {/* SECURITY & CERTIFICATES */}
-                    <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
-                        <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+                    <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl p-6">
+                        <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                             <Shield size={20} className="text-emerald-500"/>
                             {t('set.security') || t('set.securityFallback')}
                         </h3>
-                        <p className="text-sm text-zinc-400 mb-6 font-medium">
+                        <p className="text-sm text-slate-600 dark:text-zinc-400 mb-6 font-medium">
                             {t('set.securityIntro')}
                         </p>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {/* RLS */}
-                            <div className="flex flex-col p-4 bg-zinc-900/80 rounded-xl border border-zinc-800/50 gap-2">
+                            <div className="flex flex-col p-4 bg-white dark:bg-zinc-900/80 rounded-xl border border-slate-200 dark:border-zinc-800/50 gap-2">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-zinc-200 text-sm font-semibold flex items-center gap-2">
+                                    <span className="text-slate-800 dark:text-zinc-200 text-sm font-semibold flex items-center gap-2">
                                         <Lock size={16} className="text-indigo-400" />
                                         RLS (Row Level Security)
                                     </span>
                                     <span className="px-2 py-1 bg-emerald-900/20 text-emerald-400 text-xs rounded border border-emerald-900/30 font-medium">{t('set.rlsActive')}</span>
                                 </div>
-                                <span className="text-xs text-zinc-500">{t('set.rlsDesc')}</span>
+                                <span className="text-xs text-slate-500 dark:text-zinc-500">{t('set.rlsDesc')}</span>
                             </div>
                             
                             {/* Database Encryption */}
-                            <div className="flex flex-col p-4 bg-zinc-900/80 rounded-xl border border-zinc-800/50 gap-2">
+                            <div className="flex flex-col p-4 bg-white dark:bg-zinc-900/80 rounded-xl border border-slate-200 dark:border-zinc-800/50 gap-2">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-zinc-200 text-sm font-semibold flex items-center gap-2">
+                                    <span className="text-slate-800 dark:text-zinc-200 text-sm font-semibold flex items-center gap-2">
                                         <Server size={16} className="text-blue-400" />
                                         {t('set.dbEnc') || t('set.dbEncFallback')}
                                     </span>
                                     <span className="px-2 py-1 bg-emerald-900/20 text-emerald-400 text-xs rounded border border-emerald-900/30 font-medium">AES-256</span>
                                 </div>
-                                <span className="text-xs text-zinc-500">{t('set.dbEncDesc')}</span>
+                                <span className="text-xs text-slate-500 dark:text-zinc-500">{t('set.dbEncDesc')}</span>
                             </div>
 
                             {/* SSL Certificate */}
-                            <div className="flex flex-col p-4 bg-zinc-900/80 rounded-xl border border-zinc-800/50 gap-2">
+                            <div className="flex flex-col p-4 bg-white dark:bg-zinc-900/80 rounded-xl border border-slate-200 dark:border-zinc-800/50 gap-2">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-zinc-200 text-sm font-semibold flex items-center gap-2">
+                                    <span className="text-slate-800 dark:text-zinc-200 text-sm font-semibold flex items-center gap-2">
                                         <Globe size={16} className="text-emerald-400" />
                                         {t('set.sslTitle')}
                                     </span>
                                     <span className="px-2 py-1 bg-emerald-900/20 text-emerald-400 text-xs rounded border border-emerald-900/30 font-medium">{t('set.sslValid')}</span>
                                 </div>
-                                <span className="text-xs text-zinc-500">{t('set.sslDesc')}</span>
+                                <span className="text-xs text-slate-500 dark:text-zinc-500">{t('set.sslDesc')}</span>
                             </div>
 
                             {/* GDPR / KVKK Compliance */}
-                            <div className="flex flex-col p-4 bg-zinc-900/80 rounded-xl border border-zinc-800/50 gap-2">
+                            <div className="flex flex-col p-4 bg-white dark:bg-zinc-900/80 rounded-xl border border-slate-200 dark:border-zinc-800/50 gap-2">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-zinc-200 text-sm font-semibold flex items-center gap-2">
+                                    <span className="text-slate-800 dark:text-zinc-200 text-sm font-semibold flex items-center gap-2">
                                         <CheckCircle size={16} className="text-purple-400" />
                                         {t('set.complianceTitle')}
                                     </span>
                                     <span className="px-2 py-1 bg-emerald-900/20 text-emerald-400 text-xs rounded border border-emerald-900/30 font-medium">GDPR / KVKK</span>
                                 </div>
-                                <span className="text-xs text-zinc-500">{t('set.complianceDesc')}</span>
+                                <span className="text-xs text-slate-500 dark:text-zinc-500">{t('set.complianceDesc')}</span>
                             </div>
                         </div>
                     </div>
@@ -789,7 +789,7 @@ const AppContent: React.FC = () => {
         return <Payroll currentUser={currentUser || MOCK_EMPLOYEES[0]} onNotify={addNotification} />;
       case 'qr':
         return (
-          <Suspense fallback={<div className="p-12 flex items-center justify-center text-zinc-400"><Loader2 className="animate-spin mr-2" size={20}/> {t('common.loading')}</div>}>
+          <Suspense fallback={<div className="p-12 flex items-center justify-center text-slate-600 dark:text-zinc-400"><Loader2 className="animate-spin mr-2" size={20}/> {t('common.loading')}</div>}>
             <QrCheckIn currentUser={currentUser || MOCK_EMPLOYEES[0]} />
           </Suspense>
         );
@@ -809,7 +809,7 @@ const AppContent: React.FC = () => {
           return <Dashboard notifications={notifications} currentUser={currentUser || MOCK_EMPLOYEES[0]} onUpdateUser={setCurrentUser} />;
         }
         return (
-          <Suspense fallback={<div className="flex items-center justify-center h-full text-zinc-400 text-sm">Harita yükleniyor…</div>}>
+          <Suspense fallback={<div className="flex items-center justify-center h-full text-slate-600 dark:text-zinc-400 text-sm">Harita yükleniyor…</div>}>
             <Map currentUser={currentUser || MOCK_EMPLOYEES[0]} />
           </Suspense>
         );

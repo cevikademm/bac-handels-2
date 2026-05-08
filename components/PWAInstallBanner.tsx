@@ -146,52 +146,52 @@ const PWAInstallBanner: React.FC<PWAInstallBannerProps> = ({ userId }) => {
   if (showIOSGuide) {
     return (
       <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-        <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
-            <div className="flex items-center gap-2 text-white font-semibold">
+        <div className="w-full max-w-md bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-zinc-800">
+            <div className="flex items-center gap-2 text-slate-900 dark:text-white font-semibold">
               <Smartphone size={18} className="text-indigo-400" />
               {t('pwa.addToHome')}
             </div>
             <button
               onClick={() => setShowIOSGuide(false)}
-              className="text-zinc-400 hover:text-white"
+              className="text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
               aria-label={t('pwa.close')}
             >
               <X size={18} />
             </button>
           </div>
-          <div className="p-5 space-y-4 text-sm text-zinc-200">
+          <div className="p-5 space-y-4 text-sm text-slate-800 dark:text-zinc-200">
             <p>
               {t('pwa.iosIntro')}
-              <strong className="text-white"> {t('pwa.iosIntroBold')}</strong> {t('pwa.iosIntroEnd')}
+              <strong className="text-slate-900 dark:text-white"> {t('pwa.iosIntroBold')}</strong> {t('pwa.iosIntroEnd')}
             </p>
             <ol className="space-y-3">
               <li className="flex items-start gap-3">
-                <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center font-bold shrink-0">
+                <span className="w-6 h-6 rounded-full bg-indigo-600 text-slate-900 dark:text-white text-xs flex items-center justify-center font-bold shrink-0">
                   1
                 </span>
                 <span>
                   {t('pwa.step1Pre')}{' '}
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-zinc-800 rounded">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded">
                     <Share size={14} className="text-blue-400" /> {t('pwa.step1Btn')}
                   </span>{' '}
                   {t('pwa.step1Post')}
                 </span>
               </li>
               <li className="flex items-start gap-3">
-                <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center font-bold shrink-0">
+                <span className="w-6 h-6 rounded-full bg-indigo-600 text-slate-900 dark:text-white text-xs flex items-center justify-center font-bold shrink-0">
                   2
                 </span>
                 <span>
                   {t('pwa.step2Pre')}{' '}
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-zinc-800 rounded">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded">
                     <Plus size={14} className="text-emerald-400" /> {t('pwa.step2Btn')}
                   </span>{' '}
                   {t('pwa.step2Post')}
                 </span>
               </li>
               <li className="flex items-start gap-3">
-                <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center font-bold shrink-0">
+                <span className="w-6 h-6 rounded-full bg-indigo-600 text-slate-900 dark:text-white text-xs flex items-center justify-center font-bold shrink-0">
                   3
                 </span>
                 <span>
@@ -207,16 +207,16 @@ const PWAInstallBanner: React.FC<PWAInstallBannerProps> = ({ userId }) => {
               </div>
             </div>
           </div>
-          <div className="px-5 py-3 border-t border-zinc-800 flex justify-end gap-2">
+          <div className="px-5 py-3 border-t border-slate-200 dark:border-zinc-800 flex justify-end gap-2">
             <button
               onClick={handleSnooze}
-              className="px-3 py-2 text-xs text-zinc-400 hover:text-white"
+              className="px-3 py-2 text-xs text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
             >
               {t('pwa.snooze7')}
             </button>
             <button
               onClick={() => setShowIOSGuide(false)}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium"
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-slate-900 dark:text-white rounded-lg text-sm font-medium"
             >
               {t('pwa.understood')}
             </button>
@@ -234,22 +234,22 @@ const PWAInstallBanner: React.FC<PWAInstallBannerProps> = ({ userId }) => {
         bottom: 'calc(env(safe-area-inset-bottom, 0px) + 84px)',
       }}
     >
-      <div className="max-w-md mx-auto pointer-events-auto bg-zinc-900/95 backdrop-blur-xl border border-zinc-800 rounded-2xl shadow-2xl p-3 flex items-center gap-3">
+      <div className="max-w-md mx-auto pointer-events-auto bg-white dark:bg-zinc-900/95 backdrop-blur-xl border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-3 flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-600/30 flex items-center justify-center text-indigo-400 shrink-0">
           <Download size={18} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold text-white truncate">
+          <div className="text-sm font-semibold text-slate-900 dark:text-white truncate">
             {t('pwa.installApp')}
           </div>
-          <div className="text-[11px] text-zinc-400 truncate">
+          <div className="text-[11px] text-slate-600 dark:text-zinc-400 truncate">
             {ios ? t('pwa.iosTeaser') : t('pwa.androidTeaser')}
           </div>
         </div>
         {ios ? (
           <button
             onClick={() => setShowIOSGuide(true)}
-            className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg shrink-0"
+            className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-slate-900 dark:text-white text-xs font-bold rounded-lg shrink-0"
           >
             {t('pwa.howTo')}
           </button>
@@ -257,14 +257,14 @@ const PWAInstallBanner: React.FC<PWAInstallBannerProps> = ({ userId }) => {
           <button
             onClick={handleNativeInstall}
             disabled={!deferredPrompt}
-            className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-xs font-bold rounded-lg shrink-0"
+            className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-slate-900 dark:text-white text-xs font-bold rounded-lg shrink-0"
           >
             {t('pwa.install')}
           </button>
         )}
         <button
           onClick={handleSnooze}
-          className="text-zinc-500 hover:text-white p-1 shrink-0"
+          className="text-slate-500 dark:text-zinc-500 hover:text-slate-900 dark:hover:text-white p-1 shrink-0"
           aria-label={t('pwa.later')}
           title={t('pwa.snooze7')}
         >
@@ -352,12 +352,12 @@ export const PushSubscriptionCard: React.FC<PWAInstallBannerProps> = ({ userId }
 
   if (!supported) {
     return (
-      <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
-        <h3 className="text-lg font-medium text-white mb-2 flex items-center gap-2">
-          <BellOff size={20} className="text-zinc-500" />
+      <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl p-6">
+        <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+          <BellOff size={20} className="text-slate-500 dark:text-zinc-500" />
           {t('pwa.pushTitle')}
         </h3>
-        <p className="text-sm text-zinc-400">
+        <p className="text-sm text-slate-600 dark:text-zinc-400">
           {t('pwa.pushUnsupported')}
         </p>
       </div>
@@ -366,14 +366,14 @@ export const PushSubscriptionCard: React.FC<PWAInstallBannerProps> = ({ userId }
 
   if (ios && !standalone) {
     return (
-      <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
-        <h3 className="text-lg font-medium text-white mb-2 flex items-center gap-2">
+      <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl p-6">
+        <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2 flex items-center gap-2">
           <Bell size={20} className="text-indigo-400" />
           {t('pwa.pushTitle')}
         </h3>
-        <p className="text-sm text-zinc-300 mb-2">
+        <p className="text-sm text-slate-700 dark:text-zinc-300 mb-2">
           {t('pwa.iosNeedsHomeScreenPre')}{' '}
-          <strong className="text-white">{t('pwa.iosNeedsHomeScreenBold')}</strong> {t('pwa.iosNeedsHomeScreenPost')}
+          <strong className="text-slate-900 dark:text-white">{t('pwa.iosNeedsHomeScreenBold')}</strong> {t('pwa.iosNeedsHomeScreenPost')}
         </p>
         <div className="text-xs text-amber-300/90 bg-amber-900/15 border border-amber-700/30 rounded-lg p-3">
           {t('pwa.iosShareSteps')}
@@ -383,17 +383,17 @@ export const PushSubscriptionCard: React.FC<PWAInstallBannerProps> = ({ userId }
   }
 
   return (
-    <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
-      <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+    <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl p-6">
+      <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-4 flex items-center gap-2">
         <Bell size={20} className="text-indigo-400" />
         {t('pwa.pushTitle')}
       </h3>
-      <div className="bg-zinc-900 rounded-lg p-4 border border-zinc-800/50 flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="bg-white dark:bg-zinc-900 rounded-lg p-4 border border-slate-200 dark:border-zinc-800/50 flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-zinc-200 text-sm font-medium mb-1">
+          <p className="text-slate-800 dark:text-zinc-200 text-sm font-medium mb-1">
             {hasSubscription ? t('pwa.subActive') : t('pwa.subAsk')}
           </p>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-slate-500 dark:text-zinc-500">
             {t('pwa.permHint')}
           </p>
           {error && (
@@ -411,7 +411,7 @@ export const PushSubscriptionCard: React.FC<PWAInstallBannerProps> = ({ userId }
               <button
                 onClick={disable}
                 disabled={busy}
-                className="px-3 py-2 bg-zinc-800 hover:bg-red-900/30 text-zinc-300 hover:text-red-400 rounded-lg text-xs font-medium border border-zinc-700"
+                className="px-3 py-2 bg-slate-100 dark:bg-zinc-800 hover:bg-red-900/30 text-slate-700 dark:text-zinc-300 hover:text-red-400 rounded-lg text-xs font-medium border border-slate-300 dark:border-zinc-700"
               >
                 {busy ? <Loader2 size={14} className="animate-spin" /> : t('pwa.disable')}
               </button>
@@ -420,7 +420,7 @@ export const PushSubscriptionCard: React.FC<PWAInstallBannerProps> = ({ userId }
             <button
               onClick={enable}
               disabled={busy || permission === 'denied'}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg flex items-center gap-2"
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-slate-900 dark:text-white text-sm font-medium rounded-lg flex items-center gap-2"
             >
               {busy ? (
                 <Loader2 size={14} className="animate-spin" />

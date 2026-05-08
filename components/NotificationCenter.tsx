@@ -217,13 +217,13 @@ const NotificationCenter: React.FC<Props> = ({ currentUserId, currentUserEmail, 
       <button
         ref={buttonRef}
         onClick={() => setOpen((o) => !o)}
-        className="relative flex items-center justify-center h-9 w-9 md:h-10 md:w-10 rounded-lg bg-zinc-900/50 border border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700 transition-colors"
+        className="relative flex items-center justify-center h-9 w-9 md:h-10 md:w-10 rounded-lg bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:border-zinc-700 transition-colors"
         title="Bildirimler"
         aria-label="Bildirimler"
       >
         <Bell size={20} />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-zinc-950 shadow-lg shadow-red-500/30 animate-pulse">
+          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-500 text-slate-900 dark:text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-slate-200 dark:border-zinc-950 shadow-lg shadow-red-500/30 animate-pulse">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
@@ -233,11 +233,11 @@ const NotificationCenter: React.FC<Props> = ({ currentUserId, currentUserEmail, 
         <div
           ref={popupRef}
           style={popupStyle}
-          className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+          className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
-            <div className="flex items-center gap-2 text-white font-semibold">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-zinc-800">
+            <div className="flex items-center gap-2 text-slate-900 dark:text-white font-semibold">
               <Bell size={16} className="text-indigo-400" />
               <span>Bildirimler</span>
               {unreadCount > 0 && (
@@ -250,7 +250,7 @@ const NotificationCenter: React.FC<Props> = ({ currentUserId, currentUserEmail, 
               {unreadCount > 0 && (
                 <button
                   onClick={markAllAsRead}
-                  className="text-xs text-zinc-400 hover:text-white flex items-center gap-1"
+                  className="text-xs text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-1"
                   title="Tümünü okundu işaretle"
                 >
                   <CheckCheck size={14} /> Hepsini oku
@@ -258,7 +258,7 @@ const NotificationCenter: React.FC<Props> = ({ currentUserId, currentUserEmail, 
               )}
               <button
                 onClick={() => setOpen(false)}
-                className="text-zinc-400 hover:text-white"
+                className="text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
                 aria-label="Kapat"
               >
                 <X size={16} />
@@ -269,12 +269,12 @@ const NotificationCenter: React.FC<Props> = ({ currentUserId, currentUserEmail, 
           {/* Liste — parent flex-col + maxHeight olduğundan flex-1 ile genişler */}
           <div className="flex-1 min-h-0 md:max-h-[500px] overflow-y-auto custom-scrollbar">
             {loading && items.length === 0 ? (
-              <div className="flex items-center justify-center py-12 text-zinc-400 text-sm gap-2">
+              <div className="flex items-center justify-center py-12 text-slate-600 dark:text-zinc-400 text-sm gap-2">
                 <Loader2 size={16} className="animate-spin" /> Yükleniyor...
               </div>
             ) : items.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-zinc-500 text-sm gap-2">
-                <Inbox size={32} className="text-zinc-700" />
+              <div className="flex flex-col items-center justify-center py-12 text-slate-500 dark:text-zinc-500 text-sm gap-2">
+                <Inbox size={32} className="text-slate-300 dark:text-zinc-700" />
                 Henüz bildirim yok
               </div>
             ) : (
@@ -282,7 +282,7 @@ const NotificationCenter: React.FC<Props> = ({ currentUserId, currentUserEmail, 
                 {items.map((n) => {
                   const cfg = ICON_BY_TYPE[n.type] || {
                     icon: Bell,
-                    color: 'text-zinc-400 bg-zinc-700/30 border-zinc-700',
+                    color: 'text-slate-600 dark:text-zinc-400 bg-slate-200 dark:bg-zinc-700/30 border-slate-300 dark:border-zinc-700',
                   };
                   const Icon = cfg.icon;
                   const isRead = currentUserId ? n.read_by?.includes(currentUserId) : false;
@@ -291,7 +291,7 @@ const NotificationCenter: React.FC<Props> = ({ currentUserId, currentUserEmail, 
                       key={n.id}
                       onClick={() => handleItemClick(n)}
                       className={`px-4 py-3 cursor-pointer transition-colors flex gap-3 ${
-                        isRead ? 'bg-transparent hover:bg-zinc-800/40' : 'bg-indigo-900/10 hover:bg-indigo-900/20'
+                        isRead ? 'bg-transparent hover:bg-slate-200 dark:hover:bg-slate-100 dark:hover:bg-zinc-800/40' : 'bg-indigo-900/10 hover:bg-indigo-900/20'
                       }`}
                     >
                       <div
@@ -301,7 +301,7 @@ const NotificationCenter: React.FC<Props> = ({ currentUserId, currentUserEmail, 
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
-                          <div className={`text-sm font-semibold truncate ${isRead ? 'text-zinc-300' : 'text-white'}`}>
+                          <div className={`text-sm font-semibold truncate ${isRead ? 'text-slate-700 dark:text-zinc-300' : 'text-slate-900 dark:text-white'}`}>
                             {n.title}
                           </div>
                           {!isRead && (
@@ -309,9 +309,9 @@ const NotificationCenter: React.FC<Props> = ({ currentUserId, currentUserEmail, 
                           )}
                         </div>
                         {n.body && (
-                          <div className="text-xs text-zinc-400 mt-0.5 line-clamp-2 whitespace-pre-line">{n.body}</div>
+                          <div className="text-xs text-slate-600 dark:text-zinc-400 mt-0.5 line-clamp-2 whitespace-pre-line">{n.body}</div>
                         )}
-                        <div className="text-[10px] text-zinc-500 mt-1">{formatRelative(n.created_at)}</div>
+                        <div className="text-[10px] text-slate-500 dark:text-zinc-500 mt-1">{formatRelative(n.created_at)}</div>
                       </div>
                     </li>
                   );
@@ -321,7 +321,7 @@ const NotificationCenter: React.FC<Props> = ({ currentUserId, currentUserEmail, 
           </div>
 
           {items.length > 0 && (
-            <div className="px-4 py-2 border-t border-zinc-800 text-[10px] text-zinc-500 text-center">
+            <div className="px-4 py-2 border-t border-slate-200 dark:border-zinc-800 text-[10px] text-slate-500 dark:text-zinc-500 text-center">
               Son 90 gün — toplam {items.length} bildirim
             </div>
           )}

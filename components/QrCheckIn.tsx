@@ -322,15 +322,15 @@ const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
   return (
     <div className="p-4 md:p-8 max-w-2xl mx-auto">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
           <QrCode size={24} /> {t('qr.title')}
         </h2>
-        <p className="text-sm text-zinc-400 mt-1">{t('qr.subtitle')}</p>
+        <p className="text-sm text-slate-600 dark:text-zinc-400 mt-1">{t('qr.subtitle')}</p>
       </div>
 
       {/* Scanner view — video always in DOM, visibility controlled by phase */}
       <div
-        className={`rounded-2xl border border-zinc-800 bg-black overflow-hidden relative aspect-square ${
+        className={`rounded-2xl border border-slate-200 dark:border-zinc-800 bg-black overflow-hidden relative aspect-square ${
           phase === 'scanning' ? 'block' : 'hidden'
         }`}
       >
@@ -349,13 +349,13 @@ const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
           />
         </div>
         <div className="absolute bottom-4 left-0 right-0 text-center">
-          <p className="text-white text-sm bg-black/60 inline-block px-4 py-2 rounded-full">
+          <p className="text-slate-900 dark:text-white text-sm bg-black/60 inline-block px-4 py-2 rounded-full">
             {t('qr.scanning')}
           </p>
         </div>
         <button
           onClick={reset}
-          className="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/60 text-white flex items-center justify-center"
+          className="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/60 text-slate-900 dark:text-white flex items-center justify-center"
           aria-label={t('qr.close')}
         >
           <XCircle size={20} />
@@ -369,17 +369,17 @@ const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="rounded-2xl border border-zinc-800 bg-zinc-950 p-8 text-center"
+            className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 p-8 text-center"
           >
-            <div className="mx-auto w-20 h-20 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-6">
+            <div className="mx-auto w-20 h-20 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex items-center justify-center mb-6">
               <QrCode size={40} className="text-emerald-400" />
             </div>
-            <p className="text-sm text-zinc-300 mb-4 font-medium">{t('qr.pickAction')}</p>
+            <p className="text-sm text-slate-700 dark:text-zinc-300 mb-4 font-medium">{t('qr.pickAction')}</p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
                 onClick={() => handleStart('in')}
                 disabled={!diag?.isOk}
-                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-700 disabled:cursor-not-allowed text-white font-semibold transition-colors min-w-[160px]"
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-200 dark:bg-zinc-700 disabled:cursor-not-allowed text-slate-900 dark:text-white font-semibold transition-colors min-w-[160px]"
               >
                 <LogIn size={18} />
                 {t('qr.actionIn')}
@@ -387,13 +387,13 @@ const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
               <button
                 onClick={() => handleStart('out')}
                 disabled={!diag?.isOk}
-                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-orange-600 hover:bg-orange-500 disabled:bg-zinc-700 disabled:cursor-not-allowed text-white font-semibold transition-colors min-w-[160px]"
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-orange-600 hover:bg-orange-500 disabled:bg-slate-200 dark:bg-zinc-700 disabled:cursor-not-allowed text-slate-900 dark:text-white font-semibold transition-colors min-w-[160px]"
               >
                 <LogOut size={18} />
                 {t('qr.actionOut')}
               </button>
             </div>
-            <p className="text-xs text-zinc-500 mt-4 flex items-center justify-center gap-1">
+            <p className="text-xs text-slate-500 dark:text-zinc-500 mt-4 flex items-center justify-center gap-1">
               <MapPin size={12} /> {t('qr.gettingLocation')}
             </p>
 
@@ -406,14 +406,14 @@ const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
                   {diag.isOk ? <ShieldCheck size={14}/> : <ShieldAlert size={14}/>}
                   {diag.isOk ? t('qr.envReady') : t('qr.envNotReady')}
                 </div>
-                <ul className="space-y-1 font-mono text-[11px] text-zinc-300">
-                  <li>URL: <span className="text-zinc-400">{diag.proto}//{diag.host}</span></li>
+                <ul className="space-y-1 font-mono text-[11px] text-slate-700 dark:text-zinc-300">
+                  <li>URL: <span className="text-slate-600 dark:text-zinc-400">{diag.proto}//{diag.host}</span></li>
                   <li>Secure context: <span className={diag.secure ? 'text-emerald-400' : 'text-red-400'}>{diag.secure ? '✓' : `✗ (${t('qr.diagSecureNeeded')})`}</span></li>
                   <li>{t('qr.diagCameraApi')}: <span className={diag.hasCamera ? 'text-emerald-400' : 'text-red-400'}>{diag.hasCamera ? '✓' : '✗'}</span></li>
                   <li>{t('qr.diagLocationApi')}: <span className={diag.hasGeo ? 'text-emerald-400' : 'text-red-400'}>{diag.hasGeo ? '✓' : '✗'}</span></li>
-                  <li className="flex items-start gap-1.5 pt-1 border-t border-zinc-800/60 mt-1">
-                    <Smartphone size={11} className="mt-0.5 text-zinc-400 shrink-0" />
-                    <span>{t('qr.deviceLabel')}: <span className="text-zinc-100 font-semibold">{deviceLabel || t('qr.deviceUnknown')}</span></span>
+                  <li className="flex items-start gap-1.5 pt-1 border-t border-slate-200 dark:border-zinc-800/60 mt-1">
+                    <Smartphone size={11} className="mt-0.5 text-slate-600 dark:text-zinc-400 shrink-0" />
+                    <span>{t('qr.deviceLabel')}: <span className="text-slate-900 dark:text-zinc-100 font-semibold">{deviceLabel || t('qr.deviceUnknown')}</span></span>
                   </li>
                 </ul>
                 {!diag.secure && !diag.isLocalhost && (
@@ -431,10 +431,10 @@ const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
             key="posting"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="rounded-2xl border border-zinc-800 bg-zinc-950 p-10 text-center"
+            className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 p-10 text-center"
           >
             <Loader2 className="animate-spin mx-auto text-emerald-400 mb-3" size={32} />
-            <p className="text-zinc-300">{t('qr.gettingLocation')}</p>
+            <p className="text-slate-700 dark:text-zinc-300">{t('qr.gettingLocation')}</p>
           </motion.div>
         )}
 
@@ -464,7 +464,7 @@ const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
             )}
             <button
               onClick={reset}
-              className="px-5 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white"
+              className="px-5 py-2 rounded-lg bg-slate-100 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-900 dark:text-white"
             >
               {t('qr.tryAgain')}
             </button>
@@ -495,30 +495,30 @@ const ResultCard: React.FC<{ result: RpcResponse; onClose: () => void; t: (k: st
       className={`rounded-2xl border ${toneClass} p-8 text-center`}
     >
       <Icon className={`${iconColor} mx-auto mb-3`} size={48} />
-      <h3 className="text-xl font-bold text-white mb-2 flex items-center justify-center gap-2">
+      <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 flex items-center justify-center gap-2">
         {isCheckin ? <LogIn size={20} /> : <LogOut size={20} />}
         {isCheckin ? t('qr.checkinSuccess') : t('qr.checkoutSuccess')}
       </h3>
 
-      <div className="mt-4 space-y-1 text-sm text-zinc-200">
-        <div><span className="text-zinc-400">{t('qr.branch')}:</span> <span className="font-semibold">{result.branch}</span></div>
+      <div className="mt-4 space-y-1 text-sm text-slate-800 dark:text-zinc-200">
+        <div><span className="text-slate-600 dark:text-zinc-400">{t('qr.branch')}:</span> <span className="font-semibold">{result.branch}</span></div>
         {result.start_time && (
-          <div><span className="text-zinc-400">{t('qr.start')}:</span> <span className="font-mono">{result.start_time}</span></div>
+          <div><span className="text-slate-600 dark:text-zinc-400">{t('qr.start')}:</span> <span className="font-mono">{result.start_time}</span></div>
         )}
         {result.end_time && (
-          <div><span className="text-zinc-400">{t('qr.end')}:</span> <span className="font-mono">{result.end_time}</span></div>
+          <div><span className="text-slate-600 dark:text-zinc-400">{t('qr.end')}:</span> <span className="font-mono">{result.end_time}</span></div>
         )}
         {typeof result.total_hours === 'number' && result.total_hours > 0 && (
           <div>
-            <span className="text-zinc-400">{t('qr.totalHours')}:</span>{' '}
+            <span className="text-slate-600 dark:text-zinc-400">{t('qr.totalHours')}:</span>{' '}
             <span className="font-semibold">{result.total_hours.toFixed(2)} {t('qr.hours')}</span>
           </div>
         )}
         {deviceLabel && (
-          <div className="pt-2 mt-2 border-t border-zinc-800/60 flex items-center justify-center gap-1.5 text-xs text-zinc-400">
+          <div className="pt-2 mt-2 border-t border-slate-200 dark:border-zinc-800/60 flex items-center justify-center gap-1.5 text-xs text-slate-600 dark:text-zinc-400">
             <Smartphone size={12} />
             <span>{t('qr.deviceLabel')}:</span>
-            <span className="text-zinc-200 font-medium">{deviceLabel}</span>
+            <span className="text-slate-800 dark:text-zinc-200 font-medium">{deviceLabel}</span>
           </div>
         )}
       </div>
@@ -531,7 +531,7 @@ const ResultCard: React.FC<{ result: RpcResponse; onClose: () => void; t: (k: st
 
       <button
         onClick={onClose}
-        className="mt-6 px-5 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white"
+        className="mt-6 px-5 py-2 rounded-lg bg-slate-100 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-900 dark:text-white"
       >
         {t('qr.close')}
       </button>

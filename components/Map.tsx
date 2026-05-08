@@ -612,13 +612,13 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
       {/* Header */}
       <div className="mb-4 flex items-start justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-white flex items-center gap-2">
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <MapPin size={26} className="text-indigo-400" />
             {t('map.title')}
           </h1>
-          <p className="text-sm text-zinc-400 mt-1">{t('map.subtitle')}</p>
+          <p className="text-sm text-slate-600 dark:text-zinc-400 mt-1">{t('map.subtitle')}</p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-zinc-400">
+        <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-zinc-400">
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300">
             <Activity size={14} />
             {onlineCount} {t('map.legend.online')}
@@ -634,7 +634,7 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
           className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
             selectedBranch === null
               ? 'bg-indigo-600/30 text-indigo-200 border-indigo-500/50'
-              : 'bg-zinc-900/60 text-zinc-400 border-zinc-800 hover:text-white hover:border-zinc-700'
+              : 'bg-white dark:bg-zinc-900/60 text-slate-600 dark:text-zinc-400 border-slate-200 dark:border-zinc-800 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:border-zinc-700'
           }`}
         >
           {t('map.filter.all')}
@@ -649,8 +649,8 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
               onClick={() => setSelectedBranch(active ? null : b.branch)}
               className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border flex items-center gap-1.5 ${
                 active
-                  ? 'text-white border-transparent shadow'
-                  : 'bg-zinc-900/60 text-zinc-300 border-zinc-800 hover:border-zinc-700'
+                  ? 'text-slate-900 dark:text-white border-transparent shadow'
+                  : 'bg-white dark:bg-zinc-900/60 text-slate-700 dark:text-zinc-300 border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:border-zinc-700'
               }`}
               style={
                 active
@@ -671,20 +671,20 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
       {/* Layout: Map + Side Panel — flex ile rows/cols arası geçiş */}
       <div className="flex-1 flex flex-col lg:flex-row gap-4 lg:min-h-0 lg:overflow-hidden">
         {/* Map */}
-        <div className="rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900/50 h-[55vh] lg:h-auto lg:flex-1 lg:min-h-[420px] relative">
+        <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 h-[55vh] lg:h-auto lg:flex-1 lg:min-h-[420px] relative">
           {/* Rota kontrol kutucuğu — path açıkken haritanın üstünde gözükür */}
           {pathEmployeeId && (
-            <div className="absolute top-3 left-3 z-[500] bg-zinc-900/95 backdrop-blur-sm border border-indigo-700/50 rounded-xl shadow-xl p-3 flex flex-col gap-2 min-w-[220px]">
+            <div className="absolute top-3 left-3 z-[500] bg-white dark:bg-zinc-900/95 backdrop-blur-sm border border-indigo-700/50 rounded-xl shadow-xl p-3 flex flex-col gap-2 min-w-[220px]">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <Route size={14} className="text-indigo-400" />
-                  <span className="text-xs font-semibold text-white">
+                  <span className="text-xs font-semibold text-slate-900 dark:text-white">
                     {profiles[pathEmployeeId]?.full_name || t('map.path')}
                   </span>
                 </div>
                 <button
                   onClick={() => setPathEmployeeId(null)}
-                  className="text-zinc-500 hover:text-white p-0.5 rounded"
+                  className="text-slate-500 dark:text-zinc-500 hover:text-slate-900 dark:hover:text-white p-0.5 rounded"
                   title={t('map.hidePath')}
                 >
                   <X size={14} />
@@ -697,15 +697,15 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
                     onClick={() => setPathRange(r)}
                     className={`flex-1 text-[10px] font-medium px-2 py-1.5 rounded-md transition-colors ${
                       pathRange === r
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+                        ? 'bg-indigo-600 text-slate-900 dark:text-white'
+                        : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-300 dark:hover:bg-slate-200 dark:hover:bg-zinc-700 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     {r === 'today' ? t('map.pathToday') : r === '24h' ? t('map.path24h') : t('map.path7d')}
                   </button>
                 ))}
               </div>
-              <div className="text-[10px] text-zinc-500 flex items-center justify-between">
+              <div className="text-[10px] text-slate-500 dark:text-zinc-500 flex items-center justify-between">
                 <span>
                   {pathLoading
                     ? t('map.pathLoading')
@@ -721,8 +721,8 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
             </div>
           )}
           {tileMapState === 'loading' && (
-            <div className="absolute inset-0 z-[400] bg-zinc-900/80 backdrop-blur-sm flex items-center justify-center pointer-events-none">
-              <div className="flex items-center gap-3 text-zinc-300">
+            <div className="absolute inset-0 z-[400] bg-white dark:bg-zinc-900/80 backdrop-blur-sm flex items-center justify-center pointer-events-none">
+              <div className="flex items-center gap-3 text-slate-700 dark:text-zinc-300">
                 <MapPin size={20} className="animate-pulse text-indigo-400" />
                 <span className="text-sm">{t('map.loadingTiles')}</span>
               </div>
@@ -909,25 +909,25 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
         {/* Side Panel */}
         <div className="flex flex-col gap-4 lg:min-h-0 lg:w-[360px] lg:shrink-0">
           {/* Aktif personel listesi */}
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 flex flex-col max-h-[360px] lg:max-h-none lg:flex-1 lg:min-h-0">
+          <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 p-4 flex flex-col max-h-[360px] lg:max-h-none lg:flex-1 lg:min-h-0">
             <div className="flex items-center gap-2 mb-3">
               <Users size={16} className="text-indigo-400" />
-              <h3 className="text-sm font-semibold text-white">{t('map.activeStaff')}</h3>
-              <span className="ml-auto text-xs text-zinc-500">{liveList.length}</span>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white">{t('map.activeStaff')}</h3>
+              <span className="ml-auto text-xs text-slate-500 dark:text-zinc-500">{liveList.length}</span>
             </div>
             <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
               {liveList.length === 0 && (
-                <p className="text-sm text-zinc-500 italic">{t('map.noActiveStaff')}</p>
+                <p className="text-sm text-slate-500 dark:text-zinc-500 italic">{t('map.noActiveStaff')}</p>
               )}
               {liveList.map(({ row, profile, isOnline }) => (
                 <div
                   key={row.employee_id}
-                  className="flex items-center gap-3 p-2.5 rounded-lg bg-zinc-950/60 border border-zinc-800"
+                  className="flex items-center gap-3 p-2.5 rounded-lg bg-slate-50 dark:bg-zinc-950/60 border border-slate-200 dark:border-zinc-800"
                 >
                   <div
                     className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold border-2 ${
                       isOnline ? 'border-emerald-500' : 'border-zinc-600'
-                    } bg-zinc-800 text-zinc-200 overflow-hidden`}
+                    } bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 overflow-hidden`}
                   >
                     {profile?.avatar_url ? (
                       <img
@@ -941,10 +941,10 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white truncate">
+                    <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
                       {profile?.full_name || row.employee_id}
                     </p>
-                    <p className="text-[11px] text-zinc-400 flex items-center gap-1.5">
+                    <p className="text-[11px] text-slate-600 dark:text-zinc-400 flex items-center gap-1.5">
                       <span
                         className="inline-block w-1.5 h-1.5 rounded-full"
                         style={{ background: colorFor(row.branch) }}
@@ -960,7 +960,7 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
                           : t('map.outsideGeofence')}
                       </span>
                     </p>
-                    <p className="text-[10px] text-zinc-500 mt-0.5 flex items-center gap-1">
+                    <p className="text-[10px] text-slate-500 dark:text-zinc-500 mt-0.5 flex items-center gap-1">
                       <Clock size={10} />
                       {formatBerlin(row.updated_at)} ·{' '}
                       {row.distance_m != null ? `${Math.round(row.distance_m)}m` : '—'}
@@ -972,10 +972,10 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
           </div>
 
           {/* Bugünkü Giriş/Çıkış (time_logs) — şube filtresine duyarlı */}
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 flex flex-col max-h-[400px] lg:max-h-none lg:flex-1 lg:min-h-0">
+          <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 p-4 flex flex-col max-h-[400px] lg:max-h-none lg:flex-1 lg:min-h-0">
             <div className="flex items-center gap-2 mb-3">
               <Clock size={16} className="text-indigo-400" />
-              <h3 className="text-sm font-semibold text-white">
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
                 {t('map.todayCheckIns')}
               </h3>
               {selectedBranch && (
@@ -990,11 +990,11 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
                   {selectedBranch}
                 </span>
               )}
-              <span className="ml-auto text-xs text-zinc-500">{filteredLogs.length}</span>
+              <span className="ml-auto text-xs text-slate-500 dark:text-zinc-500">{filteredLogs.length}</span>
             </div>
             <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
               {filteredLogs.length === 0 && (
-                <p className="text-xs text-zinc-500 italic">{t('map.noCheckInsToday')}</p>
+                <p className="text-xs text-slate-500 dark:text-zinc-500 italic">{t('map.noCheckInsToday')}</p>
               )}
               {filteredLogs.map((log) => {
                 const profile = profiles[log.employee_id];
@@ -1005,10 +1005,10 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
                     type="button"
                     key={String(log.id)}
                     onClick={() => setSelectedLog(log)}
-                    className="w-full text-left flex items-center gap-3 p-2.5 rounded-lg bg-zinc-950/60 border border-zinc-800 hover:border-indigo-500/50 hover:bg-zinc-900 transition-colors cursor-pointer"
+                    className="w-full text-left flex items-center gap-3 p-2.5 rounded-lg bg-slate-50 dark:bg-zinc-950/60 border border-slate-200 dark:border-zinc-800 hover:border-indigo-500/50 hover:bg-slate-100 dark:hover:bg-white dark:hover:bg-zinc-900 transition-colors cursor-pointer"
                   >
                     <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold border-2 bg-zinc-800 text-zinc-200 overflow-hidden shrink-0"
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold border-2 bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 overflow-hidden shrink-0"
                       style={{ borderColor: c }}
                     >
                       {profile?.avatar_url ? (
@@ -1023,14 +1023,14 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white truncate">
+                      <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
                         {profile?.full_name || log.employee_id}
                       </p>
                       <div className="flex items-center gap-1.5 text-[11px] mt-0.5">
                         <span className="text-emerald-300 font-mono">
                           {t('map.checkIn')}: {formatHHMM(log.check_in_at)}
                         </span>
-                        <span className="text-zinc-600">→</span>
+                        <span className="text-slate-400 dark:text-zinc-600">→</span>
                         {stillIn ? (
                           <span className="text-amber-300 font-medium">
                             {t('map.stillWorking')}
@@ -1042,14 +1042,14 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
                         )}
                       </div>
                       {!selectedBranch && (
-                        <p className="text-[10px] text-zinc-500 mt-0.5 flex items-center gap-1">
+                        <p className="text-[10px] text-slate-500 dark:text-zinc-500 mt-0.5 flex items-center gap-1">
                           <span
                             className="inline-block w-1.5 h-1.5 rounded-full"
                             style={{ background: c }}
                           />
                           {log.branch}
                           {log.check_in_at && log.check_out_at && (
-                            <span className="ml-1 text-zinc-500">
+                            <span className="ml-1 text-slate-500 dark:text-zinc-500">
                               · {t('map.duration')}:{' '}
                               {formatDuration(log.check_in_at, log.check_out_at)}
                             </span>
@@ -1057,7 +1057,7 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
                         </p>
                       )}
                       {selectedBranch && log.check_in_at && log.check_out_at && (
-                        <p className="text-[10px] text-zinc-500 mt-0.5">
+                        <p className="text-[10px] text-slate-500 dark:text-zinc-500 mt-0.5">
                           {t('map.duration')}:{' '}
                           {formatDuration(log.check_in_at, log.check_out_at)}
                         </p>
@@ -1070,16 +1070,16 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
           </div>
 
           {/* Geofence enter/exit (geçmiş 20 olay) — şube filtresine duyarlı */}
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 max-h-[200px] flex flex-col">
+          <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 p-4 max-h-[200px] flex flex-col">
             <div className="flex items-center gap-2 mb-3">
               <ArrowRightLeft size={16} className="text-indigo-400" />
-              <h3 className="text-sm font-semibold text-white">
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
                 {t('map.event.enter')}/{t('map.event.exit')}
               </h3>
             </div>
             <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
               {filteredEvents.length === 0 && (
-                <p className="text-xs text-zinc-500 italic">—</p>
+                <p className="text-xs text-slate-500 dark:text-zinc-500 italic">—</p>
               )}
               {filteredEvents.map((ev) => {
                 const profile = profiles[ev.employee_id];
@@ -1087,7 +1087,7 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
                 return (
                   <div
                     key={ev.id}
-                    className="flex items-start gap-2 p-2 rounded-md bg-zinc-950/40 border border-zinc-800/60"
+                    className="flex items-start gap-2 p-2 rounded-md bg-slate-50 dark:bg-zinc-950/40 border border-slate-200 dark:border-zinc-800/60"
                   >
                     <span
                       className={`mt-0.5 inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] ${
@@ -1099,16 +1099,16 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
                       {isEnter ? '→' : '←'}
                     </span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-white truncate">
+                      <p className="text-xs text-slate-900 dark:text-white truncate">
                         <span className="font-medium">
                           {profile?.full_name || ev.employee_id}
                         </span>{' '}
-                        <span className="text-zinc-400">
+                        <span className="text-slate-600 dark:text-zinc-400">
                           ({ev.branch}) —{' '}
                           {isEnter ? t('map.event.enter') : t('map.event.exit')}
                         </span>
                       </p>
-                      <p className="text-[10px] text-zinc-500">{formatBerlin(ev.at)}</p>
+                      <p className="text-[10px] text-slate-500 dark:text-zinc-500">{formatBerlin(ev.at)}</p>
                     </div>
                   </div>
                 );
@@ -1141,14 +1141,14 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
             onClick={() => setSelectedLog(null)}
           >
             <div
-              className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[88vh] overflow-y-auto custom-scrollbar relative"
+              className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[88vh] overflow-y-auto custom-scrollbar relative"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Close button */}
               <button
                 type="button"
                 onClick={() => setSelectedLog(null)}
-                className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center transition-colors border border-zinc-700"
+                className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-slate-100 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white flex items-center justify-center transition-colors border border-slate-300 dark:border-zinc-700"
                 aria-label={t('map.detail.close')}
               >
                 <X size={16} />
@@ -1156,15 +1156,15 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
 
               {/* Header */}
               <div
-                className="px-6 pt-6 pb-4 border-b border-zinc-800"
+                className="px-6 pt-6 pb-4 border-b border-slate-200 dark:border-zinc-800"
                 style={{ background: `linear-gradient(180deg, ${c}22 0%, transparent 100%)` }}
               >
-                <p className="text-[11px] uppercase tracking-wider text-zinc-500 font-bold mb-2">
+                <p className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-zinc-500 font-bold mb-2">
                   {t('map.detail.title')}
                 </p>
                 <div className="flex items-center gap-3">
                   <div
-                    className="w-12 h-12 rounded-full overflow-hidden border-2 bg-zinc-800 text-white flex items-center justify-center font-bold shrink-0"
+                    className="w-12 h-12 rounded-full overflow-hidden border-2 bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white flex items-center justify-center font-bold shrink-0"
                     style={{ borderColor: c }}
                   >
                     {profile?.avatar_url ? (
@@ -1179,7 +1179,7 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-base font-bold text-white truncate">
+                    <p className="text-base font-bold text-slate-900 dark:text-white truncate">
                       {profile?.full_name || log.employee_id}
                     </p>
                     <div className="flex items-center gap-2 mt-1">
@@ -1202,7 +1202,7 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
                           ● {t('map.stillWorking')}
                         </span>
                       ) : (
-                        <span className="text-[10px] font-bold text-zinc-400 bg-zinc-800 border border-zinc-700 rounded-full px-2 py-0.5">
+                        <span className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-full px-2 py-0.5">
                           {t('map.checkOut')}
                         </span>
                       )}
@@ -1212,14 +1212,14 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
               </div>
 
               {/* Vardiya Bilgileri */}
-              <div className="px-6 py-4 border-b border-zinc-800/60">
-                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <div className="px-6 py-4 border-b border-slate-200 dark:border-zinc-800/60">
+                <h4 className="text-xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider mb-3 flex items-center gap-2">
                   <Clock size={14} className="text-indigo-400" />
                   {t('map.detail.shiftInfo')}
                 </h4>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-zinc-950/60 border border-zinc-800 rounded-lg p-3">
-                    <p className="text-[10px] text-zinc-500 uppercase tracking-wide font-semibold mb-1 flex items-center gap-1">
+                  <div className="bg-slate-50 dark:bg-zinc-950/60 border border-slate-200 dark:border-zinc-800 rounded-lg p-3">
+                    <p className="text-[10px] text-slate-500 dark:text-zinc-500 uppercase tracking-wide font-semibold mb-1 flex items-center gap-1">
                       <LogIn size={11} className="text-emerald-400" />
                       {t('map.checkIn')}
                     </p>
@@ -1227,8 +1227,8 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
                       {formatHHMM(log.check_in_at)}
                     </p>
                   </div>
-                  <div className="bg-zinc-950/60 border border-zinc-800 rounded-lg p-3">
-                    <p className="text-[10px] text-zinc-500 uppercase tracking-wide font-semibold mb-1 flex items-center gap-1">
+                  <div className="bg-slate-50 dark:bg-zinc-950/60 border border-slate-200 dark:border-zinc-800 rounded-lg p-3">
+                    <p className="text-[10px] text-slate-500 dark:text-zinc-500 uppercase tracking-wide font-semibold mb-1 flex items-center gap-1">
                       <LogOut size={11} className="text-rose-400" />
                       {t('map.checkOut')}
                     </p>
@@ -1236,8 +1236,8 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
                       {stillIn ? '—' : formatHHMM(log.check_out_at)}
                     </p>
                   </div>
-                  <div className="bg-zinc-950/60 border border-zinc-800 rounded-lg p-3">
-                    <p className="text-[10px] text-zinc-500 uppercase tracking-wide font-semibold mb-1 flex items-center gap-1">
+                  <div className="bg-slate-50 dark:bg-zinc-950/60 border border-slate-200 dark:border-zinc-800 rounded-lg p-3">
+                    <p className="text-[10px] text-slate-500 dark:text-zinc-500 uppercase tracking-wide font-semibold mb-1 flex items-center gap-1">
                       <Hourglass size={11} className="text-amber-400" />
                       {t('map.detail.totalDuration')}
                     </p>
@@ -1245,27 +1245,27 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
                       {totalDuration}
                     </p>
                   </div>
-                  <div className="bg-zinc-950/60 border border-zinc-800 rounded-lg p-3">
-                    <p className="text-[10px] text-zinc-500 uppercase tracking-wide font-semibold mb-1 flex items-center gap-1">
+                  <div className="bg-slate-50 dark:bg-zinc-950/60 border border-slate-200 dark:border-zinc-800 rounded-lg p-3">
+                    <p className="text-[10px] text-slate-500 dark:text-zinc-500 uppercase tracking-wide font-semibold mb-1 flex items-center gap-1">
                       {method === 'qr' ? (
                         <QrCode size={11} className="text-indigo-400" />
                       ) : (
-                        <Hand size={11} className="text-zinc-400" />
+                        <Hand size={11} className="text-slate-600 dark:text-zinc-400" />
                       )}
                       {t('map.detail.entryMethod')}
                     </p>
-                    <p className="text-sm font-bold text-zinc-200">{methodLabel}</p>
+                    <p className="text-sm font-bold text-slate-800 dark:text-zinc-200">{methodLabel}</p>
                   </div>
                 </div>
 
                 {/* Cihaz */}
-                <div className="mt-3 bg-zinc-950/60 border border-zinc-800 rounded-lg p-3 flex items-center gap-2">
+                <div className="mt-3 bg-slate-50 dark:bg-zinc-950/60 border border-slate-200 dark:border-zinc-800 rounded-lg p-3 flex items-center gap-2">
                   <Smartphone size={14} className="text-indigo-400 shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-[10px] text-zinc-500 uppercase tracking-wide font-semibold">
+                    <p className="text-[10px] text-slate-500 dark:text-zinc-500 uppercase tracking-wide font-semibold">
                       {t('map.detail.device')}
                     </p>
-                    <p className="text-xs text-zinc-200 truncate" title={log.device_info || ''}>
+                    <p className="text-xs text-slate-800 dark:text-zinc-200 truncate" title={log.device_info || ''}>
                       {log.device_info || t('map.detail.deviceUnknown')}
                     </p>
                   </div>
@@ -1273,17 +1273,17 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
               </div>
 
               {/* Şube içi/dışı zaman çizelgesi */}
-              <div className="px-6 py-4 border-b border-zinc-800/60">
-                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <div className="px-6 py-4 border-b border-slate-200 dark:border-zinc-800/60">
+                <h4 className="text-xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider mb-3 flex items-center gap-2">
                   <ArrowRightLeft size={14} className="text-indigo-400" />
                   {t('map.detail.timeline')}
                 </h4>
                 {timelineLoading ? (
-                  <p className="text-xs text-zinc-500 italic">…</p>
+                  <p className="text-xs text-slate-500 dark:text-zinc-500 italic">…</p>
                 ) : logTimeline.length === 0 ? (
-                  <p className="text-xs text-zinc-500 italic">{t('map.detail.noTimeline')}</p>
+                  <p className="text-xs text-slate-500 dark:text-zinc-500 italic">{t('map.detail.noTimeline')}</p>
                 ) : (
-                  <ol className="relative border-l border-zinc-800 ml-2 pl-4 space-y-3">
+                  <ol className="relative border-l border-slate-200 dark:border-zinc-800 ml-2 pl-4 space-y-3">
                     {logTimeline.map((ev) => {
                       const isEnter = ev.event_type === 'enter';
                       return (
@@ -1298,9 +1298,9 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
                           <p className={`text-xs font-semibold ${isEnter ? 'text-emerald-300' : 'text-amber-300'}`}>
                             {isEnter ? t('map.detail.enteredAt') : t('map.detail.exitedAt')}
                           </p>
-                          <p className="text-[11px] text-zinc-400 font-mono">
+                          <p className="text-[11px] text-slate-600 dark:text-zinc-400 font-mono">
                             {formatHHMM(ev.at)}{' '}
-                            <span className="text-zinc-600">({ev.branch})</span>
+                            <span className="text-slate-400 dark:text-zinc-600">({ev.branch})</span>
                           </p>
                         </li>
                       );
@@ -1311,7 +1311,7 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
                         <p className="text-xs font-semibold text-indigo-300">
                           {t('map.detail.now')}
                         </p>
-                        <p className="text-[11px] text-zinc-400 font-mono">
+                        <p className="text-[11px] text-slate-600 dark:text-zinc-400 font-mono">
                           {formatHHMM(new Date().toISOString())}
                         </p>
                       </li>
@@ -1323,14 +1323,14 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
               {/* Mevcut konum (live_locations) */}
               {live && (
                 <div className="px-6 py-4">
-                  <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <h4 className="text-xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider mb-3 flex items-center gap-2">
                     <MapPin size={14} className="text-indigo-400" />
                     {t('map.detail.currentLocation')}
                   </h4>
-                  <div className="bg-zinc-950/60 border border-zinc-800 rounded-lg p-3 space-y-1.5">
+                  <div className="bg-slate-50 dark:bg-zinc-950/60 border border-slate-200 dark:border-zinc-800 rounded-lg p-3 space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] text-zinc-500">{t('map.lastSeen')}</span>
-                      <span className="text-xs text-zinc-200 font-mono flex items-center gap-1.5">
+                      <span className="text-[11px] text-slate-500 dark:text-zinc-500">{t('map.lastSeen')}</span>
+                      <span className="text-xs text-slate-800 dark:text-zinc-200 font-mono flex items-center gap-1.5">
                         <span
                           className={`w-1.5 h-1.5 rounded-full ${
                             isLiveOnline ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-600'
@@ -1340,13 +1340,13 @@ const Map: React.FC<MapProps> = ({ currentUser }) => {
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] text-zinc-500">{t('map.distance')}</span>
-                      <span className="text-xs font-mono text-zinc-200">
+                      <span className="text-[11px] text-slate-500 dark:text-zinc-500">{t('map.distance')}</span>
+                      <span className="text-xs font-mono text-slate-800 dark:text-zinc-200">
                         {live.distance_m != null ? `${Math.round(live.distance_m)}m` : '—'}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] text-zinc-500">
+                      <span className="text-[11px] text-slate-500 dark:text-zinc-500">
                         {live.inside_geofence ? t('map.insideGeofence') : t('map.outsideGeofence')}
                       </span>
                       <span

@@ -46,12 +46,12 @@ const SidebarItem = ({ icon: Icon, label, id, active, onClick }: any) => (
   <button
     onClick={() => onClick(id)}
     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${
-      active 
-        ? 'bg-primary-600/20 text-primary-500 border border-primary-600/30' 
-        : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100'
+      active
+        ? 'bg-primary-600/20 text-primary-500 border border-primary-600/30'
+        : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-900 hover:text-slate-900 dark:hover:text-zinc-100'
     }`}
   >
-    <Icon size={20} className={active ? 'text-primary-500' : 'text-zinc-500 group-hover:text-zinc-300'} />
+    <Icon size={20} className={active ? 'text-primary-500' : 'text-slate-400 dark:text-zinc-500 group-hover:text-slate-700 dark:group-hover:text-zinc-300'} />
     <span className="font-medium text-sm">{label}</span>
   </button>
 );
@@ -61,11 +61,11 @@ const MobileNavItem = ({ icon: Icon, label, id, active, onClick }: any) => (
   <button
     onClick={() => onClick(id)}
     className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 transition-all active:scale-90 ${
-      active ? 'text-indigo-400' : 'text-zinc-500 hover:text-zinc-300'
+      active ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300'
     }`}
   >
     <Icon size={18} strokeWidth={active ? 2.5 : 2} />
-    <span className={`text-[9px] font-bold tracking-tight truncate max-w-full px-0.5 ${active ? 'text-indigo-400' : 'text-zinc-600'}`}>
+    <span className={`text-[9px] font-bold tracking-tight truncate max-w-full px-0.5 ${active ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-zinc-600'}`}>
       {label}
     </span>
   </button>
@@ -96,19 +96,19 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
   }, []);
 
   return (
-    <div className="app-shell relative w-full bg-zinc-950 text-zinc-200 font-sans overflow-hidden flex flex-col md:flex-row">
-      
+    <div className="app-shell relative w-full bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-200 font-sans overflow-hidden flex flex-col md:flex-row">
+
       {/* --- MOBILE HEADER (Visible only on mobile) --- */}
-      <header className="md:hidden h-[calc(4rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] bg-zinc-950 border-b border-zinc-800 flex items-center justify-between px-3 shrink-0 z-30 relative shadow-sm">
+      <header className="md:hidden h-[calc(4rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] bg-white dark:bg-zinc-950 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between px-3 shrink-0 z-30 relative shadow-sm">
           <div
             className="flex items-center gap-2 min-w-0"
             onClick={() => setActiveTab('dashboard')}
           >
-              <div className="w-9 h-9 rounded-lg overflow-hidden bg-zinc-900 border border-zinc-800 flex items-center justify-center shadow-lg shadow-red-900/10 shrink-0">
+              <div className="w-9 h-9 rounded-lg overflow-hidden bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex items-center justify-center shadow-lg shadow-red-500/10 dark:shadow-red-900/10 shrink-0">
                  <img src={BAC_LOGO_URL} alt="BAC Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
               </div>
-              {/* BAC Handels yazısı çok dar ekranda gizlenir, butonlara yer açar */}
-              <h1 className="hidden xs:block text-base font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent truncate">
+              {/* BAC kısa logo başlığı — light'ta BAC marka kırmızısı, dark'ta beyaz gradient */}
+              <h1 className="hidden xs:block text-base font-bold bg-gradient-to-r from-red-600 to-rose-700 dark:from-white dark:to-zinc-400 bg-clip-text text-transparent truncate">
                 BAC
               </h1>
           </div>
@@ -116,13 +116,13 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
           <div className="flex items-center gap-1">
               <button
                 onClick={() => setLanguage(language === 'tr' ? 'de' : 'tr')}
-                className="flex items-center justify-center h-8 px-1.5 bg-zinc-900/50 border border-zinc-800 rounded-lg text-[11px] font-bold text-zinc-400 hover:text-white transition-colors"
+                className="flex items-center justify-center h-8 px-1.5 bg-slate-100 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-lg text-[11px] font-bold text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors"
               >
                   {language === 'tr' ? '🇹🇷' : '🇩🇪'}
               </button>
               <button
                 onClick={toggleTheme}
-                className="flex items-center justify-center h-8 w-8 bg-zinc-900/50 border border-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-colors"
+                className="flex items-center justify-center h-8 w-8 bg-slate-100 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-lg text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors"
                 title={theme === 'dark' ? t('set.themeLight') : t('set.themeDark')}
                 aria-label={theme === 'dark' ? t('set.themeLight') : t('set.themeDark')}
               >
@@ -133,8 +133,8 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
                   onClick={() => setActiveTab('loss-control')}
                   className={`flex items-center justify-center h-8 w-8 rounded-lg border transition-colors ${
                     activeTab === 'loss-control'
-                      ? 'bg-red-600/20 text-red-400 border-red-600/40'
-                      : 'bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:text-red-400'
+                      ? 'bg-red-100 dark:bg-red-600/20 text-red-600 dark:text-red-400 border-red-300 dark:border-red-600/40'
+                      : 'bg-slate-100 dark:bg-zinc-900/50 text-slate-600 dark:text-zinc-400 border-slate-200 dark:border-zinc-800 hover:text-red-600 dark:hover:text-red-400'
                   }`}
                   title={canAccessLossControl(userEmail) ? t('nav.lossControl') : t('nav.stock')}
                 >
@@ -146,8 +146,8 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
                   onClick={() => setActiveTab('map')}
                   className={`flex items-center justify-center h-8 w-8 rounded-lg border transition-colors ${
                     activeTab === 'map'
-                      ? 'bg-indigo-600/20 text-indigo-400 border-indigo-600/40'
-                      : 'bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:text-indigo-400'
+                      ? 'bg-indigo-100 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 border-indigo-300 dark:border-indigo-600/40'
+                      : 'bg-slate-100 dark:bg-zinc-900/50 text-slate-600 dark:text-zinc-400 border-slate-200 dark:border-zinc-800 hover:text-indigo-600 dark:hover:text-indigo-400'
                   }`}
                   title={t('nav.map')}
                 >
@@ -159,8 +159,8 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
                   onClick={() => setActiveTab('device-brands')}
                   className={`flex items-center justify-center h-8 w-8 rounded-lg border transition-colors ${
                     activeTab === 'device-brands'
-                      ? 'bg-cyan-600/20 text-cyan-400 border-cyan-600/40'
-                      : 'bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:text-cyan-400'
+                      ? 'bg-cyan-100 dark:bg-cyan-600/20 text-cyan-600 dark:text-cyan-400 border-cyan-300 dark:border-cyan-600/40'
+                      : 'bg-slate-100 dark:bg-zinc-900/50 text-slate-600 dark:text-zinc-400 border-slate-200 dark:border-zinc-800 hover:text-cyan-600 dark:hover:text-cyan-400'
                   }`}
                   title={t('nav.deviceBrands')}
                 >
@@ -170,13 +170,13 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
               <NotificationCenter currentUserId={userId} currentUserEmail={userEmail} onNavigate={setActiveTab} />
               <button
                 onClick={() => setActiveTab('settings')}
-                className={`p-1.5 rounded-full transition-colors ${activeTab === 'settings' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white'}`}
+                className={`p-1.5 rounded-full transition-colors ${activeTab === 'settings' ? 'bg-slate-200 dark:bg-zinc-800 text-slate-900 dark:text-white' : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'}`}
               >
                   <SettingsIcon size={18} />
               </button>
               <button
                 onClick={onLogout}
-                className="p-1.5 text-zinc-400 hover:text-red-400 transition-colors"
+                className="p-1.5 text-slate-600 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
               >
                   <LogOut size={18} />
               </button>
@@ -184,21 +184,22 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
       </header>
 
       {/* --- DESKTOP SIDEBAR (Hidden on mobile) --- */}
-      <div className="hidden md:flex z-40 h-full w-64 bg-zinc-950 border-r border-zinc-800 flex-col transition-all duration-300">
-        <div className="p-6 border-b border-zinc-900/50 flex items-center gap-3 relative">
+      <div className="hidden md:flex z-40 h-full w-64 bg-white dark:bg-zinc-950 border-r border-slate-200 dark:border-zinc-800 flex-col transition-all duration-300">
+        <div className="p-6 border-b border-slate-200 dark:border-zinc-900/50 flex items-center gap-3 relative">
           <div
             className="cursor-pointer group flex items-center gap-3 flex-1 min-w-0"
             onClick={() => setActiveTab('dashboard')}
             title={t('layout.backToHome')}
           >
-            <div className="w-12 h-12 rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 flex items-center justify-center shadow-lg shadow-red-900/20 group-hover:scale-105 transition-transform">
+            <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex items-center justify-center shadow-lg shadow-red-500/10 dark:shadow-red-900/20 group-hover:scale-105 transition-transform">
                <img src={BAC_LOGO_URL} alt="BAC Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-600 bg-clip-text text-transparent group-hover:opacity-80 transition-opacity">
+              {/* BAC Handels başlığı — light'ta BAC marka kırmızısı, dark'ta mavi-indigo gradient */}
+              <h1 className="text-xl font-bold bg-gradient-to-r from-red-600 to-rose-700 dark:from-blue-400 dark:to-indigo-600 bg-clip-text text-transparent group-hover:opacity-80 transition-opacity">
                   BAC Handels
               </h1>
-              <p className="text-[10px] text-zinc-500 mt-0.5">{t('layout.subtitle')}</p>
+              <p className="text-[10px] text-slate-500 dark:text-zinc-500 mt-0.5">{t('layout.subtitle')}</p>
             </div>
           </div>
           <NotificationCenter currentUserId={userId} currentUserEmail={userEmail} onNavigate={setActiveTab} />
@@ -218,7 +219,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
           {isAdmin && canSeeDeviceInfo(userEmail) && (
             <SidebarItem icon={Smartphone} label={t('nav.deviceBrands')} id="device-brands" active={activeTab === 'device-brands'} onClick={setActiveTab} />
           )}
-          <div className="pt-4 mt-4 border-t border-zinc-900">
+          <div className="pt-4 mt-4 border-t border-slate-200 dark:border-zinc-900">
              <SidebarItem icon={SettingsIcon} label={t('nav.settings')} id="settings" active={activeTab === 'settings'} onClick={setActiveTab} />
           </div>
         </nav>
@@ -230,8 +231,8 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
                   onClick={() => setActiveTab('loss-control')}
                   className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-bold transition-all border ${
                     activeTab === 'loss-control'
-                      ? 'bg-red-600/20 text-red-400 border-red-600/40'
-                      : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-red-400 hover:border-red-600/30'
+                      ? 'bg-red-100 dark:bg-red-600/20 text-red-600 dark:text-red-400 border-red-300 dark:border-red-600/40'
+                      : 'bg-slate-50 dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 border-slate-200 dark:border-zinc-800 hover:text-red-600 dark:hover:text-red-400 hover:border-red-300 dark:hover:border-red-600/30'
                   }`}
                 >
                   <ShieldAlert size={16} />
@@ -240,41 +241,41 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
               </div>
             )}
             <div className="px-4 pb-2">
-                <div className="flex bg-zinc-900 rounded-lg p-1 border border-zinc-800">
+                <div className="flex bg-slate-50 dark:bg-zinc-900 rounded-lg p-1 border border-slate-200 dark:border-zinc-800">
                     <button
                         onClick={() => setLanguage('tr')}
-                        className={`flex-1 py-1.5 text-xs font-bold rounded transition-all ${language === 'tr' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded transition-all ${language === 'tr' ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow' : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300'}`}
                     >
                         🇹🇷 TR
                     </button>
                     <button
                         onClick={() => setLanguage('de')}
-                        className={`flex-1 py-1.5 text-xs font-bold rounded transition-all ${language === 'de' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded transition-all ${language === 'de' ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow' : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300'}`}
                     >
                         🇩🇪 DE
                     </button>
                 </div>
             </div>
             <div className="px-4 pb-4">
-                <div className="flex bg-zinc-900 rounded-lg p-1 border border-zinc-800">
+                <div className="flex bg-slate-50 dark:bg-zinc-900 rounded-lg p-1 border border-slate-200 dark:border-zinc-800">
                     <button
                         onClick={() => setTheme('dark')}
-                        className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded transition-all ${theme === 'dark' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded transition-all ${theme === 'dark' ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow' : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300'}`}
                     >
                         <Moon size={12} /> {t('set.themeDark')}
                     </button>
                     <button
                         onClick={() => setTheme('light')}
-                        className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded transition-all ${theme === 'light' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded transition-all ${theme === 'light' ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow' : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300'}`}
                     >
                         <Sun size={12} /> {t('set.themeLight')}
                     </button>
                 </div>
             </div>
 
-            <div className="p-4 border-t border-zinc-900/50 bg-zinc-900/20">
+            <div className="p-4 border-t border-slate-200 dark:border-zinc-900/50 bg-slate-50/50 dark:bg-zinc-900/20">
             <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-indigo-900/50 border border-indigo-500/30 flex items-center justify-center text-indigo-400 overflow-hidden">
+                <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 border border-indigo-300 dark:border-indigo-500/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 overflow-hidden">
                 {userAvatar ? (
                     <img src={userAvatar} className="w-full h-full object-cover" alt="User" referrerPolicy="no-referrer" />
                 ) : (
@@ -282,10 +283,10 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
                 )}
                 </div>
                 <div className="flex-1 overflow-hidden">
-                <p className="text-sm font-medium text-white truncate" title={userName}>{userName}</p>
-                <p className="text-xs text-zinc-500 uppercase">{userRole}</p>
+                <p className="text-sm font-medium text-slate-900 dark:text-white truncate" title={userName}>{userName}</p>
+                <p className="text-xs text-slate-500 dark:text-zinc-500 uppercase">{userRole}</p>
                 </div>
-                <button onClick={onLogout} className="text-zinc-500 hover:text-red-400 transition-colors" title={t('nav.logout')}>
+                <button onClick={onLogout} className="text-slate-500 dark:text-zinc-500 hover:text-red-600 dark:hover:text-red-400 transition-colors" title={t('nav.logout')}>
                 <LogOut size={18} />
                 </button>
             </div>
@@ -294,14 +295,14 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
       </div>
 
       {/* --- MAIN CONTENT AREA --- */}
-      <main 
+      <main
         className="flex-1 relative overflow-hidden min-h-0 flex flex-col md:pb-0"
       >
          <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
-             <div className="absolute top-[-20%] right-[-10%] w-[500px] h-[500px] bg-indigo-900/10 rounded-full blur-3xl"></div>
-             <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-blue-900/5 rounded-full blur-3xl"></div>
+             <div className="absolute top-[-20%] right-[-10%] w-[500px] h-[500px] bg-indigo-500/5 dark:bg-indigo-900/10 rounded-full blur-3xl"></div>
+             <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-blue-500/5 dark:bg-blue-900/5 rounded-full blur-3xl"></div>
          </div>
-         
+
          <div className="relative h-full flex flex-col">
             {children}
          </div>
@@ -323,7 +324,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}
         aria-hidden={activeTab === 'messages' || keyboardOpen}
       >
-        <nav className="w-full h-16 bg-zinc-900/90 backdrop-blur-xl border border-zinc-800/60 rounded-2xl flex justify-around items-center px-1 shadow-[0_8px_30px_rgba(0,0,0,0.6)] pointer-events-auto">
+        <nav className="w-full h-16 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl border border-slate-200/80 dark:border-zinc-800/60 rounded-2xl flex justify-around items-center px-1 shadow-[0_8px_30px_rgba(15,23,42,0.08)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.6)] pointer-events-auto">
             <MobileNavItem icon={LayoutDashboard} label={t('nav.dashboard')} id="dashboard" active={activeTab === 'dashboard'} onClick={setActiveTab} />
             <MobileNavItem icon={CalendarIcon} label={t('nav.calendar')} id="calendar" active={activeTab === 'calendar'} onClick={setActiveTab} />
             <MobileNavItem icon={ShoppingBag} label={t('nav.sales')} id="sales" active={activeTab === 'sales'} onClick={setActiveTab} />

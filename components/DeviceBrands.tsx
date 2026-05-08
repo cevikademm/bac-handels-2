@@ -224,10 +224,10 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
   if (!allowed) {
     return (
       <div className="h-full w-full overflow-y-auto custom-scrollbar p-4 md:p-8 pb-32">
-        <div className="max-w-3xl mx-auto bg-zinc-900/50 border border-red-900/30 rounded-xl p-8 text-center">
+        <div className="max-w-3xl mx-auto bg-white dark:bg-zinc-900/50 border border-red-900/30 rounded-xl p-8 text-center">
           <ShieldAlert size={32} className="text-red-500 mx-auto mb-3" />
-          <h2 className="text-lg font-semibold text-white mb-1">{t('devices.deniedTitle')}</h2>
-          <p className="text-sm text-zinc-400">{t('devices.deniedDesc')}</p>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">{t('devices.deniedTitle')}</h2>
+          <p className="text-sm text-slate-600 dark:text-zinc-400">{t('devices.deniedDesc')}</p>
         </div>
       </div>
     );
@@ -237,12 +237,12 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
     <div className="h-full w-full overflow-y-auto custom-scrollbar p-4 md:p-8 pb-32">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-baseline justify-between gap-4 flex-wrap">
-          <h2 className="text-2xl md:text-3xl font-bold text-white flex items-center gap-2">
+          <h2 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <Smartphone size={26} className="text-cyan-400" />
             {t('devices.title')}
           </h2>
           {!loading && (
-            <div className="text-[12px] text-zinc-500 tabular-nums">
+            <div className="text-[12px] text-slate-500 dark:text-zinc-500 tabular-nums">
               {rows.length} {t('devices.statUsers').toLowerCase()} · {totalMacs} MAC · {scannedCount.toLocaleString('tr')} {t('devices.recordsScanned')}
               {oldestSeen && (
                 <span className="ml-1">
@@ -254,18 +254,18 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
         </div>
 
         {/* Sekme seçimi: Kişiler vs Çakışmalar */}
-        <div className="mt-4 inline-flex bg-zinc-900/60 border border-zinc-800 rounded-lg p-1">
+        <div className="mt-4 inline-flex bg-white dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 rounded-lg p-1">
           <button
             onClick={() => setTab('people')}
             className={`px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all inline-flex items-center gap-2 ${
               tab === 'people'
-                ? 'bg-zinc-800 text-white shadow'
-                : 'text-zinc-500 hover:text-zinc-300'
+                ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white shadow'
+                : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-slate-700 dark:text-zinc-300'
             }`}
           >
             <UserIcon size={14} />
             {t('devices.tabPeople')}
-            <span className="text-[10px] tabular-nums px-1.5 py-0.5 rounded bg-zinc-950/60 text-zinc-400">
+            <span className="text-[10px] tabular-nums px-1.5 py-0.5 rounded bg-slate-50 dark:bg-zinc-950/60 text-slate-600 dark:text-zinc-400">
               {rows.length}
             </span>
           </button>
@@ -274,7 +274,7 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
             className={`px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all inline-flex items-center gap-2 ${
               tab === 'conflicts'
                 ? 'bg-red-950/60 text-red-200 shadow border border-red-900/40'
-                : 'text-zinc-500 hover:text-zinc-300'
+                : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-slate-700 dark:text-zinc-300'
             }`}
           >
             <AlertTriangle size={14} />
@@ -282,7 +282,7 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
             <span className={`text-[10px] tabular-nums px-1.5 py-0.5 rounded ${
               conflicts.length > 0
                 ? 'bg-red-900/50 text-red-200'
-                : 'bg-zinc-950/60 text-zinc-400'
+                : 'bg-slate-50 dark:bg-zinc-950/60 text-slate-600 dark:text-zinc-400'
             }`}>
               {conflicts.length}
             </span>
@@ -290,39 +290,39 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
         </div>
 
         <div className="mt-4 relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-zinc-500" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('devices.searchSimple')}
-            className="w-full bg-zinc-900/60 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:border-cyan-600/60 outline-none transition-all placeholder:text-zinc-600"
+            className="w-full bg-white dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-900 dark:text-white focus:border-cyan-600/60 outline-none transition-all placeholder:text-slate-400 dark:text-zinc-600"
           />
         </div>
 
         <div className="mt-6 space-y-2">
           {loading ? (
-            <div className="flex items-center gap-2 text-zinc-500 text-sm py-8 justify-center">
+            <div className="flex items-center gap-2 text-slate-500 dark:text-zinc-500 text-sm py-8 justify-center">
               <Loader2 size={16} className="animate-spin" /> {t('common.loading')}
             </div>
           ) : tab === 'people' ? (
             filteredPeople.length === 0 ? (
-              <div className="p-6 bg-zinc-900/50 border border-zinc-800 rounded-xl text-center text-sm text-zinc-500 italic">
+              <div className="p-6 bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl text-center text-sm text-slate-500 dark:text-zinc-500 italic">
                 {t('devices.empty')}
               </div>
             ) : filteredPeople.map(r => (
               <div
                 key={r.employeeId}
-                className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-3 md:p-4"
+                className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl p-3 md:p-4"
               >
                 <div className="flex items-center gap-3 mb-2">
                   <div className="w-8 h-8 rounded-full bg-indigo-900/40 border border-indigo-700/40 flex items-center justify-center shrink-0">
                     <UserIcon size={14} className="text-indigo-300" />
                   </div>
-                  <div className="text-sm md:text-base font-semibold text-white truncate">
+                  <div className="text-sm md:text-base font-semibold text-slate-900 dark:text-white truncate">
                     {r.employeeName}
                   </div>
-                  <div className="ml-auto text-[11px] text-zinc-500 tabular-nums shrink-0">
+                  <div className="ml-auto text-[11px] text-slate-500 dark:text-zinc-500 tabular-nums shrink-0">
                     {r.macs.length} MAC
                   </div>
                 </div>
@@ -331,13 +331,13 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
                     <button
                       key={mac}
                       onClick={() => copyMac(mac)}
-                      className="group inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-zinc-950 border border-zinc-800 hover:border-cyan-700/60 transition-colors"
+                      className="group inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 hover:border-cyan-700/60 transition-colors"
                       title={t('devices.copyMac')}
                     >
-                      <span className="text-[12px] font-mono text-zinc-200 tabular-nums">{mac}</span>
+                      <span className="text-[12px] font-mono text-slate-800 dark:text-zinc-200 tabular-nums">{mac}</span>
                       {copiedMac === mac
                         ? <Check size={12} className="text-emerald-400" />
-                        : <Copy size={12} className="text-zinc-500 group-hover:text-cyan-400" />}
+                        : <Copy size={12} className="text-slate-500 dark:text-zinc-500 group-hover:text-cyan-400" />}
                     </button>
                   ))}
                 </div>
@@ -346,7 +346,7 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
           ) : (
             // Çakışma sekmesi
             filteredConflicts.length === 0 ? (
-              <div className="p-6 bg-zinc-900/50 border border-zinc-800 rounded-xl text-center text-sm text-zinc-500 italic">
+              <div className="p-6 bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl text-center text-sm text-slate-500 dark:text-zinc-500 italic">
                 {t('devices.conflictsEmpty')}
               </div>
             ) : filteredConflicts.map(c => (
@@ -357,24 +357,24 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <button
                     onClick={() => copyMac(c.mac)}
-                    className="group inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-zinc-950 border border-red-900/50 hover:border-red-700 transition-colors"
+                    className="group inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-50 dark:bg-zinc-950 border border-red-900/50 hover:border-red-700 transition-colors"
                     title={t('devices.copyMac')}
                   >
                     <span className="text-[10px] uppercase tracking-wider text-red-400">MAC</span>
                     <span className="text-[12px] md:text-[13px] font-mono text-red-100 tabular-nums">{c.mac}</span>
                     {copiedMac === c.mac
                       ? <Check size={12} className="text-emerald-400" />
-                      : <Copy size={12} className="text-zinc-500 group-hover:text-red-300" />}
+                      : <Copy size={12} className="text-slate-500 dark:text-zinc-500 group-hover:text-red-300" />}
                   </button>
                   <span className="text-[11px] uppercase tracking-wider bg-red-900/40 text-red-200 px-2 py-0.5 rounded border border-red-800/60 inline-flex items-center gap-1">
                     <AlertTriangle size={10} /> {c.users.length} {t('devices.peopleShort')}
                   </span>
-                  <div className="ml-auto text-[11px] text-zinc-500">
+                  <div className="ml-auto text-[11px] text-slate-500 dark:text-zinc-500">
                     {c.totalCount} {t('devices.useShort')}
                   </div>
                 </div>
                 {(c.firstSeen || c.lastSeen) && (
-                  <div className="text-[11px] text-zinc-500 mb-3">
+                  <div className="text-[11px] text-slate-500 dark:text-zinc-500 mb-3">
                     {c.firstSeen ? formatDate(c.firstSeen, { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
                     <span className="mx-1.5">→</span>
                     {c.lastSeen ? formatDate(c.lastSeen, { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
@@ -384,22 +384,22 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
                   {c.users.map(u => (
                     <li
                       key={u.employeeId}
-                      className="flex items-center justify-between gap-3 px-2 py-1.5 rounded bg-zinc-950/40 border border-zinc-800/60"
+                      className="flex items-center justify-between gap-3 px-2 py-1.5 rounded bg-slate-50 dark:bg-zinc-950/40 border border-slate-200 dark:border-zinc-800/60"
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <UserIcon size={12} className="text-indigo-300 shrink-0" />
-                        <span className="text-sm text-white truncate">{u.employeeName}</span>
+                        <span className="text-sm text-slate-900 dark:text-white truncate">{u.employeeName}</span>
                       </div>
                       <div className="flex items-center gap-3 shrink-0 text-[11px]">
-                        <span className="text-zinc-500 hidden sm:inline">
+                        <span className="text-slate-500 dark:text-zinc-500 hidden sm:inline">
                           {u.firstSeen ? formatDate(u.firstSeen, { day: '2-digit', month: 'short' }) : '—'}
                           <span className="mx-1">→</span>
                           {u.lastSeen ? formatDate(u.lastSeen, { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
                         </span>
-                        <span className="text-zinc-500 sm:hidden">
+                        <span className="text-slate-500 dark:text-zinc-500 sm:hidden">
                           {u.lastSeen ? formatDate(u.lastSeen, { day: '2-digit', month: 'short' }) : '—'}
                         </span>
-                        <span className="text-white font-bold tabular-nums w-8 text-right">{u.count}</span>
+                        <span className="text-slate-900 dark:text-white font-bold tabular-nums w-8 text-right">{u.count}</span>
                       </div>
                     </li>
                   ))}

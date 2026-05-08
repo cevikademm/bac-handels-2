@@ -188,15 +188,15 @@ const NotificationPreferencesCard: React.FC<Props> = ({ currentUser }) => {
   if (!isAdmin) return null;
 
   return (
-    <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
-      <h3 className="text-lg font-medium text-white mb-1 flex items-center gap-2">
+    <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl p-6">
+      <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-1 flex items-center gap-2">
         <Bell size={20} className="text-indigo-400" />
         {t('notif.title')}
       </h3>
-      <p className="text-xs text-zinc-500 mb-4">{t('notif.desc')}</p>
+      <p className="text-xs text-slate-500 dark:text-zinc-500 mb-4">{t('notif.desc')}</p>
 
       {loading ? (
-        <div className="flex items-center gap-2 text-zinc-400 text-sm py-6">
+        <div className="flex items-center gap-2 text-slate-600 dark:text-zinc-400 text-sm py-6">
           <Loader2 size={16} className="animate-spin" /> {t('notif.loading')}
         </div>
       ) : (
@@ -208,18 +208,18 @@ const NotificationPreferencesCard: React.FC<Props> = ({ currentUser }) => {
             return (
               <div
                 key={item.key}
-                className="bg-zinc-900 rounded-lg p-3 border border-zinc-800/50 flex items-start gap-3"
+                className="bg-white dark:bg-zinc-900 rounded-lg p-3 border border-slate-200 dark:border-zinc-800/50 flex items-start gap-3"
               >
                 <Icon size={18} className={`${item.color} mt-0.5 shrink-0`} />
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-white">{t(item.titleKey)}</div>
-                  <div className="text-xs text-zinc-500 mt-0.5">{t(item.descKey)}</div>
+                  <div className="text-sm font-semibold text-slate-900 dark:text-white">{t(item.titleKey)}</div>
+                  <div className="text-xs text-slate-500 dark:text-zinc-500 mt-0.5">{t(item.descKey)}</div>
                 </div>
                 <button
                   onClick={() => togglePref(item.key)}
                   disabled={saving}
                   className={`relative shrink-0 w-11 h-6 rounded-full transition-colors ${
-                    enabled ? 'bg-indigo-600' : 'bg-zinc-700'
+                    enabled ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-zinc-700'
                   } ${saving ? 'opacity-60' : ''}`}
                   aria-pressed={enabled}
                   aria-label={t(item.titleKey)}
@@ -232,7 +232,7 @@ const NotificationPreferencesCard: React.FC<Props> = ({ currentUser }) => {
                   {saving && (
                     <Loader2
                       size={10}
-                      className="animate-spin absolute -right-5 top-1.5 text-zinc-400"
+                      className="animate-spin absolute -right-5 top-1.5 text-slate-600 dark:text-zinc-400"
                     />
                   )}
                 </button>
@@ -243,14 +243,14 @@ const NotificationPreferencesCard: React.FC<Props> = ({ currentUser }) => {
       )}
 
       {/* Manuel anomali tetikleyici */}
-      <div className="mt-4 pt-4 border-t border-zinc-800/50">
+      <div className="mt-4 pt-4 border-t border-slate-200 dark:border-zinc-800/50">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
-            <div className="text-sm font-semibold text-white flex items-center gap-2">
+            <div className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
               <BarChart3 size={16} className="text-purple-400" />
               {t('notif.runAnomaly')}
             </div>
-            <div className="text-xs text-zinc-500 mt-1">
+            <div className="text-xs text-slate-500 dark:text-zinc-500 mt-1">
               {t('notif.scheduleInfo')}
             </div>
             {anomalyMsg && (
@@ -273,7 +273,7 @@ const NotificationPreferencesCard: React.FC<Props> = ({ currentUser }) => {
           <button
             onClick={runAnomalyCheck}
             disabled={anomalyBusy}
-            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg flex items-center gap-2 shrink-0"
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-slate-900 dark:text-white text-sm font-medium rounded-lg flex items-center gap-2 shrink-0"
           >
             {anomalyBusy ? (
               <Loader2 size={14} className="animate-spin" />
