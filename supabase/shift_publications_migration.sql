@@ -47,3 +47,24 @@ CREATE POLICY "shift_publications_write_open"
 -- PostgREST schema cache'ini hemen yenile — uygulama bekleyip schema reload
 -- olmadan tablo bulunamadı hatası almasın.
 NOTIFY pgrst, 'reload schema';
+
+-- Realtime publication: yayın değişiklikleri tüm bağlı cihazlara anında
+-- yansısın. supabase_realtime publication zaten Supabase'de hazır gelir;
+-- buraya tabloyu eklemezsek INSERT/DELETE event'leri yayılmaz.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    BEGIN
+      ALTER PUBLICATION supabase_realtime ADD TABLE public.shift_publications;
+    EXCEPTION WHEN duplicate_object THEN
+      NULL;
+    END;
+    BEGIN
+      -- shift_schedules da realtime'a eklensin: admin satır eklediğinde/sildiğinde
+      -- diğer admin ve personel cihazlarında canlı yansısın.
+      ALTER PUBLICATION supabase_realtime ADD TABLE public.shift_schedules;
+    EXCEPTION WHEN duplicate_object THEN
+      NULL;
+    END;
+  END IF;
+END$$;

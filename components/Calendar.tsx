@@ -42,7 +42,10 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
 
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [shifts, setShifts] = useState<any[]>([]); // New Shift State
+  const [shifts, setShifts] = useState<any[]>([]); // Ham vardiya verisi (filtresiz)
+  // Yayınlanmış (week_start_date|branch) çiftleri — personel için filter anahtarı.
+  // Admin için kullanılmaz (admin tüm vardiyaları görür).
+  const [publishedKeys, setPublishedKeys] = useState<Set<string>>(new Set());
   const [employees, setEmployees] = useState<Employee[]>([]); // New Employee State for Attendees
 
   // Modal & Selection
@@ -66,6 +69,45 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
   });
 
   // --- DATA FETCHING ---
+  // fetchData'yı useEffect dışına almıyoruz; bunun yerine bir version state'i
+  // tutup realtime event'lerinde inkrement ediyoruz — useEffect bağımlılığı
+  // değiştiğinde tekrar fetch tetiklenir. Bu sayede shift_publications veya
+  // shift_schedules değiştiğinde takvimdeki personel vardiyaları canlı
+  // güncellenir (admin onayladığında personel cihazında otomatik görünür).
+  const [shiftDataVersion, setShiftDataVersion] = useState(0);
+
+  useEffect(() => {
+    const channel = supabase
+        .channel('calendar-shift-live')
+        .on('postgres_changes',
+            { event: '*', schema: 'public', table: 'shift_publications' },
+            () => { setShiftDataVersion(v => v + 1); }
+        )
+        .on('postgres_changes',
+            { event: '*', schema: 'public', table: 'shift_schedules' },
+            () => { setShiftDataVersion(v => v + 1); }
+        )
+        .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  // Realtime başarısız olabilir (publication'a tablo eklenmemişse).
+  // Savunma katmanları:
+  //   1) tab odağa geri gelince yenile (visibilitychange + window focus)
+  //   2) 60 saniyede bir polling — sayfa açık kalsa bile yayın değişikliği yakalanır
+  useEffect(() => {
+    const trigger = () => setShiftDataVersion(v => v + 1);
+    const onVisible = () => { if (document.visibilityState === 'visible') trigger(); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', trigger);
+    const intervalId = window.setInterval(trigger, 60_000);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', trigger);
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
   useEffect(() => {
     const fetchData = async () => {
         setIsLoading(true);
@@ -111,29 +153,28 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
             }
 
             // 3. Shifts (Vardiyalar) — vardiya planı saatleri (planlı), referans olarak tutulur.
-            // Personel sadece yayınlanmış vardiyaları görmeli — admin onaylamadan
-            // calendar'a sızmamalı. shift_publications tablosundan yayın çiftlerini
-            // (week_start_date + branch) çekip filtreleriz.
+            // Filter render zamanında yapılır (useMemo ile) — böylece publishedKeys
+            // değiştiğinde shifts state'i kalsa bile görünüm anında güncellenir.
             const { data: shiftData } = await supabase
                 .from('shift_schedules')
                 .select('*');
+            if (shiftData) setShifts(shiftData);
 
-            if (shiftData) {
-                if (currentUser.role !== Role.ADMIN) {
-                    let publishedKeys = new Set<string>();
-                    try {
-                        const { data: pubData } = await supabase
-                            .from('shift_publications')
-                            .select('week_start_date, branch');
-                        publishedKeys = new Set((pubData || []).map((p: any) => `${p.week_start_date}|${p.branch}`));
-                    } catch {
-                        // Tablo henüz yoksa — güvenli taraf: hiçbir vardiya gösterme
-                        publishedKeys = new Set();
-                    }
-                    setShifts(shiftData.filter((s: any) => publishedKeys.has(`${s.week_start_date}|${s.branch}`)));
+            // Yayın anahtarlarını her zaman (admin dahil) çek — admin için göstergesi
+            // görsel olmasa da debug için faydalı; personel için kritik.
+            try {
+                const { data: pubData, error: pubError } = await supabase
+                    .from('shift_publications')
+                    .select('week_start_date, branch');
+                if (!pubError && pubData) {
+                    setPublishedKeys(new Set(pubData.map((p: any) => `${p.week_start_date}|${p.branch}`)));
                 } else {
-                    setShifts(shiftData);
+                    // Hata veya tablo yok — güvenli taraf: boş set (personel hiçbir
+                    // şey göremez, admin zaten useMemo'da bypass eder).
+                    setPublishedKeys(new Set());
                 }
+            } catch {
+                setPublishedKeys(new Set());
             }
 
             // 4. Employees (For Attendees Selector) - çift rollü adminler (Apo, Malik) dahil
@@ -161,9 +202,17 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
         }
     };
     fetchData();
-  }, [currentUser]); 
+  }, [currentUser, shiftDataVersion]);
 
   // --- LOGIC ---
+  // Personel için: yalnızca yayınlanmış (admin onaylı) vardiyalar görünür.
+  // Filter render zamanında yapılır — publishedKeys değişince state shifts kalsa
+  // bile görünüm anında güncellenir.
+  const visibleShifts = useMemo(() => {
+      if (currentUser.role === Role.ADMIN) return shifts;
+      return shifts.filter((s: any) => publishedKeys.has(`${s.week_start_date}|${s.branch}`));
+  }, [shifts, publishedKeys, currentUser.role]);
+
   const combinedEvents = useMemo((): DisplayEvent[] => {
       const filteredEvents = currentUser.role === Role.ADMIN ? events : events.filter(evt => evt.attendees.includes(currentUser.id));
       const filteredTasks = currentUser.role === Role.ADMIN ? tasks : tasks.filter(t => t.assignedTo.includes(currentUser.id));
@@ -175,7 +224,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       }));
 
       // Generate Shift Events from Roster Data (UPDATED for Transposed Table)
-      const shiftEvents: DisplayEvent[] = shifts.flatMap(schedule => {
+      const shiftEvents: DisplayEvent[] = visibleShifts.flatMap(schedule => {
           const start = new Date(schedule.week_start_date);
           const timeLabel = schedule.time_slot || "09:00 - 17:00";
           
@@ -245,7 +294,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       const weekStartStr = formatLocalDate(currentWeekStart);
       const dayMap = new Map<number, { slot: string; branch: string }[]>();
 
-      shifts.forEach((schedule: any) => {
+      visibleShifts.forEach((schedule: any) => {
           if (schedule.week_start_date !== weekStartStr) return;
           schedule.days.forEach((empId: string, dayIndex: number) => {
               if (!empId || empId !== currentUser.id) return;
@@ -255,7 +304,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       });
 
       return dayMap;
-  }, [shifts, currentWeekStart, currentUser]);
+  }, [visibleShifts, currentWeekStart, currentUser]);
 
   // --- SHIFT GRID (Çalışma Saatleri sekmesi) ---
   // SADECE vardiya planı saatlerini gösterir (shift_schedules tablosu).
@@ -286,7 +335,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       const weekStartStr = formatLocalDate(currentWeekStart);
       const empMap = new Map<string, Map<number, WorkEntry[]>>();
 
-      shifts.forEach((schedule: any) => {
+      visibleShifts.forEach((schedule: any) => {
           if (schedule.week_start_date !== weekStartStr) return;
           const parsed = parseTimeSlot(schedule.time_slot);
           if (!parsed) return; // time_slot okunamadıysa atla
@@ -317,21 +366,21 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       });
 
       return result;
-  }, [shifts, employees, currentWeekStart, currentUser]);
+  }, [visibleShifts, employees, currentWeekStart, currentUser]);
 
-  // Bu hafta hiç vardiyası olmayan personeller
+  // Bu hafta hiç vardiyası olmayan personeller (admin görünümü için)
   const unassignedEmployees = useMemo(() => {
       if (currentUser.role !== Role.ADMIN) return [];
       const weekStartStr = formatLocalDate(currentWeekStart);
       const assignedIds = new Set<string>();
-      shifts.forEach((schedule: any) => {
+      visibleShifts.forEach((schedule: any) => {
           if (schedule.week_start_date !== weekStartStr) return;
           schedule.days.forEach((empId: string) => {
               if (empId) assignedIds.add(empId);
           });
       });
       return employees.filter(emp => !assignedIds.has(emp.id));
-  }, [shifts, employees, currentWeekStart, currentUser]);
+  }, [visibleShifts, employees, currentWeekStart, currentUser]);
 
   const changeWeek = (direction: 'prev' | 'next') => {
       const newDate = new Date(viewDate);

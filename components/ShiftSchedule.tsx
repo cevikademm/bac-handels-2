@@ -96,9 +96,91 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
               fetchPublication();
           }
       };
+      const handleFocus = () => {
+          fetchWeekData();
+          fetchOtherBranchData();
+          fetchPublication();
+      };
       document.addEventListener('visibilitychange', handleVisibility);
-      return () => document.removeEventListener('visibilitychange', handleVisibility);
+      window.addEventListener('focus', handleFocus);
+      // Realtime düşerse savunma katmanı: 45 saniyede bir yayın durumunu yenile.
+      // Personel cihazında admin yayını geri çektikten en geç 45sn sonra tablo gizlenir.
+      const intervalId = window.setInterval(() => {
+          fetchPublication();
+      }, 45_000);
+      return () => {
+          document.removeEventListener('visibilitychange', handleVisibility);
+          window.removeEventListener('focus', handleFocus);
+          window.clearInterval(intervalId);
+      };
   }, [activeBranch, weekKey]);
+
+  // Realtime: bu hafta + şube için yayın durumu ve vardiya satırları
+  // değişiklikleri tüm cihazlara anlık yansısın. Admin1 onaylar, Admin2 ve
+  // personel cihazında banner ve liste sayfa yenilenmeden güncellenir.
+  useEffect(() => {
+      const branchStr = String(activeBranch);
+      const channel = supabase
+          .channel(`shift-live-${weekKey}-${branchStr}`)
+          .on(
+              'postgres_changes',
+              {
+                  event: '*',
+                  schema: 'public',
+                  table: 'shift_publications',
+                  filter: `week_start_date=eq.${weekKey}`,
+              },
+              (payload: any) => {
+                  const row = payload.new || payload.old;
+                  // Aynı şube olmayan kayıtları ele alma (filter date bazlı,
+                  // şube ek olarak burada doğrulanır)
+                  if (row?.branch !== branchStr) return;
+                  if (!isMounted.current) return;
+
+                  if (payload.eventType === 'DELETE') {
+                      setPublication(null);
+                      // Şube rozet sayımı: bu şubenin yayın listesinden çıkar
+                      setPublishedBranches(prev => {
+                          const next = new Set(prev);
+                          next.delete(branchStr);
+                          return next;
+                      });
+                  } else if (payload.new) {
+                      setPublication({
+                          id: payload.new.id,
+                          publishedAt: payload.new.published_at,
+                          publishedByName: payload.new.published_by_name,
+                      });
+                      setPublishedBranches(prev => new Set(prev).add(branchStr));
+                  }
+              }
+          )
+          .on(
+              'postgres_changes',
+              {
+                  event: '*',
+                  schema: 'public',
+                  table: 'shift_schedules',
+                  filter: `week_start_date=eq.${weekKey}`,
+              },
+              (payload: any) => {
+                  const row = payload.new || payload.old;
+                  if (!isMounted.current) return;
+                  // Mevcut şubedeki değişiklikse rosterData yenilensin;
+                  // diğer şubedeki değişiklikse çakışma kontrol verisi yenilensin.
+                  if (row?.branch === branchStr) {
+                      fetchWeekData();
+                  } else {
+                      fetchOtherBranchData();
+                  }
+              }
+          )
+          .subscribe();
+
+      return () => {
+          supabase.removeChannel(channel);
+      };
+  }, [weekKey, activeBranch]);
 
   const fetchEmployees = async () => {
       try {

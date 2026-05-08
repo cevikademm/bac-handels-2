@@ -317,6 +317,9 @@ const translations: Record<Language, Record<string, string>> = {
     // Settings
     'set.title': 'Ayarlar & Güvenlik',
     'set.language': 'Dil Seçimi / Sprache',
+    'set.theme': 'Tema',
+    'set.themeDark': 'Karanlık',
+    'set.themeLight': 'Aydınlık',
     'set.sound': 'Bildirim Sesi',
     'set.soundDesc': 'Özel ses aktif',
     'set.soundDef': 'Varsayılan Sistem Sesi',
@@ -1228,6 +1231,9 @@ const translations: Record<Language, Record<string, string>> = {
     // Settings
     'set.title': 'Einstellungen & Sicherheit',
     'set.language': 'Sprachauswahl',
+    'set.theme': 'Design',
+    'set.themeDark': 'Dunkel',
+    'set.themeLight': 'Hell',
     'set.sound': 'Benachrichtigungston',
     'set.soundDesc': 'Benutzerdefinierter Ton aktiv',
     'set.soundDef': 'Standard Systemton',

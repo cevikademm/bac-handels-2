@@ -21,11 +21,12 @@ import { canSeeDeviceInfo } from './lib/utils';
 const QrCheckIn = lazy(() => import('./components/QrCheckIn'));
 // Lazy: Leaflet+react-leaflet ~140kB; harita sekmesine girilene dek yüklenmesin
 const Map = lazy(() => import('./components/Map'));
-import { Settings as SettingsIcon, Shield, Volume2, Upload, RefreshCw, Play, Loader2, KeyRound, Globe, Lock, Server, CheckCircle } from 'lucide-react';
+import { Settings as SettingsIcon, Shield, Volume2, Upload, RefreshCw, Play, Loader2, KeyRound, Globe, Lock, Server, CheckCircle, Sun, Moon } from 'lucide-react';
 import { MOCK_EMPLOYEES, NOTIFICATION_SOUND } from './constants';
 import { Employee, Role, AppNotification } from './types';
 import { supabase } from './lib/supabase';
 import { LanguageProvider, useLanguage } from './lib/i18n';
+import { ThemeProvider, useTheme } from './lib/theme';
 import { validateFile, logAuditEvent, sanitizeInput, initProductionGuard } from './lib/security';
 
 // Üretim modunda konsol çıktılarını koru
@@ -36,6 +37,7 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
     const [soundLoading, setSoundLoading] = useState(false);
     const [hasCustomSound, setHasCustomSound] = useState(false);
     const { language, setLanguage, t } = useLanguage();
+    const { theme, setTheme } = useTheme();
 
     // Password State
     const [passForm, setPassForm] = useState({ current: '', new: '', confirm: '' });
@@ -408,11 +410,33 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                             >
                                 🇹🇷 Türkçe
                             </button>
-                            <button 
+                            <button
                                 onClick={() => setLanguage('de')}
                                 className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${language === 'de' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
                             >
                                 🇩🇪 Deutsch
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* THEME SETTINGS */}
+                    <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
+                        <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+                            {theme === 'dark' ? <Moon size={20} className="text-indigo-400"/> : <Sun size={20} className="text-amber-500"/>}
+                            {t('set.theme')}
+                        </h3>
+                        <div className="bg-zinc-900 rounded-lg p-1.5 border border-zinc-800/50 inline-flex gap-1">
+                            <button
+                                onClick={() => setTheme('dark')}
+                                className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${theme === 'dark' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
+                            >
+                                <Moon size={14} /> {t('set.themeDark')}
+                            </button>
+                            <button
+                                onClick={() => setTheme('light')}
+                                className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${theme === 'light' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
+                            >
+                                <Sun size={14} /> {t('set.themeLight')}
                             </button>
                         </div>
                     </div>
@@ -469,11 +493,15 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                     {/* NOTIFICATION PREFERENCES (Admin only) */}
                     <NotificationPreferencesCard currentUser={currentUser} />
 
-                    {/* QR DEVICE HISTORY (kullanıcının kendi telefon geçmişi) */}
-                    <DeviceHistoryCard currentUser={currentUser} />
-
-                    {/* PHONE CONFLICTS (sadece admin + canSeeDeviceInfo allowlist) */}
-                    <PhoneConflictsCard currentUser={currentUser} />
+                    {/* TELEFON GEÇMİŞİ + ÇAKIŞMALARI — yalnızca cevikademm@gmail.com (Admin).
+                        Diğer kullanıcılar (admin dahil) bu iki kartı göremez. */}
+                    {currentUser?.role === Role.ADMIN
+                      && currentUser?.email?.trim().toLowerCase() === 'cevikademm@gmail.com' && (
+                      <>
+                        <DeviceHistoryCard currentUser={currentUser} />
+                        <PhoneConflictsCard currentUser={currentUser} />
+                      </>
+                    )}
 
                     {/* PASSWORD CHANGE SECTION */}
                     <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
@@ -825,9 +853,11 @@ const AppContent: React.FC = () => {
 // Main App Wrapper for Provider
 const App: React.FC = () => {
     return (
-        <LanguageProvider>
-            <AppContent />
-        </LanguageProvider>
+        <ThemeProvider>
+            <LanguageProvider>
+                <AppContent />
+            </LanguageProvider>
+        </ThemeProvider>
     );
 };
 

@@ -21,6 +21,20 @@
 
     <title>BAC Handels - Kurumsal Yönetim</title>
 
+    <!-- Tema FOUC önleme: React mount'tan önce localStorage'dan oku -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('app_theme');
+          var html = document.documentElement;
+          if (stored === 'light') {
+            html.classList.remove('dark');
+            html.classList.add('light');
+          }
+        } catch (e) { /* localStorage erişilemez — dark default kalır */ }
+      })();
+    </script>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -100,6 +114,66 @@
       .pb-safe {
         padding-bottom: calc(env(safe-area-inset-bottom) + 12px);
       }
+
+      /* =============================================================
+         LIGHT MODE — html.light root altında zinc dark sınıflarını
+         beyaz arka plan + siyah yazı şemasına çeviren override katmanı.
+         Komponentler dark sınıflarını (bg-zinc-900, text-zinc-200 vs.)
+         olduğu gibi kullanmaya devam eder; bu blok specificity ile
+         override eder. !important gerekli çünkü Tailwind utility'leri
+         element üzerinde direkt kuralla geliyor.
+         ============================================================= */
+      html.light body {
+        background-color: #ffffff;
+        color: #18181b;
+      }
+      /* Backgrounds — solid */
+      html.light .bg-zinc-950 { background-color: #ffffff !important; }
+      html.light .bg-zinc-900 { background-color: #f4f4f5 !important; }
+      html.light .bg-zinc-850 { background-color: #e4e4e7 !important; }
+      html.light .bg-zinc-800 { background-color: #e4e4e7 !important; }
+      html.light .bg-zinc-700 { background-color: #d4d4d8 !important; }
+      /* Backgrounds — alpha */
+      html.light .bg-zinc-900\/30 { background-color: rgba(244, 244, 245, 0.5) !important; }
+      html.light .bg-zinc-900\/40 { background-color: rgba(244, 244, 245, 0.6) !important; }
+      html.light .bg-zinc-900\/50 { background-color: rgba(244, 244, 245, 0.7) !important; }
+      html.light .bg-zinc-900\/60 { background-color: rgba(244, 244, 245, 0.8) !important; }
+      html.light .bg-zinc-900\/80 { background-color: rgba(244, 244, 245, 0.9) !important; }
+      html.light .bg-zinc-900\/95 { background-color: rgba(244, 244, 245, 0.95) !important; }
+      html.light .bg-zinc-800\/30 { background-color: rgba(228, 228, 231, 0.4) !important; }
+      html.light .bg-zinc-800\/40 { background-color: rgba(228, 228, 231, 0.5) !important; }
+      html.light .bg-zinc-800\/50 { background-color: rgba(228, 228, 231, 0.6) !important; }
+      html.light .bg-zinc-800\/80 { background-color: rgba(228, 228, 231, 0.9) !important; }
+      /* Text — invert dark zinc shades to dark on light */
+      html.light .text-white { color: #18181b !important; }
+      html.light .text-zinc-100 { color: #18181b !important; }
+      html.light .text-zinc-200 { color: #18181b !important; }
+      html.light .text-zinc-300 { color: #27272a !important; }
+      html.light .text-zinc-400 { color: #52525b !important; }
+      html.light .text-zinc-500 { color: #71717a !important; }
+      html.light .text-zinc-600 { color: #a1a1aa !important; }
+      html.light .text-zinc-700 { color: #a1a1aa !important; }
+      /* Borders */
+      html.light .border-zinc-700 { border-color: #d4d4d8 !important; }
+      html.light .border-zinc-800 { border-color: #e4e4e7 !important; }
+      html.light .border-zinc-800\/30 { border-color: rgba(228, 228, 231, 0.6) !important; }
+      html.light .border-zinc-800\/50 { border-color: rgba(228, 228, 231, 0.8) !important; }
+      html.light .border-zinc-800\/80 { border-color: rgba(228, 228, 231, 0.9) !important; }
+      /* Glass panel — light variant */
+      html.light .glass-panel {
+        background: rgba(255, 255, 255, 0.7);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+      }
+      /* Scrollbar */
+      html.light ::-webkit-scrollbar-track { background: #f4f4f5; }
+      html.light ::-webkit-scrollbar-thumb { background: #d4d4d8; }
+      html.light ::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
+      /* Hover variantları — bazı yerlerde hover:bg-zinc-800 kullanılıyor */
+      html.light .hover\:bg-zinc-800:hover { background-color: #e4e4e7 !important; }
+      html.light .hover\:bg-zinc-700:hover { background-color: #d4d4d8 !important; }
+      html.light .hover\:text-white:hover { color: #18181b !important; }
+      html.light .hover\:text-zinc-300:hover { color: #27272a !important; }
+      html.light .hover\:border-zinc-700:hover { border-color: #d4d4d8 !important; }
     </style>
 
 <link rel="stylesheet" href="/index.css">

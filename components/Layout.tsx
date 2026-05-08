@@ -13,9 +13,12 @@ import {
   QrCode,
   ShieldAlert,
   Map as MapIcon,
-  Smartphone
+  Smartphone,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { useLanguage } from '../lib/i18n';
+import { useTheme } from '../lib/theme';
 import { Role } from '../types';
 import { GlowingEffect } from './ui/glowing-effect';
 import { canAccessLossControl } from './LossControl';
@@ -70,6 +73,7 @@ const MobileNavItem = ({ icon: Icon, label, id, active, onClick }: any) => (
 
 const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, userId, userRole, userName, userAvatar, userEmail, onLogout }) => {
   const { t, language, setLanguage } = useLanguage();
+  const { theme, setTheme, toggleTheme } = useTheme();
 
   const isAdmin = userRole.includes('Admin');
 
@@ -115,6 +119,14 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
                 className="flex items-center justify-center h-8 px-1.5 bg-zinc-900/50 border border-zinc-800 rounded-lg text-[11px] font-bold text-zinc-400 hover:text-white transition-colors"
               >
                   {language === 'tr' ? '🇹🇷' : '🇩🇪'}
+              </button>
+              <button
+                onClick={toggleTheme}
+                className="flex items-center justify-center h-8 w-8 bg-zinc-900/50 border border-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-colors"
+                title={theme === 'dark' ? t('set.themeLight') : t('set.themeDark')}
+                aria-label={theme === 'dark' ? t('set.themeLight') : t('set.themeDark')}
+              >
+                  {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
               </button>
               {isAdmin && (
                 <button
@@ -227,7 +239,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
                 </button>
               </div>
             )}
-            <div className="px-4 pb-4">
+            <div className="px-4 pb-2">
                 <div className="flex bg-zinc-900 rounded-lg p-1 border border-zinc-800">
                     <button
                         onClick={() => setLanguage('tr')}
@@ -240,6 +252,22 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
                         className={`flex-1 py-1.5 text-xs font-bold rounded transition-all ${language === 'de' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
                     >
                         🇩🇪 DE
+                    </button>
+                </div>
+            </div>
+            <div className="px-4 pb-4">
+                <div className="flex bg-zinc-900 rounded-lg p-1 border border-zinc-800">
+                    <button
+                        onClick={() => setTheme('dark')}
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded transition-all ${theme === 'dark' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
+                    >
+                        <Moon size={12} /> {t('set.themeDark')}
+                    </button>
+                    <button
+                        onClick={() => setTheme('light')}
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded transition-all ${theme === 'light' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
+                    >
+                        <Sun size={12} /> {t('set.themeLight')}
                     </button>
                 </div>
             </div>

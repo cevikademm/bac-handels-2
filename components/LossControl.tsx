@@ -648,6 +648,79 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
     return result;
   }, [shifts, salesData, employees, isSuper]);
 
+  // Hero kartlar (En İyi Şube, Ayın Yıldızı, Aktif Personel, Sinerji İkilisi)
+  // için sağlam fallback'li hesap. Eski yaklaşım yalnızca son 30 gün + sadece
+  // 'Onaylandı' satışlarına bakıyordu — onay süreci geri kalmışsa veya satışlar
+  // 30 günden eskiyse kartlar boş kalıyordu. Bu hesap üç katmanlı:
+  //   1) son 30 gün, sadece onaylı  →  yoksa
+  //   2) son 30 gün, onaylı + bekleyen  →  yoksa
+  //   3) tüm tarih aralığı, onaylı + bekleyen
+  // Hangi katmandan veri geldiği `mode` alanında döner; UI alt yazıyı buna göre
+  // değiştirir ("0 onaylı" yerine "5 satış (onay bekliyor)" gibi).
+  const heroStats = useMemo(() => {
+    if (!isSuper) {
+      return {
+        topBranch: null as { branch: string; count: number } | null,
+        topEmployee: null as { name: string; sales: number; approvalRate: number } | null,
+        activeEmployeeCount: 0,
+        bestPair: null as { name1: string; name2: string; branch: string; synergy: number } | null,
+        mode: 'approved30' as 'approved30' | 'all30' | 'allTime',
+      };
+    }
+    const since30 = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+    const isApprovedSale = (s: any) => s.status === 'Onaylandı';
+    const isCountableSale = (s: any) => s.status !== 'Reddedildi'; // Onaylandı + Bekliyor
+
+    // Aday filtre setleri (öncelik sırası)
+    const sets: { key: 'approved30' | 'all30' | 'allTime'; pool: any[] }[] = [
+      { key: 'approved30', pool: salesData.filter(s => s.sale_date >= since30 && isApprovedSale(s)) },
+      { key: 'all30',      pool: salesData.filter(s => s.sale_date >= since30 && isCountableSale(s)) },
+      { key: 'allTime',    pool: salesData.filter(isCountableSale) },
+    ];
+    const chosen = sets.find(s => s.pool.length > 0) || sets[2];
+    const pool = chosen.pool;
+    const mode = chosen.key;
+
+    // Şube → adet (quantity bazlı)
+    const branchTotals = new Map<string, number>();
+    // Personel → { total, approved, total-quantity, branchMap }
+    const empAgg = new Map<string, { id: string; total: number; approved: number; branches: Map<string, number> }>();
+    pool.forEach(s => {
+      branchTotals.set(s.branch, (branchTotals.get(s.branch) || 0) + s.quantity);
+      const id = s.employee_id;
+      if (!id) return;
+      const cur = empAgg.get(id) || { id, total: 0, approved: 0, branches: new Map() };
+      cur.total += s.quantity;
+      if (isApprovedSale(s)) cur.approved += s.quantity;
+      cur.branches.set(s.branch, (cur.branches.get(s.branch) || 0) + s.quantity);
+      empAgg.set(id, cur);
+    });
+
+    const topBranchEntry = Array.from(branchTotals.entries()).sort((a, b) => b[1] - a[1])[0];
+    const topBranch = topBranchEntry ? { branch: topBranchEntry[0], count: topBranchEntry[1] } : null;
+
+    const topEmpEntry = Array.from(empAgg.values()).sort((a, b) => b.total - a.total)[0];
+    const topEmployee = topEmpEntry ? {
+      name: getEmpName(topEmpEntry.id),
+      sales: topEmpEntry.total,
+      approvalRate: topEmpEntry.total > 0 ? (topEmpEntry.approved / topEmpEntry.total) * 100 : 0,
+    } : null;
+
+    const activeEmployeeCount = empAgg.size;
+
+    // Sinerji ikilisi — pairingRecs'ten en iyi çift, zayıfsa null kalır
+    const bestPairRaw = pairingRecs.flatMap(b => b.pairs.map(p => ({ ...p, branchName: b.branch })))
+      .sort((a, b) => b.synergy - a.synergy)[0];
+    const bestPair = bestPairRaw ? {
+      name1: bestPairRaw.name1,
+      name2: bestPairRaw.name2,
+      branch: bestPairRaw.branchName,
+      synergy: bestPairRaw.synergy,
+    } : null;
+
+    return { topBranch, topEmployee, activeEmployeeCount, bestPair, mode };
+  }, [salesData, employees, pairingRecs, isSuper]);
+
   // Otomatik içgörüler — anlamlı tek cümlelik tespitler
   const autoInsights = useMemo(() => {
     if (!isSuper) return [];
@@ -1462,48 +1535,70 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
             </div>
           )}
 
-          {/* Hero stats — 4 büyük kart */}
+          {/* Hero stats — 4 büyük kart. Etiket altyazıları heroStats.mode'a göre
+              değişir; onaylanmamış ama bekleyen kayıtlar varsa "satış (onay
+              bekliyor)" şeklinde gösterilir, eski tarih kayıtları varsa
+              "tüm zaman" denir. Böylece kartlar gerçekten boş veri yokken
+              sıfır gösterip yanıltmaz. */}
+          {(() => {
+            const modeLabel = heroStats.mode === 'approved30'
+              ? 'son 30 gün · onaylı'
+              : heroStats.mode === 'all30'
+                ? 'son 30 gün · onay bekliyor'
+                : 'tüm zaman';
+            return (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
             <div className="relative overflow-hidden bg-gradient-to-br from-emerald-900/40 to-emerald-950/60 border border-emerald-700/40 rounded-xl p-3 md:p-4">
               <Crown className="absolute -top-2 -right-2 text-emerald-700/30" size={64} />
               <div className="relative">
                 <div className="text-[10px] md:text-xs text-emerald-300/70 font-bold uppercase tracking-wider">En İyi Şube</div>
-                <div className="text-lg md:text-2xl font-black text-emerald-300 mt-1 truncate">{branchScores[0]?.branch || '—'}</div>
-                <div className="text-[10px] md:text-xs text-emerald-400/80 mt-0.5">{branchScores[0]?.approved || 0} onaylı satış</div>
+                <div className="text-lg md:text-2xl font-black text-emerald-300 mt-1 truncate">{heroStats.topBranch?.branch || '—'}</div>
+                <div className="text-[10px] md:text-xs text-emerald-400/80 mt-0.5">
+                  {heroStats.topBranch ? `${heroStats.topBranch.count} satış · ${modeLabel}` : 'Yeterli veri yok'}
+                </div>
               </div>
             </div>
             <div className="relative overflow-hidden bg-gradient-to-br from-violet-900/40 to-violet-950/60 border border-violet-700/40 rounded-xl p-3 md:p-4">
               <Award className="absolute -top-2 -right-2 text-violet-700/30" size={64} />
               <div className="relative">
                 <div className="text-[10px] md:text-xs text-violet-300/70 font-bold uppercase tracking-wider">Ayın Yıldızı</div>
-                <div className="text-lg md:text-2xl font-black text-violet-300 mt-1 truncate">{employeePerf[0]?.name || '—'}</div>
-                <div className="text-[10px] md:text-xs text-violet-400/80 mt-0.5">{employeePerf[0]?.approved || 0} satış · %{(employeePerf[0]?.approvalRate || 0).toFixed(0)} onay</div>
+                <div className="text-lg md:text-2xl font-black text-violet-300 mt-1 truncate">{heroStats.topEmployee?.name || '—'}</div>
+                <div className="text-[10px] md:text-xs text-violet-400/80 mt-0.5">
+                  {heroStats.topEmployee
+                    ? `${heroStats.topEmployee.sales} satış · %${heroStats.topEmployee.approvalRate.toFixed(0)} onay`
+                    : 'Yeterli veri yok'}
+                </div>
               </div>
             </div>
             <div className="relative overflow-hidden bg-gradient-to-br from-blue-900/40 to-blue-950/60 border border-blue-700/40 rounded-xl p-3 md:p-4">
               <Activity className="absolute -top-2 -right-2 text-blue-700/30" size={64} />
               <div className="relative">
                 <div className="text-[10px] md:text-xs text-blue-300/70 font-bold uppercase tracking-wider">Aktif Personel</div>
-                <div className="text-lg md:text-2xl font-black text-blue-300 mt-1">{employeePerf.length}</div>
-                <div className="text-[10px] md:text-xs text-blue-400/80 mt-0.5">son 30 gün satış girişi</div>
+                <div className="text-lg md:text-2xl font-black text-blue-300 mt-1">{heroStats.activeEmployeeCount}</div>
+                <div className="text-[10px] md:text-xs text-blue-400/80 mt-0.5">{modeLabel} · satış girişi</div>
               </div>
             </div>
             <div className="relative overflow-hidden bg-gradient-to-br from-pink-900/40 to-pink-950/60 border border-pink-700/40 rounded-xl p-3 md:p-4">
               <Sparkles className="absolute -top-2 -right-2 text-pink-700/30" size={64} />
               <div className="relative">
                 <div className="text-[10px] md:text-xs text-pink-300/70 font-bold uppercase tracking-wider">Sinerji İkilisi</div>
-                {(() => {
-                  const best = pairingRecs.flatMap(b => b.pairs.map(p => ({ ...p, branchName: b.branch }))).sort((a, b) => b.synergy - a.synergy)[0];
-                  return best ? (
-                    <>
-                      <div className="text-xs md:text-sm font-black text-pink-300 mt-1 truncate">{best.name1.split(' ')[0]} + {best.name2.split(' ')[0]}</div>
-                      <div className="text-[10px] md:text-xs text-pink-400/80 mt-0.5">{best.branchName} · +%{best.synergy.toFixed(0)}</div>
-                    </>
-                  ) : <div className="text-xs text-pink-400/60 mt-1 italic">Yeterli veri yok</div>;
-                })()}
+                {heroStats.bestPair ? (
+                  <>
+                    <div className="text-xs md:text-sm font-black text-pink-300 mt-1 truncate">
+                      {heroStats.bestPair.name1.split(' ')[0]} + {heroStats.bestPair.name2.split(' ')[0]}
+                    </div>
+                    <div className="text-[10px] md:text-xs text-pink-400/80 mt-0.5">
+                      {heroStats.bestPair.branch} · {heroStats.bestPair.synergy >= 0 ? '+' : ''}%{heroStats.bestPair.synergy.toFixed(0)}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-xs text-pink-400/60 mt-1 italic">Yeterli veri yok</div>
+                )}
               </div>
             </div>
           </div>
+            );
+          })()}
 
           {/* Şube Sıralaması (Branch Leaderboard) */}
           <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden">
