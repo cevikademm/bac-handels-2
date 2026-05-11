@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Bell, X, ShoppingBag, Clock, FileText, BarChart3, CheckCheck, Loader2, Inbox, AlarmClockOff } from 'lucide-react';
+import { Bell, X, ShoppingBag, Clock, FileText, BarChart3, CheckCheck, Loader2, Inbox, AlarmClockOff, MessageSquare } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { canSeeNotificationCenter } from '../constants';
 
@@ -37,6 +37,7 @@ const ICON_BY_TYPE: Record<string, { icon: React.ComponentType<{ size?: number; 
   non_kiosk_check: { icon: FileText, color: 'text-blue-400 bg-blue-500/10 border-blue-500/30' },
   weekly_sales_anomaly: { icon: BarChart3, color: 'text-purple-400 bg-purple-500/10 border-purple-500/30' },
   auto_closed_shift: { icon: AlarmClockOff, color: 'text-rose-400 bg-rose-500/10 border-rose-500/30' },
+  new_message: { icon: MessageSquare, color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/30' },
 };
 
 const formatRelative = (iso: string): string => {
@@ -113,9 +114,10 @@ const NotificationCenter: React.FC<Props> = ({ currentUserId, currentUserEmail, 
     setRouteUrl(null);
   }, [routeUrl, onNavigate]);
 
-  // İlk yükleme + realtime subscription
+  // İlk yükleme + realtime subscription. Mesaj bildirimleri tüm rollere
+  // açık olduğundan fetch ve subscribe her zaman çalışır; gizleme tarafı
+  // filter (visibleItems) ile yapılır.
   useEffect(() => {
-    if (!allowed) return;
     let cancelled = false;
     const fetchInitial = async () => {
       setLoading(true);
@@ -147,7 +149,26 @@ const NotificationCenter: React.FC<Props> = ({ currentUserId, currentUserEmail, 
       cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, [allowed]);
+  }, []);
+
+  // Görünür bildirimler — current user'ın görmesi gerekenleri filtrele.
+  // - new_message: meta.receiver_id === currentUserId | 'ALL' | (admin && 'ADMIN_BOARD')
+  //   Kendi gönderdiğim mesaj kendime bildirim olarak düşmesin.
+  // - Diğer operasyonel bildirim tipleri: sadece NOTIFICATION_CENTER_ALLOWED_EMAILS
+  //   listesindeki adminler (canSeeNotificationCenter === true) görür.
+  const visibleItems = useMemo(() => {
+    return items.filter((n) => {
+      if (n.type === 'new_message') {
+        if (n.meta?.sender_id === currentUserId) return false;
+        const rid = n.meta?.receiver_id;
+        if (rid === currentUserId) return true;
+        if (rid === 'ALL') return true;
+        if (rid === 'ADMIN_BOARD' && allowed) return true;
+        return false;
+      }
+      return allowed;
+    });
+  }, [items, currentUserId, allowed]);
 
   // Dropdown dışına tıklayınca kapat — popup portal'a alındığı için
   // hem buton (dropdownRef) hem de portal içeriği (popupRef) ayrı kontrol edilir.
@@ -172,8 +193,8 @@ const NotificationCenter: React.FC<Props> = ({ currentUserId, currentUserEmail, 
 
   const unreadCount = useMemo(() => {
     if (!currentUserId) return 0;
-    return items.filter((n) => !n.read_by?.includes(currentUserId)).length;
-  }, [items, currentUserId]);
+    return visibleItems.filter((n) => !n.read_by?.includes(currentUserId)).length;
+  }, [visibleItems, currentUserId]);
 
   const markAsRead = async (id: string) => {
     if (!currentUserId) return;
@@ -186,7 +207,7 @@ const NotificationCenter: React.FC<Props> = ({ currentUserId, currentUserEmail, 
 
   const markAllAsRead = async () => {
     if (!currentUserId) return;
-    const unread = items.filter((n) => !n.read_by?.includes(currentUserId));
+    const unread = visibleItems.filter((n) => !n.read_by?.includes(currentUserId));
     if (unread.length === 0) return;
     setItems((prev) =>
       prev.map((n) =>
@@ -210,7 +231,11 @@ const NotificationCenter: React.FC<Props> = ({ currentUserId, currentUserEmail, 
     setOpen(false);
   };
 
-  if (!allowed) return null;
+  // NOT: Eskiden `if (!allowed) return null` ile NotificationCenter sadece
+  // NOTIFICATION_CENTER_ALLOWED_EMAILS listesindekilere render oluyordu. Artık
+  // tüm rollere render olur — ancak görünür içerik visibleItems üzerinden
+  // filtrelenir (allowed olmayanlar yalnızca kendilerine gelen mesaj
+  // bildirimlerini görür).
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -268,18 +293,18 @@ const NotificationCenter: React.FC<Props> = ({ currentUserId, currentUserEmail, 
 
           {/* Liste — parent flex-col + maxHeight olduğundan flex-1 ile genişler */}
           <div className="flex-1 min-h-0 md:max-h-[500px] overflow-y-auto custom-scrollbar">
-            {loading && items.length === 0 ? (
+            {loading && visibleItems.length === 0 ? (
               <div className="flex items-center justify-center py-12 text-slate-600 dark:text-zinc-400 text-sm gap-2">
                 <Loader2 size={16} className="animate-spin" /> Yükleniyor...
               </div>
-            ) : items.length === 0 ? (
+            ) : visibleItems.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-slate-500 dark:text-zinc-500 text-sm gap-2">
                 <Inbox size={32} className="text-slate-300 dark:text-zinc-700" />
                 Henüz bildirim yok
               </div>
             ) : (
               <ul className="divide-y divide-zinc-800/60">
-                {items.map((n) => {
+                {visibleItems.map((n) => {
                   const cfg = ICON_BY_TYPE[n.type] || {
                     icon: Bell,
                     color: 'text-slate-600 dark:text-zinc-400 bg-slate-200 dark:bg-zinc-700/30 border-slate-300 dark:border-zinc-700',
@@ -320,9 +345,9 @@ const NotificationCenter: React.FC<Props> = ({ currentUserId, currentUserEmail, 
             )}
           </div>
 
-          {items.length > 0 && (
+          {visibleItems.length > 0 && (
             <div className="px-4 py-2 border-t border-slate-200 dark:border-zinc-800 text-[10px] text-slate-500 dark:text-zinc-500 text-center">
-              Son 90 gün — toplam {items.length} bildirim
+              Son 90 gün — toplam {visibleItems.length} bildirim
             </div>
           )}
         </div>,

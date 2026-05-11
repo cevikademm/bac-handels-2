@@ -27,7 +27,32 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
     
     const scrollRef = useRef<HTMLDivElement>(null);
     
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
+
+    // Mesaj insert'ten sonra notification_log'a kayıt at — alıcı NotificationCenter'da
+    // "Yeni Mesaj" bildirimi alır. meta.receiver_id, hedef kullanıcıyı tutar; admin
+    // grubuna (ADMIN_BOARD) veya 'ALL' broadcast'ine yapılan gönderimlerde de kayıt
+    // oluşturulur — NotificationCenter render aşamasında receiver filtresi uygular.
+    const notifyNewMessage = async (receiverId: string, content: string, subject?: string) => {
+        try {
+            await supabase.from('notification_log').insert({
+                type: 'new_message',
+                title: language === 'de' ? 'Neue Nachricht' : 'Yeni Mesaj',
+                body: `${currentUser.name}: ${content.slice(0, 80)}${content.length > 80 ? '…' : ''}`,
+                url: '/messages',
+                tag: `msg_${currentUser.id}_${Date.now()}`,
+                meta: {
+                    sender_id: currentUser.id,
+                    sender_name: currentUser.name,
+                    receiver_id: receiverId,
+                    subject: subject || null,
+                },
+            });
+        } catch (e) {
+            // Tablo yoksa veya RLS engellerse sessizce geç — mesaj zaten gönderildi
+            console.warn('[notify] message notification failed:', e);
+        }
+    };
 
     // Gerçek kullanıcı listesi
     const [recipientList, setRecipientList] = useState<Employee[]>([]);
@@ -386,6 +411,9 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
             const { error } = await supabase.from('messages').insert([newMessage]);
             if (error) throw error;
 
+            // Bildirim merkezine yeni mesaj kaydı düş
+            notifyNewMessage(receiver, replyText, newMessage.subject);
+
             setReplyText('');
 
         } catch (err: any) {
@@ -414,6 +442,9 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
 
             const { error } = await supabase.from('messages').insert([newMessage]);
             if (error) throw error;
+
+            // Bildirim merkezine yeni mesaj kaydı düş
+            notifyNewMessage(composeForm.receiverId, composeForm.content, newMessage.subject);
 
             setShowCompose(false);
             setComposeForm({ receiverId: '', subject: '', content: '' });
