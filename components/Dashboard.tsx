@@ -5,6 +5,7 @@ import { AppNotification, Employee, Role, CalendarEvent, Branch, Task, Message, 
 import { isDualRoleAdmin } from '../constants';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
+import { useTheme } from '../lib/theme';
 import { GlowingEffect } from './ui/glowing-effect';
 
 // QR scanner lazy: zxing/browser top-level import prod minify'da bozuluyor
@@ -17,12 +18,19 @@ interface DashboardProps {
     onUpdateUser?: (user: Employee) => void;
 }
 
-const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b'];
+// Sci-fi dark palette (Panel sekmesinde dark modda devrede; light modda
+// index.html'deki BAC marka kırmızı/beyaz override'ları zaten geçerli).
+const COLORS = ['#22d3ee', '#06b6d4', '#67e8f9', '#a78bfa', '#f472b6'];
 const STATUS_COLORS = {
-    todo: '#71717a', // Zinc-500
-    in_progress: '#6366f1', // Indigo-500
-    done: '#10b981' // Emerald-500
+    todo: '#475569',         // slate-600 (sci-fi muted)
+    in_progress: '#22d3ee',  // cyan-400
+    done: '#10b981',         // emerald-500
 };
+// Recharts dark grid/axis renkleri — koyu lacivert palet
+const SCIFI_GRID    = '#1e293b';
+const SCIFI_AXIS    = '#64748b';
+const SCIFI_LABEL   = '#94a3b8';
+const SCIFI_TOOLTIP = { backgroundColor: 'rgba(5, 10, 26, 0.95)', border: '1px solid rgba(34, 211, 238, 0.3)', borderRadius: '8px', color: '#e2e8f0', boxShadow: '0 0 24px rgba(6, 182, 212, 0.2)' };
 
 // Helper function for relative time
 const getRelativeTime = (dateString: string, lang: 'tr' | 'de' = 'tr') => {
@@ -57,6 +65,18 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
   
   // NEW: Filter State for Admin Chart
   const [timeFilter, setTimeFilter] = useState<'WEEKLY' | 'MONTHLY'>('WEEKLY');
+
+  // NEW: Operasyon KPI state'leri (modern admin paneli için)
+  const [todayCheckInsCount, setTodayCheckInsCount] = useState<number>(0);
+  const [weekPlannedHours, setWeekPlannedHours] = useState<number>(0);
+  const [upcomingShifts, setUpcomingShifts] = useState<Array<{
+    employeeId: string;
+    employeeName: string;
+    avatarUrl?: string;
+    branch: string;
+    date: string;
+    timeSlot: string;
+  }>>([]);
 
   // Avatar Upload State
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -115,6 +135,17 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
   };
   
   const { t, formatDate, language } = useLanguage();
+  const { theme } = useTheme();
+  // Recharts tema-aware palet — class override SVG fill'lere işlemiyor
+  const isDark = theme === 'dark';
+  const chartBarPrimary    = isDark ? '#22d3ee' : '#dd2d4a'; // cyan / BAC kırmızı
+  const chartBarSecondary  = isDark ? '#0e7490' : '#f49cbb'; // cyan-700 / brand pembe
+  const chartGridStroke    = isDark ? '#1e293b' : '#ffe4e9';
+  const chartAxisStroke    = isDark ? '#64748b' : '#a47480';
+  const chartCursorFill    = isDark ? 'rgba(34, 211, 238, 0.08)' : 'rgba(221, 45, 74, 0.06)';
+  const chartTooltipStyle  = isDark
+    ? { backgroundColor: 'rgba(5, 10, 26, 0.95)', border: '1px solid rgba(34, 211, 238, 0.3)', borderRadius: '8px', color: '#e2e8f0', boxShadow: '0 0 24px rgba(6, 182, 212, 0.2)' }
+    : { backgroundColor: '#ffffff', border: '1px solid #ffe4e9', borderRadius: '8px', color: '#1a0a0e', boxShadow: '0 4px 16px rgba(136, 13, 30, 0.08)' };
 
   // Tüm adminler aynı paneli görür
 
@@ -298,6 +329,84 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
       // 5. Fetch Sales Logs (For Leaderboard) - Fetch Current Month
       const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
       const { data: salesData } = await supabase.from('sales_logs').select('*').gte('sale_date', startOfMonth);
+
+      // 6. Bugün QR/Manuel ile giriş yapan benzersiz personel sayısı
+      try {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const { data: logsToday } = await supabase
+            .from('time_logs')
+            .select('employee_id, check_in_at')
+            .eq('date', todayStr)
+            .not('check_in_at', 'is', null);
+        if (logsToday) {
+          const uniq = new Set(logsToday.map((r: any) => r.employee_id));
+          setTodayCheckInsCount(uniq.size);
+        }
+      } catch { /* tablo yoksa sessizce geç */ }
+
+      // 7. Bu haftaki vardiya planı toplam saat + yaklaşan vardiyalar (bugün/yarın)
+      try {
+        // Pazartesi 00:00 — haftanın ilk günü
+        const now = new Date();
+        const day = now.getDay() || 7;
+        const monday = new Date(now);
+        if (day !== 1) monday.setHours(-24 * (day - 1));
+        monday.setHours(0, 0, 0, 0);
+        const weekKey = monday.toISOString().split('T')[0];
+
+        const { data: shiftRows } = await supabase
+            .from('shift_schedules')
+            .select('*')
+            .eq('week_start_date', weekKey);
+
+        if (shiftRows) {
+          // Toplam planlı saat = time_slot süresi × gün başına atanan personel sayısı
+          let totalHours = 0;
+          const upcoming: typeof upcomingShifts = [];
+          // Bugün ve yarın tarih anahtarları (haftanın hangi günü olduğu)
+          const todayIdx = (new Date().getDay() + 6) % 7; // Pzt=0, ..., Paz=6
+          const tomorrowIdx = (todayIdx + 1) % 7;
+
+          for (const row of shiftRows) {
+            const slot = String(row.time_slot || '');
+            const m = slot.match(/(\d{1,2})(?::(\d{2}))?\s*[-–]\s*(\d{1,2})(?::(\d{2}))?/);
+            if (!m) continue;
+            const sH = parseInt(m[1], 10), sM = m[2] ? parseInt(m[2], 10) : 0;
+            const eH = parseInt(m[3], 10), eM = m[4] ? parseInt(m[4], 10) : 0;
+            let mins = (eH * 60 + eM) - (sH * 60 + sM);
+            if (mins < 0) mins += 24 * 60;
+            const hours = mins / 60;
+
+            const days: any[] = row.days || [];
+            days.forEach((cell, idx) => {
+              if (!cell) return;
+              const empIds = String(cell).split(',').map(s => s.trim()).filter(Boolean);
+              totalHours += hours * empIds.length;
+
+              // Bugün/yarın için ayrıntılı kayıt
+              if (idx === todayIdx || idx === tomorrowIdx) {
+                const cellDate = new Date(monday);
+                cellDate.setDate(monday.getDate() + idx);
+                empIds.forEach(empId => {
+                  const emp = allEmployees.find(e => e.id === empId);
+                  upcoming.push({
+                    employeeId: empId,
+                    employeeName: emp?.name || 'Personel',
+                    avatarUrl: emp?.avatarUrl,
+                    branch: row.branch,
+                    date: cellDate.toISOString().split('T')[0],
+                    timeSlot: `${String(sH).padStart(2,'0')}:${String(sM).padStart(2,'0')} - ${String(eH).padStart(2,'0')}:${String(eM).padStart(2,'0')}`,
+                  });
+                });
+              }
+            });
+          }
+          setWeekPlannedHours(Math.round(totalHours));
+          // Bugün önce, sonra yarın; tarih + saat sıralı, maks 8
+          upcoming.sort((a, b) => (a.date + a.timeSlot).localeCompare(b.date + b.timeSlot));
+          setUpcomingShifts(upcoming.slice(0, 8));
+        }
+      } catch { /* tablo yoksa sessizce geç */ }
       if(salesData) {
           setSalesLogs(salesData.map((s:any) => ({
               id: s.id, employeeId: s.employee_id, branch: s.branch, productName: s.product_name,
@@ -432,10 +541,21 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
   // --- RENDER: ADMIN DASHBOARD ---
   if (currentUser.role === Role.ADMIN) {
       return (
-        <div 
-          className="h-full w-full p-4 md:p-8 overflow-y-auto custom-scrollbar bg-[#09090b]"
+        <div
+          className="dashboard-scifi h-full w-full p-4 md:p-8 overflow-y-auto custom-scrollbar bg-[#09090b]"
           style={{ paddingBottom: 'calc(5.5rem + env(safe-area-inset-bottom, 0px))' }}
         >
+          {/* HUD HERO BAND — sci-fi başlık (sadece dark'ta görünür; light'ta sade) */}
+          <div className="hidden dark:flex relative items-center justify-center mb-6 mt-2 scifi-scan">
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 h-px w-1/3 bg-gradient-to-r from-transparent to-cyan-400/60" />
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 h-px w-1/3 bg-gradient-to-l from-transparent to-cyan-400/60" />
+            <div className="px-6 py-3 flex items-center gap-3">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 scifi-pulse" />
+              <span className="text-[10px] md:text-xs font-mono tracking-[0.4em] text-cyan-300/80 uppercase">BAC // Operation Panel</span>
+              <span className="w-2 h-2 rounded-full bg-cyan-400 scifi-pulse" />
+            </div>
+          </div>
+
           {/* Header Section */}
           <header className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
             <div className="flex justify-between items-start w-full">
@@ -443,11 +563,11 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                     <div className="relative group cursor-pointer">
                          <label className="block w-16 h-16 rounded-full p-0.5 bg-gradient-to-br from-indigo-500 to-purple-600 cursor-pointer relative transition-transform group-hover:scale-105">
                             <img src={currentUser.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=6366f1&color=fff`} className="w-full h-full rounded-full object-cover border-2 border-[#09090b]" alt="Profile" referrerPolicy="no-referrer" />
-                            
+
                             <div className="absolute inset-0.5 rounded-full bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                 {isUploadingAvatar ? <Loader2 size={20} className="text-slate-900 dark:text-white animate-spin" /> : <Upload size={20} className="text-slate-900 dark:text-white" />}
                             </div>
-                            
+
                             <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={isUploadingAvatar} />
                          </label>
                          <div className="absolute bottom-0 right-0 w-5 h-5 bg-green-500 border-4 border-[#09090b] rounded-full z-10" title="Online"></div>
@@ -455,12 +575,17 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                     <div>
                         <h1 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">
                             <span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">{t('dash.title')}</span>
+                            <span className="hidden dark:inline ml-3 text-cyan-300 font-light">// DATA</span>
                         </h1>
                         <div className="flex items-center gap-3">
                             <p className="text-slate-600 dark:text-zinc-400 text-sm flex items-center gap-2">
-                                <Activity size={14} className="text-green-500" /> 
+                                <Activity size={14} className="text-green-500" />
                                 {t('dash.subtitle')}
                             </p>
+                            <span className="hidden dark:inline-flex items-center gap-1.5 text-[10px] font-mono tracking-widest text-cyan-300/70 px-2 py-0.5 rounded border border-cyan-400/30 bg-cyan-500/5">
+                                <span className="w-1 h-1 rounded-full bg-cyan-400 scifi-pulse" />
+                                LIVE
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -478,66 +603,106 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
             </div>
           </header>
 
-          {/* TOP STATS GRID - REORGANIZED (3 COLS) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-              
-              {/* Card 1: Active Personnel (STAFF ONLY) */}
-              <div className="rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 p-6 flex flex-col justify-between hover:bg-white dark:hover:bg-zinc-900/60 transition-all cursor-pointer group relative" onClick={() => navigateTo('payroll')}>
-<GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} />
-                  <div className="flex justify-between items-start">
-                      <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-400 group-hover:scale-110 transition-transform shadow-lg shadow-blue-900/10">
-                          <Users size={24} />
+          {/* ==================================================
+              KPI ROW — 6'lı kart grid (modern admin paneli)
+              Her kart minimal, ikon + sayı + label + ince progress
+              ================================================== */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4 mb-6">
+
+              {/* 1. Aktif Personel — DAİMA GÖRÜNÜR */}
+              <div onClick={() => navigateTo('payroll')} className="group cursor-pointer rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 p-4 hover:border-blue-300 dark:hover:border-blue-500/40 hover:shadow-md hover:shadow-blue-500/5 transition-all relative">
+                  <div className="flex items-center justify-between mb-3">
+                      <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
+                          <Users size={18} />
                       </div>
-                      <span className="text-xs font-bold bg-blue-500/10 text-blue-300 px-2.5 py-1 rounded-full border border-blue-500/20">+12%</span>
+                      <span className="text-[10px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-500/10 px-1.5 py-0.5 rounded">+12%</span>
                   </div>
-                  <div className="mt-6">
-                      <div className="text-4xl font-bold text-slate-900 dark:text-white tracking-tight">{dashboardEmployees.length}</div>
-                      <div className="text-sm text-slate-500 dark:text-zinc-500 font-medium">{t('dash.activeStaff')}</div>
-                  </div>
-                  <div className="mt-6 w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-blue-500 w-[80%] h-full rounded-full"></div>
+                  <div className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{dashboardEmployees.length}</div>
+                  <div className="text-[11px] md:text-xs text-slate-500 dark:text-zinc-500 font-medium mt-0.5">{t('dash.activeStaff')}</div>
+                  <div className="mt-3 h-1 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-500 rounded-full" style={{ width: '92%' }}></div>
                   </div>
               </div>
 
-              {/* Card 2: Total Tasks -> GÜNCELLENDİ: SADECE AKTİF GÖREVLER */}
-              <div className="rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 p-6 flex flex-col justify-between hover:bg-white dark:hover:bg-zinc-900/60 transition-all cursor-pointer group relative" onClick={() => navigateTo('tasks')}>
-<GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} />
-                   <div className="flex justify-between items-start">
-                      <div className="p-3 bg-indigo-500/10 rounded-2xl text-indigo-400 group-hover:scale-110 transition-transform shadow-lg shadow-indigo-900/10">
-                          <CheckSquare size={24} />
+              {/* 2. Bugün İşbaşı */}
+              <div className="group rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 p-4 hover:border-emerald-300 dark:hover:border-emerald-500/40 hover:shadow-md hover:shadow-emerald-500/5 transition-all relative">
+                  <div className="flex items-center justify-between mb-3">
+                      <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform">
+                          <CalendarCheck size={18} />
                       </div>
+                      <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 px-1.5 py-0.5 rounded">{language === 'de' ? 'Heute' : 'Bugün'}</span>
                   </div>
-                  <div className="mt-6">
-                      {/* DEĞİŞİKLİK: Burada dashboardTasks.length yerine pendingTasks.length kullanıldı */}
-                      <div className="text-4xl font-bold text-slate-900 dark:text-white tracking-tight">{pendingTasks.length}</div>
-                      {/* Metin "Toplam Görevler" olarak kalıyor ancak içerik aktif görevleri gösteriyor */}
-                      <div className="text-sm text-slate-500 dark:text-zinc-500 font-medium flex items-center gap-1">
-                          {t('dash.totalTasks')} <span className="text-[10px] text-slate-400 dark:text-zinc-600">(Aktif)</span>
-                      </div>
+                  <div className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+                      {todayCheckInsCount}
+                      <span className="text-sm font-medium text-slate-400 dark:text-zinc-600">/{dashboardEmployees.length}</span>
                   </div>
-                  <div className="mt-6 flex -space-x-3">
-                      {dashboardEmployees.slice(0,3).map(e => (
-                          <img key={e.id} src={e.avatarUrl} className="w-8 h-8 rounded-full border-2 border-slate-200 dark:border-zinc-950 opacity-80 grayscale group-hover:grayscale-0 transition-all" referrerPolicy="no-referrer" />
-                      ))}
+                  <div className="text-[11px] md:text-xs text-slate-500 dark:text-zinc-500 font-medium mt-0.5">{language === 'de' ? 'Eingecheckt' : 'İşbaşı yapan'}</div>
+                  <div className="mt-3 h-1 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${dashboardEmployees.length > 0 ? (todayCheckInsCount / dashboardEmployees.length) * 100 : 0}%` }}></div>
                   </div>
               </div>
 
-               {/* Card 3: Operation Success Rate (Replaced Financial Cost) */}
-               <div className="rounded-3xl border border-slate-200 dark:border-zinc-800 bg-gradient-to-br from-zinc-900 to-black p-6 flex flex-col justify-between relative overflow-hidden group">
-<GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} />
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-[50px] pointer-events-none group-hover:bg-purple-500/20 transition-all"></div>
-                  <div className="flex justify-between items-start relative z-10">
-                      <div className="p-3 bg-purple-500/10 rounded-2xl text-purple-400 shadow-lg shadow-purple-900/10">
-                          <CheckCircle2 size={24} />
+              {/* 3. Bu Hafta Planlı Saat */}
+              <div onClick={() => navigateTo('shifts')} className="group cursor-pointer rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 p-4 hover:border-cyan-300 dark:hover:border-cyan-500/40 hover:shadow-md hover:shadow-cyan-500/5 transition-all relative">
+                  <div className="flex items-center justify-between mb-3">
+                      <div className="p-2 rounded-xl bg-cyan-50 dark:bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 group-hover:scale-110 transition-transform">
+                          <Clock size={18} />
                       </div>
-                      <span className="text-xs font-bold bg-purple-500/10 text-purple-300 px-2.5 py-1 rounded-full border border-purple-500/20">Genel</span>
+                      <span className="text-[10px] font-bold text-cyan-700 dark:text-cyan-300 bg-cyan-50 dark:bg-cyan-500/10 px-1.5 py-0.5 rounded">{language === 'de' ? 'Woche' : 'Hafta'}</span>
                   </div>
-                  <div className="mt-6 relative z-10">
-                      <div className="text-4xl font-bold text-slate-900 dark:text-white tracking-tight">%{completionRate}</div>
-                      <div className="text-sm text-slate-500 dark:text-zinc-500 font-medium">{t('dash.successRate')}</div>
+                  <div className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+                      {weekPlannedHours}<span className="text-sm font-medium text-slate-400 dark:text-zinc-600 ml-1">sa</span>
                   </div>
-                  <div className="mt-6 w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-purple-500 h-full rounded-full transition-all duration-1000" style={{ width: `${completionRate}%` }}></div>
+                  <div className="text-[11px] md:text-xs text-slate-500 dark:text-zinc-500 font-medium mt-0.5">{language === 'de' ? 'Geplante Std.' : 'Planlı saat'}</div>
+                  <div className="mt-3 h-1 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-cyan-500 rounded-full" style={{ width: weekPlannedHours > 0 ? '100%' : '0%' }}></div>
+                  </div>
+              </div>
+
+              {/* 4. Aktif Görev */}
+              <div onClick={() => navigateTo('tasks')} className="group cursor-pointer rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 p-4 hover:border-indigo-300 dark:hover:border-indigo-500/40 hover:shadow-md hover:shadow-indigo-500/5 transition-all relative">
+                  <div className="flex items-center justify-between mb-3">
+                      <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform">
+                          <ListTodo size={18} />
+                      </div>
+                      <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-500/10 px-1.5 py-0.5 rounded">{language === 'de' ? 'Aktiv' : 'Aktif'}</span>
+                  </div>
+                  <div className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{pendingTasks.length}</div>
+                  <div className="text-[11px] md:text-xs text-slate-500 dark:text-zinc-500 font-medium mt-0.5">{t('dash.totalTasks')}</div>
+                  <div className="mt-3 h-1 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${totalTasks > 0 ? (pendingTasks.length / totalTasks) * 100 : 0}%` }}></div>
+                  </div>
+              </div>
+
+              {/* 5. Yüksek Öncelik */}
+              <div onClick={() => navigateTo('tasks')} className="group cursor-pointer rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 p-4 hover:border-amber-300 dark:hover:border-amber-500/40 hover:shadow-md hover:shadow-amber-500/5 transition-all relative">
+                  <div className="flex items-center justify-between mb-3">
+                      <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform">
+                          <AlertTriangle size={18} />
+                      </div>
+                      {highPriorityTasks.length > 0 && (
+                          <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 px-1.5 py-0.5 rounded animate-pulse">!</span>
+                      )}
+                  </div>
+                  <div className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{highPriorityTasks.length}</div>
+                  <div className="text-[11px] md:text-xs text-slate-500 dark:text-zinc-500 font-medium mt-0.5">{language === 'de' ? 'Hohe Prio.' : 'Yüksek öncelik'}</div>
+                  <div className="mt-3 h-1 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-amber-500 rounded-full" style={{ width: `${pendingTasks.length > 0 ? (highPriorityTasks.length / pendingTasks.length) * 100 : 0}%` }}></div>
+                  </div>
+              </div>
+
+              {/* 6. Tamamlanma Oranı */}
+              <div className="group rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 p-4 hover:border-emerald-300 dark:hover:border-emerald-500/40 hover:shadow-md hover:shadow-emerald-500/5 transition-all relative">
+                  <div className="flex items-center justify-between mb-3">
+                      <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform">
+                          <CheckCircle2 size={18} />
+                      </div>
+                      <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 px-1.5 py-0.5 rounded">{language === 'de' ? 'Gesamt' : 'Genel'}</span>
+                  </div>
+                  <div className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">%{completionRate}</div>
+                  <div className="text-[11px] md:text-xs text-slate-500 dark:text-zinc-500 font-medium mt-0.5">{t('dash.successRate')}</div>
+                  <div className="mt-3 h-1 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full transition-all duration-1000" style={{ width: `${completionRate}%` }}></div>
                   </div>
               </div>
           </div>
@@ -568,20 +733,36 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                           </div>
                       </div>
                       <div className="flex-1 min-h-[300px] w-full">
-                          <ResponsiveContainer width="100%" height="100%">
-                              <BarChart data={branchPerformanceData} barSize={36}>
-                                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-                                  <XAxis dataKey="name" stroke="#71717a" fontSize={12} tickLine={false} axisLine={false} dy={10} />
-                                  <YAxis stroke="#71717a" fontSize={12} tickLine={false} axisLine={false} />
-                                  <Tooltip 
-                                      cursor={{fill: '#27272a', opacity: 0.4}}
-                                      contentStyle={{ backgroundColor: '#09090b', border: '1px solid #27272a', borderRadius: '12px', color: '#fff', boxShadow: '0 10px 30px -10px rgba(0,0,0,0.5)' }}
-                                  />
-                                  <Legend wrapperStyle={{paddingTop: '20px'}} />
-                                  <Bar dataKey="tamamlanan" name={t('tasks.completed')} stackId="a" fill="#8b5cf6" radius={[0, 0, 4, 4]} />
-                                  <Bar dataKey="aktif" name={t('tasks.active')} stackId="a" fill="#27272a" radius={[4, 4, 0, 0]} />
-                              </BarChart>
-                          </ResponsiveContainer>
+                          {branchPerformanceData.some(b => b.tamamlanan + b.aktif > 0) ? (
+                              <ResponsiveContainer width="100%" height="100%">
+                                  <BarChart data={branchPerformanceData} barSize={36}>
+                                      <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} vertical={false} />
+                                      <XAxis dataKey="name" stroke={chartAxisStroke} fontSize={12} tickLine={false} axisLine={false} dy={10} />
+                                      <YAxis stroke={chartAxisStroke} fontSize={12} tickLine={false} axisLine={false} />
+                                      <Tooltip
+                                          cursor={{fill: chartCursorFill, opacity: 1}}
+                                          contentStyle={chartTooltipStyle}
+                                      />
+                                      <Legend wrapperStyle={{paddingTop: '20px'}} />
+                                      <Bar dataKey="tamamlanan" name={t('tasks.completed')} stackId="a" fill={chartBarPrimary} radius={[0, 0, 4, 4]} />
+                                      <Bar dataKey="aktif" name={t('tasks.active')} stackId="a" fill={chartBarSecondary} radius={[4, 4, 0, 0]} />
+                                  </BarChart>
+                              </ResponsiveContainer>
+                          ) : (
+                              <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-zinc-600 px-6">
+                                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-zinc-900 border border-dashed border-slate-200 dark:border-zinc-800 mb-3">
+                                      <BarChart3 size={32} className="opacity-40" />
+                                  </div>
+                                  <p className="text-sm font-medium text-slate-600 dark:text-zinc-500 mb-1">
+                                      {language === 'de' ? 'Noch keine Daten' : 'Henüz veri yok'}
+                                  </p>
+                                  <p className="text-xs text-slate-400 dark:text-zinc-600 text-center max-w-xs">
+                                      {language === 'de'
+                                          ? 'Sobald Aufgaben erstellt und abgeschlossen werden, erscheinen hier die Filialvergleiche.'
+                                          : 'Görevler oluşturulup tamamlandıkça şube bazlı performans burada görünecek.'}
+                                  </p>
+                              </div>
+                          )}
                       </div>
                   </div>
 
@@ -611,23 +792,183 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                           )) : (
                               <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-zinc-600">
                                   <Bell size={32} className="mb-2 opacity-20"/>
-                                  <div className="text-sm">Bildirim yok.</div>
+                                  <div className="text-sm">{language === 'de' ? 'Keine Benachrichtigungen.' : 'Bildirim yok.'}</div>
                               </div>
                           )}
                       </div>
                   </div>
               </div>
           )}
+
+          {/* ==================================================
+              ALT WIDGET SATIRI — 3'lü grid
+              Yaklaşan Vardiyalar + Son Mesajlar + Aktif Personel
+              ================================================== */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+
+              {/* Widget 1: Yaklaşan Vardiyalar */}
+              <div className="rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/30 p-6 flex flex-col h-[400px] relative">
+                  <GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} />
+                  <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                          <CalendarCheck size={18} className="text-cyan-500 dark:text-cyan-400"/>
+                          {language === 'de' ? 'Kommende Schichten' : 'Yaklaşan Vardiyalar'}
+                      </h3>
+                      <button onClick={() => navigateTo('shifts')} className="text-xs text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors bg-slate-50 dark:bg-zinc-900 px-3 py-1 rounded-full border border-slate-200 dark:border-zinc-800">
+                          {t('dash.viewAll')}
+                      </button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1">
+                      {upcomingShifts.length > 0 ? upcomingShifts.map((s, i) => {
+                          const today = new Date().toISOString().split('T')[0];
+                          const isToday = s.date === today;
+                          return (
+                              <div key={i} className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-900/50 hover:bg-slate-100 dark:hover:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800/50 transition-colors">
+                                  <img
+                                      src={s.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.employeeName)}&background=6366f1&color=fff`}
+                                      alt={s.employeeName}
+                                      className="w-9 h-9 rounded-full border border-slate-200 dark:border-zinc-700 object-cover"
+                                      referrerPolicy="no-referrer"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                      <div className="text-sm font-medium text-slate-800 dark:text-zinc-200 truncate">{s.employeeName}</div>
+                                      <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-zinc-500">
+                                          <span className="font-mono">{s.timeSlot}</span>
+                                          <span className="opacity-40">•</span>
+                                          <span>{s.branch}</span>
+                                      </div>
+                                  </div>
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                      isToday
+                                          ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                                          : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-500'
+                                  }`}>
+                                      {isToday ? (language === 'de' ? 'Heute' : 'Bugün') : (language === 'de' ? 'Morgen' : 'Yarın')}
+                                  </span>
+                              </div>
+                          );
+                      }) : (
+                          <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-zinc-600">
+                              <CalendarCheck size={32} className="mb-2 opacity-20"/>
+                              <div className="text-sm">{language === 'de' ? 'Keine geplanten Schichten' : 'Planlı vardiya yok'}</div>
+                          </div>
+                      )}
+                  </div>
+              </div>
+
+              {/* Widget 2: Son Mesajlar */}
+              <div className="rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/30 p-6 flex flex-col h-[400px] relative">
+                  <GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} />
+                  <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                          <MessageSquare size={18} className="text-indigo-500 dark:text-indigo-400"/>
+                          {t('dash.messages')}
+                      </h3>
+                      <button onClick={() => navigateTo('messages')} className="text-xs text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors bg-slate-50 dark:bg-zinc-900 px-3 py-1 rounded-full border border-slate-200 dark:border-zinc-800">
+                          {t('dash.viewAll')}
+                      </button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1">
+                      {recentMessages.length > 0 ? recentMessages.slice(0, 5).map(msg => {
+                          const senderName = getSenderName(msg.senderId);
+                          const isUnread = !msg.read && msg.senderId !== currentUser.id;
+                          return (
+                              <div
+                                  key={msg.id}
+                                  onClick={() => navigateTo('messages')}
+                                  className={`cursor-pointer p-3 rounded-xl border transition-all hover:scale-[1.01] ${
+                                      isUnread
+                                          ? 'bg-indigo-50 dark:bg-indigo-900/15 border-indigo-200 dark:border-indigo-500/30'
+                                          : 'bg-slate-50 dark:bg-zinc-900/50 border-slate-100 dark:border-zinc-800/50 hover:bg-slate-100 dark:hover:bg-zinc-800/50'
+                                  }`}
+                              >
+                                  <div className="flex items-start justify-between gap-2 mb-1">
+                                      <div className="flex items-center gap-2 min-w-0">
+                                          <span className={`text-sm font-semibold truncate ${isUnread ? 'text-indigo-700 dark:text-indigo-200' : 'text-slate-700 dark:text-zinc-300'}`}>
+                                              {senderName}
+                                          </span>
+                                          {isUnread && <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />}
+                                      </div>
+                                      <span className="text-[10px] text-slate-400 dark:text-zinc-600 whitespace-nowrap">{getRelativeTime(msg.timestamp, language)}</span>
+                                  </div>
+                                  <p className="text-xs text-slate-600 dark:text-zinc-400 line-clamp-2 leading-snug">{msg.content}</p>
+                              </div>
+                          );
+                      }) : (
+                          <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-zinc-600">
+                              <MessageSquare size={32} className="mb-2 opacity-20"/>
+                              <div className="text-sm">{language === 'de' ? 'Keine Nachrichten' : 'Mesaj yok'}</div>
+                          </div>
+                      )}
+                  </div>
+              </div>
+
+              {/* Widget 3: Aktif Personel Listesi */}
+              <div className="rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/30 p-6 flex flex-col h-[400px] relative">
+                  <GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} />
+                  <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                          <Users size={18} className="text-blue-500 dark:text-blue-400"/>
+                          {t('dash.activeStaff')}
+                          <span className="text-xs font-medium text-slate-500 dark:text-zinc-500 ml-1">({dashboardEmployees.length})</span>
+                      </h3>
+                      <button onClick={() => navigateTo('payroll')} className="text-xs text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors bg-slate-50 dark:bg-zinc-900 px-3 py-1 rounded-full border border-slate-200 dark:border-zinc-800">
+                          {t('dash.viewAll')}
+                      </button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1">
+                      {dashboardEmployees.length > 0 ? dashboardEmployees.slice(0, 8).map(emp => (
+                          <div
+                              key={emp.id}
+                              onClick={() => navigateTo('payroll')}
+                              className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-900/50 hover:bg-slate-100 dark:hover:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800/50 transition-colors cursor-pointer"
+                          >
+                              <div className="relative shrink-0">
+                                  <img
+                                      src={emp.avatarUrl}
+                                      alt={emp.name}
+                                      className="w-9 h-9 rounded-full border border-slate-200 dark:border-zinc-700 object-cover"
+                                      referrerPolicy="no-referrer"
+                                  />
+                                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white dark:border-zinc-900" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                  <div className="text-sm font-medium text-slate-800 dark:text-zinc-200 truncate">{emp.name}</div>
+                                  <div className="text-[11px] text-slate-500 dark:text-zinc-500 truncate">
+                                      {emp.branch || (language === 'de' ? 'Pool' : 'Havuz')}
+                                  </div>
+                              </div>
+                              <ChevronRight size={14} className="text-slate-300 dark:text-zinc-700 shrink-0" />
+                          </div>
+                      )) : (
+                          <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-zinc-600">
+                              <Users size={32} className="mb-2 opacity-20"/>
+                              <div className="text-sm">{language === 'de' ? 'Kein Personal' : 'Personel yok'}</div>
+                          </div>
+                      )}
+                  </div>
+              </div>
+          </div>
         </div>
       );
   }
 
   // --- RENDER: STAFF DASHBOARD ---
   return (
-    <div 
-      className="h-full w-full p-4 md:p-8 overflow-y-auto custom-scrollbar bg-[#09090b]"
+    <div
+      className="dashboard-scifi h-full w-full p-4 md:p-8 overflow-y-auto custom-scrollbar bg-[#09090b]"
       style={{ paddingBottom: 'calc(5.5rem + env(safe-area-inset-bottom, 0px))' }}
     >
+      {/* HUD HERO BAND — sci-fi başlık (sadece dark'ta görünür; light'ta sade) */}
+      <div className="hidden dark:flex relative items-center justify-center mb-6 mt-2 scifi-scan">
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 h-px w-1/3 bg-gradient-to-r from-transparent to-cyan-400/60" />
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 h-px w-1/3 bg-gradient-to-l from-transparent to-cyan-400/60" />
+        <div className="px-6 py-3 flex items-center gap-3">
+          <span className="w-2 h-2 rounded-full bg-cyan-400 scifi-pulse" />
+          <span className="text-[10px] md:text-xs font-mono tracking-[0.4em] text-cyan-300/80 uppercase">BAC // Operation Panel</span>
+          <span className="w-2 h-2 rounded-full bg-cyan-400 scifi-pulse" />
+        </div>
+      </div>
        
        {/* 1. ADMIN MESSAGE ALERT BANNER (EN ÜSTTE) */}
        {adminMessageAlert && (
@@ -934,11 +1275,11 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                                         <Cell key={`cell-${index}`} fill={entry.color} />
                                     ))}
                                 </Pie>
-                                <Tooltip 
-                                    contentStyle={{ backgroundColor: '#09090b', border: '1px solid #27272a', borderRadius: '8px', color: '#fff' }}
-                                    itemStyle={{ color: '#e4e4e7' }}
+                                <Tooltip
+                                    contentStyle={chartTooltipStyle}
+                                    itemStyle={{ color: isDark ? '#e2e8f0' : '#1a0a0e' }}
                                 />
-                                <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', color: '#a1a1aa' }}/>
+                                <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', color: chartAxisStroke }}/>
                             </PieChart>
                         </ResponsiveContainer>
                         
@@ -963,14 +1304,14 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
               <div className="flex-1 min-h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={taskPriorityData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#27272a" horizontal={true} vertical={false} />
-                          <XAxis type="number" stroke="#52525b" fontSize={11} tickLine={false} axisLine={false} />
-                          <YAxis dataKey="name" type="category" stroke="#a1a1aa" fontSize={12} tickLine={false} axisLine={false} width={50} />
-                          <Tooltip 
-                              cursor={{fill: '#27272a', opacity: 0.4}}
-                              contentStyle={{ backgroundColor: '#09090b', border: '1px solid #27272a', borderRadius: '8px', color: '#fff' }}
+                          <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} horizontal={true} vertical={false} />
+                          <XAxis type="number" stroke={chartAxisStroke} fontSize={11} tickLine={false} axisLine={false} />
+                          <YAxis dataKey="name" type="category" stroke={chartAxisStroke} fontSize={12} tickLine={false} axisLine={false} width={50} />
+                          <Tooltip
+                              cursor={{fill: chartCursorFill, opacity: 1}}
+                              contentStyle={chartTooltipStyle}
                           />
-                          <Bar dataKey="adet" name="Count" fill="#6366f1" radius={[0, 4, 4, 0]} barSize={32} />
+                          <Bar dataKey="adet" name="Count" fill={chartBarPrimary} radius={[0, 4, 4, 0]} barSize={32} />
                       </BarChart>
                   </ResponsiveContainer>
               </div>
