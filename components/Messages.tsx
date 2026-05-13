@@ -88,6 +88,13 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
         return user?.role === Role.ADMIN;
     };
 
+    // Helper: ID'den telefon numarası bulma (sadece rakamlar — wa.me için)
+    const getPhoneDigits = (id: string): string | null => {
+        const user = recipientList.find(e => e.id === id);
+        const digits = user?.phone?.replace(/\D/g, '') || '';
+        return digits.length >= 8 ? digits : null;
+    };
+
     // 1. Başlangıç Verilerini Çek
     useEffect(() => {
         fetchPotentialRecipients().then(() => {
@@ -572,21 +579,24 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
                     <div className="flex justify-between items-center mb-4 gap-2">
                         <h2 className="font-bold text-slate-900 dark:text-white text-lg">{t('msg.chats')}</h2>
                         <div className="flex items-center gap-2">
-                            {/* WhatsApp: personelin acil durumda admin'e direkt ulaşması için.
-                                Admin'ler de kendi WhatsApp numarasını görmesin diye sadece personele gösterilir. */}
-                            {currentUser.role !== Role.ADMIN && (
-                                <a
-                                    href={buildWhatsAppUrl(`Merhaba, ben ${currentUser.name}. Bir konuda yardımınıza ihtiyaç duyuyorum.`)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="bg-emerald-500 hover:bg-emerald-400 p-2 rounded-lg text-white shadow-lg flex items-center gap-2 px-3 transition-colors"
-                                    title={t('msg.whatsappAdmin')}
-                                    aria-label={t('msg.whatsappAdmin')}
-                                >
-                                    <MessageCircle size={18} />
-                                    <span className="text-xs font-bold hidden sm:inline">{t('msg.whatsappShort')}</span>
-                                </a>
-                            )}
+                            {/* WhatsApp kestirme — personel için destek hattı, admin için
+                                kendi WhatsApp uygulamasını açmak (mesajları yedeklemek /
+                                personele hızlıca yönlendirmek için). */}
+                            <a
+                                href={buildWhatsAppUrl(
+                                    currentUser.role === Role.ADMIN
+                                        ? ''
+                                        : `Merhaba, ben ${currentUser.name}. Bir konuda yardımınıza ihtiyaç duyuyorum.`
+                                )}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="bg-emerald-500 hover:bg-emerald-400 p-2 rounded-lg text-white shadow-lg flex items-center gap-2 px-3 transition-colors"
+                                title={t('msg.whatsappAdmin')}
+                                aria-label={t('msg.whatsappAdmin')}
+                            >
+                                <MessageCircle size={18} />
+                                <span className="text-xs font-bold hidden sm:inline">{t('msg.whatsappShort')}</span>
+                            </a>
                             <button onClick={handleOpenCompose} className="bg-indigo-600 p-2 rounded-lg text-slate-900 dark:text-white hover:bg-indigo-500 shadow-lg flex items-center gap-2 px-3">
                                 <Plus size={18} /> <span className="text-xs font-bold">{t('msg.new')}</span>
                             </button>
@@ -677,20 +687,59 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
                                 </p>
                             </div>
 
-                            {/* Admin sohbetinde personele WhatsApp kestirme — yazışma yavaş kaldığında
-                                acil bir konuyu doğrudan admin'in WhatsApp'ına götürebilsin. */}
-                            {activeChatPartnerId === ADMIN_BOARD_ID && currentUser.role !== Role.ADMIN && (
-                                <a
-                                    href={buildWhatsAppUrl(`Merhaba, ben ${currentUser.name}. Mesajlar üzerinden yazdım, ayrıca buradan da iletmek istedim.`)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-semibold shadow-md transition-colors"
-                                    title={t('msg.whatsappAdmin')}
-                                >
-                                    <MessageCircle size={16} />
-                                    <span className="hidden sm:inline">{t('msg.whatsappShort')}</span>
-                                </a>
-                            )}
+                            {/* WhatsApp kestirme yolu:
+                                - Personel ADMIN_BOARD sohbetinde: admin'in destek hattına yazsın
+                                - Admin bir personel sohbetinde: o personelin kendi WhatsApp'ına gitsin
+                                  (telefon kayıtlı değilse buton görünmez) */}
+                            {(() => {
+                                if (activeChatPartnerId === 'ALL') return null;
+
+                                // Personel → admin destek hattı
+                                if (currentUser.role !== Role.ADMIN && activeChatPartnerId === ADMIN_BOARD_ID) {
+                                    return (
+                                        <a
+                                            href={buildWhatsAppUrl(`Merhaba, ben ${currentUser.name}. Mesajlar üzerinden yazdım, ayrıca buradan da iletmek istedim.`)}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-semibold shadow-md transition-colors"
+                                            title={t('msg.whatsappAdmin')}
+                                        >
+                                            <MessageCircle size={16} />
+                                            <span className="hidden sm:inline">{t('msg.whatsappShort')}</span>
+                                        </a>
+                                    );
+                                }
+
+                                // Admin → seçili personelin kendi WhatsApp'ı
+                                if (currentUser.role === Role.ADMIN && activeChatPartnerId !== ADMIN_BOARD_ID) {
+                                    const phone = getPhoneDigits(activeChatPartnerId);
+                                    if (!phone) {
+                                        return (
+                                            <span
+                                                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-200 dark:bg-zinc-800 text-slate-400 dark:text-zinc-600 text-xs font-semibold cursor-not-allowed"
+                                                title={t('msg.whatsappNoPhone')}
+                                            >
+                                                <MessageCircle size={16} />
+                                                <span className="hidden sm:inline">{t('msg.whatsappNoPhoneShort')}</span>
+                                            </span>
+                                        );
+                                    }
+                                    return (
+                                        <a
+                                            href={`https://wa.me/${phone}?text=${encodeURIComponent('Merhaba, sistemde yaşadığınız sorun için ekran görüntüsünü buraya gönderebilir misiniz?')}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-semibold shadow-md transition-colors"
+                                            title={t('msg.whatsappPartner')}
+                                        >
+                                            <MessageCircle size={16} />
+                                            <span className="hidden sm:inline">{t('msg.whatsappShort')}</span>
+                                        </a>
+                                    );
+                                }
+
+                                return null;
+                            })()}
                         </div>
 
                         <div ref={scrollRef} className="flex-1 p-4 md:p-6 overflow-y-auto custom-scrollbar space-y-4">
