@@ -271,12 +271,17 @@ const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
     const lng = pos?.coords.longitude ?? null;
 
     try {
+      // 'auto': RPC açık vardiya varsa kapatır, yoksa açar. Gün değişiminde
+      // personel yanlış butona basarsa (örn. dün 22:00'de check-in yapıp
+      // bugün 06:00'da yine "Einstempeln" basarsa) sistem hata vermek yerine
+      // doğru aksiyona yönlendirir. actionRef.current personelin niyetini
+      // log'a yansıtmak için korunur, ama RPC kararı veriyi takip eder.
       const { data, error } = await supabase.rpc('qr_check_in_out', {
         p_employee_id: currentUser.id,
         p_qr_token: token,
         p_lat: lat,
         p_lng: lng,
-        p_action: actionRef.current,
+        p_action: 'auto',
         p_device_info: deviceLabel,
       });
       if (error) throw error;
