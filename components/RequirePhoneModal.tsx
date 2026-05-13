@@ -31,12 +31,17 @@ const RequirePhoneModal: React.FC<Props> = ({ currentUser, onSaved }) => {
     setSaving(true);
 
     try {
-      const { error: dbError } = await supabase
-        .from('profiles')
-        .update({ phone, updated_at: new Date().toISOString() })
-        .eq('id', currentUser.id);
+      // RLS bypass için SECURITY DEFINER RPC. Doğrudan profiles UPDATE
+      // çalışmıyor çünkü profiles_update_own policy 'app.current_user_id'
+      // GUC'una bağlı ve frontend bunu set etmiyor.
+      const { data, error: rpcError } = await supabase.rpc('update_my_phone', {
+        p_user_id: currentUser.id,
+        p_phone: phone,
+        p_bio: null, // bio güncellenmez, mevcut korunur
+      });
 
-      if (dbError) throw dbError;
+      if (rpcError) throw rpcError;
+      if (data !== true) throw new Error(t('reqphone.errorGeneric'));
 
       onSaved({ ...currentUser, phone });
     } catch (e: any) {

@@ -614,11 +614,23 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                   });
               }
           } else {
-              // Supabase Update Denemesi
-              const { error } = await supabase.from('profiles').update(dbData).eq('id', selectedEmployeeId);
-              
-              if(error) throw error;
-              
+              // Self-edit (personel kendi profili) ise RPC kullan: profiles_update_own
+              // policy GUC tabanlı ve client GUC set etmiyor — direkt UPDATE RLS'e
+              // takılır. update_my_phone RPC'si SECURITY DEFINER ile sadece phone
+              // ve bio kolonlarını günceller.
+              if (!isAdminUser) {
+                  const { error: rpcErr } = await supabase.rpc('update_my_phone', {
+                      p_user_id: selectedEmployeeId,
+                      p_phone: editForm.phone || '',
+                      p_bio: editForm.bio || null,
+                  });
+                  if (rpcErr) throw rpcErr;
+              } else {
+                  // Admin: tam yetkili UPDATE (profiles_admin_all policy)
+                  const { error } = await supabase.from('profiles').update(dbData).eq('id', selectedEmployeeId);
+                  if(error) throw error;
+              }
+
               // Admin mi personel mi kontrol et ve doğru state'i güncelle
               const isAdminEmployee = adminEmployees.some(a => a.id === selectedEmployeeId);
               if (isAdminEmployee) {
