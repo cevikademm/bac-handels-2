@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="tr" class="dark">
+<html lang="tr" class="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#09090b">
+    <meta name="theme-color" content="#f8fafc">
     <!-- GÜVENLİK: Content Security Policy -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://esm.sh; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; font-src 'self' https:; frame-ancestors 'none';">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
@@ -21,17 +21,19 @@
 
     <title>BAC Handels - Kurumsal Yönetim</title>
 
-    <!-- Tema FOUC önleme: React mount'tan önce localStorage'dan oku -->
+    <!-- Tema FOUC önleme: React mount'tan önce localStorage'dan oku.
+         Default: LIGHT (html class'ı zaten 'light'). Sadece kullanıcı
+         daha önce 'dark' seçmişse dark'a geç. -->
     <script>
       (function () {
         try {
           var stored = localStorage.getItem('app_theme');
           var html = document.documentElement;
-          if (stored === 'light') {
-            html.classList.remove('dark');
-            html.classList.add('light');
+          if (stored === 'dark') {
+            html.classList.remove('light');
+            html.classList.add('dark');
           }
-        } catch (e) { /* localStorage erişilemez — dark default kalır */ }
+        } catch (e) { /* localStorage erişilemez — light default kalır */ }
       })();
     </script>
 

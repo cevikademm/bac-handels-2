@@ -28,7 +28,8 @@ const applyThemeToDocument = (theme: Theme) => {
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<Theme>(() => {
     const stored = localStorage.getItem('app_theme');
-    return stored === 'light' ? 'light' : 'dark';
+    // Default: LIGHT — sadece kullanıcı explicit olarak 'dark' seçmişse koyu
+    return stored === 'dark' ? 'dark' : 'light';
   });
 
   // Sayfa yüklenirken ve tema değişirken HTML class'ını uyumla
