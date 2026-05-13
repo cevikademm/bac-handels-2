@@ -87,12 +87,17 @@ export function formatHoursHumanTR(hours?: number | null): string {
   return `${h}sa ${String(m).padStart(2, '0')}dk`;
 }
 
-// HH:mm formatı (yerel saat). created_at gibi ISO timestamp'ler için.
+// HH:mm formatı, Berlin yereli. Firma Almanya'da; admin Türkiye'den de
+// baksa plan saatleriyle log saatleri tutarlı görünür.
 export function formatTimeOfDay(iso?: string | null): string {
   if (!iso) return '';
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '';
-  return d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Berlin',
+    hour: '2-digit', minute: '2-digit',
+    hour12: false,
+  }).format(d);
 }
 
 // Mesai dışı satış uyarılarını sadece bu emailler görür.

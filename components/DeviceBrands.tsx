@@ -9,6 +9,7 @@ import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
 import { canSeeDeviceInfo } from '../lib/utils';
 import { fetchShiftsForDate, ShiftWithStatus, STATUS_META } from '../lib/shiftStatus';
+import { fmtBerlinHm } from '../lib/berlinTime';
 
 interface RawLog {
   employee_id: string;
@@ -624,11 +625,9 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
                 </div>
                 {filteredShifts.map((s, idx) => {
                   const meta = STATUS_META[s.status];
-                  const fmtTime = (iso: string | null): string => {
-                    if (!iso) return '—';
-                    const d = new Date(iso);
-                    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-                  };
+                  // Berlin yerel — admin başka TZ'den baksa bile plan saatleri
+                  // ile check-in/out tutarlı görünür.
+                  const fmtTime = fmtBerlinHm;
                   return (
                     <div
                       key={`${s.employeeId}-${idx}`}

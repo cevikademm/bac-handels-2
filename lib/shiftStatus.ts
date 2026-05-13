@@ -13,6 +13,7 @@
 // =============================================================
 
 import { supabase } from './supabase';
+import { berlinTimestamp, berlinDayStart, berlinYmd } from './berlinTime';
 
 export type QrStatus = 'complete' | 'active' | 'missing_out' | 'no_show' | 'pending';
 
@@ -56,25 +57,38 @@ export function parseTimeSlot(slot: string | null | undefined):
   };
 }
 
-// week_start_date (YYYY-MM-DD, pazartesi) + dayIdx (0=Pzt..6=Paz) → JS Date
-function dateFromWeekDay(weekStart: string, dayIdx: number): Date {
+// week_start_date (YYYY-MM-DD, pazartesi, Berlin yereli) + dayIdx (0=Pzt..6=Paz)
+// → o günün Berlin yerelinde Y/M/D bileşenlerini döndür. Saat hesabı
+// berlinTimestamp ile sonraki adımda yapılır.
+function dateFromWeekDay(weekStart: string, dayIdx: number): { y: number; m: number; d: number } {
   const [y, m, d] = weekStart.split('-').map(Number);
-  const dt = new Date(y, m - 1, d);
-  dt.setDate(dt.getDate() + dayIdx);
-  return dt;
+  // Berlin yerelinde günleri ilerletmek için: ms aritmetiği + Berlin Ymd dönüşümü
+  // (basitçe ekleme yeterli — 7 gün içinde DST 1 saatlik kayması Y/M/D'yi değiştirmez)
+  const baseMs = berlinTimestamp(y, m, d, 12, 0); // gün ortası — DST kenarından uzak
+  const targetMs = baseMs + dayIdx * 24 * 60 * 60 * 1000;
+  const ymdStr = berlinYmd(targetMs);
+  const [yy, mm, dd] = ymdStr.split('-').map(Number);
+  return { y: yy, m: mm, d: dd };
 }
 
-// Bir Date'in YYYY-MM-DD (pazartesi başlangıç) hafta string'ini döndür
+// Bir tarihin Berlin yerelindeki pazartesi başlangıçlı haftanın YYYY-MM-DD'si
 export function getWeekStartYmd(d: Date = new Date()): string {
-  const local = new Date(d);
-  const isoDow = local.getDay() === 0 ? 7 : local.getDay();
-  const monday = new Date(local);
-  monday.setDate(local.getDate() - (isoDow - 1));
-  monday.setHours(0, 0, 0, 0);
-  return ymd(monday);
+  // Berlin'deki haftanın gününü Intl üzerinden çek (DST güvenli)
+  const dow = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Europe/Berlin',
+    weekday: 'short',
+  }).format(d);
+  // Mon=1 ... Sun=7
+  const map: Record<string, number> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
+  const isoDow = map[dow] || 1;
+  const dayStartMs = berlinDayStart(d);
+  const mondayMs = dayStartMs - (isoDow - 1) * 24 * 60 * 60 * 1000;
+  return berlinYmd(mondayMs);
 }
 
 export function ymd(d: Date): string {
+  // Hâlâ tarayıcı yerelini döndürür — eski çağrı yerleri için korunur. Yeni
+  // kod için berlinYmd kullanılmalı.
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
@@ -109,15 +123,13 @@ interface QrErrorRow {
 export async function fetchShiftsForDate(targetDate: Date = new Date()): Promise<ShiftWithStatus[]> {
   // İlgili tarihin etrafındaki 3 haftayı çek (önceki/bu/sonraki) —
   // gece geçişi en fazla 1 gün sarkabilir, hafta sınırı için tampon.
-  const target = new Date(targetDate);
-  target.setHours(0, 0, 0, 0);
-  const dayStartMs = target.getTime();
+  // Tüm gün sınırları Berlin yerelinde alınır (firma Almanya'da).
+  const dayStartMs = berlinDayStart(targetDate);
   const dayEndMs = dayStartMs + 24 * 60 * 60 * 1000;
 
-  const prevWeek = new Date(target);
-  prevWeek.setDate(prevWeek.getDate() - 7);
-  const nextWeek = new Date(target);
-  nextWeek.setDate(nextWeek.getDate() + 7);
+  const prevWeek = new Date(dayStartMs - 7 * 24 * 60 * 60 * 1000);
+  const target = new Date(dayStartMs);
+  const nextWeek = new Date(dayStartMs + 7 * 24 * 60 * 60 * 1000);
 
   const weeks = [getWeekStartYmd(prevWeek), getWeekStartYmd(target), getWeekStartYmd(nextWeek)];
   const uniqueWeeks = Array.from(new Set(weeks));
@@ -213,12 +225,22 @@ export async function fetchShiftsForDate(targetDate: Date = new Date()): Promise
         const prof = resolveProfile(token);
         if (!prof) return;
 
-        const dayDate = dateFromWeekDay(sch.week_start_date, dayIdx);
-        const shiftStart = new Date(dayDate);
-        shiftStart.setHours(Math.floor(parsed.startMins / 60), parsed.startMins % 60, 0, 0);
-        const shiftEnd = new Date(dayDate);
-        shiftEnd.setHours(Math.floor(parsed.endMins / 60), parsed.endMins % 60, 0, 0);
-        if (parsed.spansMidnight) shiftEnd.setDate(shiftEnd.getDate() + 1);
+        // Vardiya start/end'ini Berlin yerelinde inşa et. setHours() yerel
+        // tarayıcı saatini kullandığından admin Türkiye'de iken planlanan
+        // saat ile gerçek check-in arasında DST kayması oluşuyordu.
+        const dd = dateFromWeekDay(sch.week_start_date, dayIdx);
+        const startH = Math.floor(parsed.startMins / 60);
+        const startM = parsed.startMins % 60;
+        const endH = Math.floor(parsed.endMins / 60);
+        const endM = parsed.endMins % 60;
+        const shiftStart = new Date(berlinTimestamp(dd.y, dd.m, dd.d, startH, startM));
+        // Gece geçişinde end ertesi gün
+        const endDayMs = parsed.spansMidnight
+          ? berlinTimestamp(dd.y, dd.m, dd.d, 0, 0) + 24 * 60 * 60 * 1000
+          : berlinTimestamp(dd.y, dd.m, dd.d, 0, 0);
+        const endYmd = berlinYmd(endDayMs);
+        const [ey, em, ed] = endYmd.split('-').map(Number);
+        const shiftEnd = new Date(berlinTimestamp(ey, em, ed, endH, endM));
 
         // Hedef gün ile kesişiyor mu?
         if (shiftEnd.getTime() <= dayStartMs) return;

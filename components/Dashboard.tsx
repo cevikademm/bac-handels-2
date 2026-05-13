@@ -9,6 +9,7 @@ import { useLanguage } from '../lib/i18n';
 import { useTheme } from '../lib/theme';
 import { GlowingEffect } from './ui/glowing-effect';
 import { fetchShiftsForDate, ShiftWithStatus, STATUS_META } from '../lib/shiftStatus';
+import { fmtBerlinHm } from '../lib/berlinTime';
 
 // QR scanner lazy: zxing/browser top-level import prod minify'da bozuluyor
 // lazyWithRetry: yeni deployment sonrası eski hash'li chunk için MIME hatasında auto-recover
@@ -814,11 +815,10 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                   <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1">
                       {upcomingShifts.length > 0 ? upcomingShifts.map((s, i) => {
                           const meta = STATUS_META[s.status];
-                          const fmtTime = (iso: string | null): string => {
-                            if (!iso) return '—';
-                            const d = new Date(iso);
-                            return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-                          };
+                          // Tüm zaman gösterimi Berlin yereli — admin Türkiye'den de baksa
+                          // plan saatleri (DB'de düz HH:MM string) ile check-in/out (UTC
+                          // timestamptz) tutarlı görünür.
+                          const fmtTime = fmtBerlinHm;
                           return (
                               <div
                                   key={`${s.employeeId}-${i}`}

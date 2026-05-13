@@ -649,7 +649,7 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
                                             </span>
                                         </div>
                                         <span className="text-[10px] text-slate-400 dark:text-zinc-600">
-                                            {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                            {new Date(msg.timestamp).toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit', hour12: false, timeZone: 'Europe/Berlin'})}
                                         </span>
                                     </div>
                                     <p className="text-xs text-slate-500 dark:text-zinc-500 truncate">
@@ -776,7 +776,7 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
                                             
                                             <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                                             <div className={`text-[9px] mt-1 text-right flex items-center justify-end gap-1 ${isMe ? 'text-indigo-200' : 'text-slate-500 dark:text-zinc-500'}`}>
-                                                {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                {new Date(msg.timestamp).toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit', hour12: false, timeZone: 'Europe/Berlin'})}
                                                 {isMe && (msg.read ? <CheckCheck size={12}/> : <Check size={12}/>)}
                                             </div>
                                         </div>
