@@ -59,6 +59,8 @@ self.addEventListener('fetch', (event) => {
 
   // Realtime / API (Supabase) — cache'leme
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/rest/')) return;
+  // /version.json — yeni deployment algılama; ASLA cache'leme, doğrudan network'e gitsin
+  if (url.pathname === '/version.json') return;
 
   const isHTML =
     req.mode === 'navigate' ||

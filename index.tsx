@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
+import UpdateGuard from './components/UpdateGuard';
 import { registerServiceWorker } from './lib/push';
 
 const rootElement = document.getElementById('root');
@@ -13,7 +14,9 @@ const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <ErrorBoundary>
+      <UpdateGuard>
         <App />
+      </UpdateGuard>
     </ErrorBoundary>
   </React.StrictMode>
 );

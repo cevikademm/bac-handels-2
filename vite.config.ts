@@ -1,7 +1,32 @@
 import path from 'path';
+import { writeFileSync } from 'fs';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import mkcert from 'vite-plugin-mkcert';
+
+/**
+ * Build sırasında dist/version.json üretir. İstemci bu dosyayı periyodik
+ * fetch ederek yeni deployment'ı algılar ve kullanıcıya "Yeni Sürüm" modalı
+ * gösterir. Çakışan boot version → modal trigger.
+ */
+function writeVersionJsonPlugin() {
+  const version = Date.now().toString(36);
+  return {
+    name: 'bac-write-version-json',
+    apply: 'build' as const,
+    closeBundle() {
+      try {
+        writeFileSync(
+          path.resolve(__dirname, 'dist', 'version.json'),
+          JSON.stringify({ version, builtAt: new Date().toISOString() }, null, 2),
+          'utf-8'
+        );
+      } catch (err) {
+        console.warn('[version-json] yazılamadı:', err);
+      }
+    },
+  };
+}
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
@@ -22,6 +47,8 @@ export default defineConfig(({ mode }) => {
         react(),
         // HTTPS dev server — kamera/GPS telefonda LAN IP üzerinden çalışsın
         mkcert(),
+        // dist/version.json — yeni deployment algılama için
+        writeVersionJsonPlugin(),
       ],
       // GÜVENLİK: Gemini API key artık Supabase Edge Function secrets'ta saklanır.
       // Client bundle'a hiçbir API key dahil edilmez.
