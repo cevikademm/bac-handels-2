@@ -313,6 +313,22 @@ const translations: Record<Language, Record<string, string>> = {
     'msg.whatsappPartner': 'Bu personele WhatsApp\'tan yaz',
     'msg.whatsappNoPhone': 'Bu personelin telefon numarası kayıtlı değil',
     'msg.whatsappNoPhoneShort': 'Telefon yok',
+
+    // Zorunlu telefon giriş ekranı (RequirePhoneModal)
+    'reqphone.title': 'Telefon Numaranızı Girin',
+    'reqphone.titleDe': 'Bitte Telefonnummer eintragen',
+    'reqphone.explainTr': 'Merhaba! Devam edebilmeniz için bize gerçek WhatsApp telefon numaranızı vermeniz gerekiyor. QR kod okuturken bir sorun yaşarsanız ya da bir konuda yardıma ihtiyacınız olursa, yönetim sizinle bu numara üzerinden WhatsApp\'tan iletişim kurabilecek. Aynı şekilde siz de tek tıkla bize ulaşabileceksiniz. Lütfen sahte ya da boş numara girmeyin — doğru numara olmadan sistem üzerinde devam edemezsiniz.',
+    'reqphone.explainDe': 'Hallo! Damit Sie fortfahren können, benötigen wir Ihre echte WhatsApp-Telefonnummer. Falls beim QR-Scan ein Problem auftritt oder Sie Hilfe brauchen, wird die Geschäftsführung Sie über WhatsApp unter dieser Nummer erreichen. Umgekehrt können auch Sie uns mit einem Klick kontaktieren. Bitte geben Sie keine falsche oder leere Nummer ein — ohne korrekte Nummer können Sie das System nicht weiter nutzen.',
+    'reqphone.label': 'WhatsApp Telefon Numarası / WhatsApp-Telefonnummer',
+    'reqphone.hint': 'Ülke kodu ile birlikte yazınız (örnek: +49 1xx xxx xx xx). Mit Ländervorwahl eingeben.',
+    'reqphone.tooShort': 'Numara çok kısa görünüyor — en az 10 hane olmalı. / Nummer scheint zu kurz — mindestens 10 Ziffern.',
+    'reqphone.privacyTr': 'Numaranız yalnızca yönetim ve sistem yöneticileri tarafından görülür, üçüncü kişilerle paylaşılmaz.',
+    'reqphone.privacyDe': 'Ihre Nummer ist nur für die Geschäftsführung und Systemadministratoren sichtbar und wird nicht an Dritte weitergegeben.',
+    'reqphone.saveBtn': 'Kaydet ve Devam Et · Speichern und fortfahren',
+    'reqphone.noSkipTr': 'Bu adımı atlayamazsınız',
+    'reqphone.noSkipDe': 'Dieser Schritt kann nicht übersprungen werden',
+    'reqphone.errorGeneric': 'Numara kaydedilemedi, lütfen tekrar deneyin. / Nummer konnte nicht gespeichert werden.',
+
     'msg.search': 'Sohbet ara...',
     'msg.empty': 'Mesaj kutunuz boş.',
     'msg.select': 'Sohbet başlatmak için bir kişi seçin.',
@@ -1263,6 +1279,24 @@ const translations: Record<Language, Record<string, string>> = {
     'msg.whatsappPartner': 'Mitarbeiter per WhatsApp anschreiben',
     'msg.whatsappNoPhone': 'Telefonnummer dieses Mitarbeiters ist nicht hinterlegt',
     'msg.whatsappNoPhoneShort': 'Keine Tel.',
+
+    // Pflichtfeld Telefonnummer (RequirePhoneModal)
+    // İçerik her iki dilde aynı anda gösterildiğinden TR ve DE map'leri
+    // bilinçli olarak aynı metinleri taşır.
+    'reqphone.title': 'Telefon Numaranızı Girin',
+    'reqphone.titleDe': 'Bitte Telefonnummer eintragen',
+    'reqphone.explainTr': 'Merhaba! Devam edebilmeniz için bize gerçek WhatsApp telefon numaranızı vermeniz gerekiyor. QR kod okuturken bir sorun yaşarsanız ya da bir konuda yardıma ihtiyacınız olursa, yönetim sizinle bu numara üzerinden WhatsApp\'tan iletişim kurabilecek. Aynı şekilde siz de tek tıkla bize ulaşabileceksiniz. Lütfen sahte ya da boş numara girmeyin — doğru numara olmadan sistem üzerinde devam edemezsiniz.',
+    'reqphone.explainDe': 'Hallo! Damit Sie fortfahren können, benötigen wir Ihre echte WhatsApp-Telefonnummer. Falls beim QR-Scan ein Problem auftritt oder Sie Hilfe brauchen, wird die Geschäftsführung Sie über WhatsApp unter dieser Nummer erreichen. Umgekehrt können auch Sie uns mit einem Klick kontaktieren. Bitte geben Sie keine falsche oder leere Nummer ein — ohne korrekte Nummer können Sie das System nicht weiter nutzen.',
+    'reqphone.label': 'WhatsApp Telefon Numarası / WhatsApp-Telefonnummer',
+    'reqphone.hint': 'Ülke kodu ile birlikte yazınız (örnek: +49 1xx xxx xx xx). Mit Ländervorwahl eingeben.',
+    'reqphone.tooShort': 'Numara çok kısa görünüyor — en az 10 hane olmalı. / Nummer scheint zu kurz — mindestens 10 Ziffern.',
+    'reqphone.privacyTr': 'Numaranız yalnızca yönetim ve sistem yöneticileri tarafından görülür, üçüncü kişilerle paylaşılmaz.',
+    'reqphone.privacyDe': 'Ihre Nummer ist nur für die Geschäftsführung und Systemadministratoren sichtbar und wird nicht an Dritte weitergegeben.',
+    'reqphone.saveBtn': 'Kaydet ve Devam Et · Speichern und fortfahren',
+    'reqphone.noSkipTr': 'Bu adımı atlayamazsınız',
+    'reqphone.noSkipDe': 'Dieser Schritt kann nicht übersprungen werden',
+    'reqphone.errorGeneric': 'Numara kaydedilemedi, lütfen tekrar deneyin. / Nummer konnte nicht gespeichert werden.',
+
     'msg.search': 'Chats durchsuchen...',
     'msg.empty': 'Keine Nachrichten.',
     'msg.select': 'Wählen Sie einen Chat aus.',

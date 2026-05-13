@@ -11,6 +11,7 @@ import SalesDashboard from './components/SalesDashboard';
 import LossControl from './components/LossControl';
 import DeviceBrands from './components/DeviceBrands';
 import LiveLocationTracker from './components/LiveLocationTracker';
+import RequirePhoneModal from './components/RequirePhoneModal';
 import PWAInstallBanner, { PushSubscriptionCard } from './components/PWAInstallBanner';
 import NotificationPreferencesCard from './components/NotificationPreferencesCard';
 import { DeviceHistoryCard, PhoneConflictsCard } from './components/DeviceTrustCard';
@@ -22,7 +23,7 @@ const QrCheckIn = lazy(() => import('./components/QrCheckIn'));
 // Lazy: Leaflet+react-leaflet ~140kB; harita sekmesine girilene dek yüklenmesin
 const Map = lazy(() => import('./components/Map'));
 import { Settings as SettingsIcon, Shield, Volume2, Upload, RefreshCw, Play, Loader2, KeyRound, Globe, Lock, Server, CheckCircle, Sun, Moon } from 'lucide-react';
-import { MOCK_EMPLOYEES, NOTIFICATION_SOUND } from './constants';
+import { MOCK_EMPLOYEES, NOTIFICATION_SOUND, isDualRoleAdmin } from './constants';
 import { Employee, Role, AppNotification } from './types';
 import { supabase } from './lib/supabase';
 import { LanguageProvider, useLanguage } from './lib/i18n';
@@ -830,6 +831,17 @@ const AppContent: React.FC = () => {
       return <Login onLogin={handleLogin} />;
   }
 
+  // Zorunlu telefon gate'i:
+  // - Personel (role !== ADMIN)
+  // - Dual-role adminler (Apo, Malik)
+  // Telefon alanı boş veya 8 haneden kısa ise modal kapanmaz, başka hiçbir
+  // ekrana geçilemez. "Gerçek" adminler (cevikademm vb.) muaftır çünkü
+  // numara sahibi zaten kendileridir.
+  const phoneDigits = (currentUser?.phone || '').replace(/\D/g, '');
+  const requiresPhoneEntry = !!currentUser
+      && (currentUser.role !== Role.ADMIN || isDualRoleAdmin(currentUser))
+      && phoneDigits.length < 10;
+
   return (
     <>
       <Layout
@@ -846,6 +858,12 @@ const AppContent: React.FC = () => {
       </Layout>
       <PWAInstallBanner userId={currentUser?.id} />
       <LiveLocationTracker currentUser={currentUser} />
+      {requiresPhoneEntry && currentUser && (
+        <RequirePhoneModal
+          currentUser={currentUser}
+          onSaved={(updated) => setCurrentUser(updated)}
+        />
+      )}
     </>
   );
 };
