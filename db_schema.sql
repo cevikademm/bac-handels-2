@@ -562,12 +562,15 @@ BEGIN
     END IF;
     v_status := CASE WHEN v_in_rng THEN 'Onaylandı' ELSE 'Bekliyor' END;
 
-    -- Bugüne ait açık QR kaydı (şube bağımsız — farklı şubede çıkış yapabilsinler)
+    -- Açık QR kaydı (şube bağımsız — farklı şubede çıkış yapabilsinler).
+    -- FIX (gece vardiyası): tarih filtresi yerine 18 saatlik zaman penceresi.
+    -- Eski 'date = v_today' filtresi gece geçen vardiyalarda yanlış olarak
+    -- 'not_checked_in' üretiyordu (dün 22:00 check-in → bugün 06:00 check-out).
     SELECT * INTO v_open FROM public.time_logs
-     WHERE employee_id = p_employee_id
-       AND date        = v_today
+     WHERE employee_id  = p_employee_id
        AND entry_method = 'qr'
        AND check_out_at IS NULL
+       AND check_in_at  >= v_now - INTERVAL '18 hours'
      ORDER BY check_in_at DESC LIMIT 1;
     v_found := FOUND;
 
