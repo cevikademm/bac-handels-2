@@ -56,7 +56,21 @@ const PAGE_SIZE = 1000;
 const HARD_CAP = 100000;
 
 type TabView = 'people' | 'conflicts' | 'shifts' | 'errors';
-type ShiftFilter = 'today' | 'tomorrow';
+
+// Tarihi YYYY-MM-DD'ye normalize et (lokal TZ)
+const toYmd = (d: Date): string => {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+const fromYmd = (s: string): Date => {
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, m - 1, d);
+};
+const addDays = (d: Date, n: number): Date => {
+  const r = new Date(d);
+  r.setDate(r.getDate() + n);
+  r.setHours(0, 0, 0, 0);
+  return r;
+};
 
 // QR scan hata kaydı (qr_scan_attempts tablosu)
 interface ErrorRow {
@@ -98,10 +112,10 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
   const [scannedCount, setScannedCount] = useState<number>(0);
   const [oldestSeen, setOldestSeen] = useState<string>('');
 
-  // "Bugünün Vardiyaları" ve "Hatalar" sekmesi verileri
-  const [shiftsToday, setShiftsToday] = useState<ShiftWithStatus[]>([]);
-  const [shiftsTomorrow, setShiftsTomorrow] = useState<ShiftWithStatus[]>([]);
-  const [shiftFilter, setShiftFilter] = useState<ShiftFilter>('today');
+  // "Vardiyalar" ve "Hatalar" sekmesi verileri
+  const [shiftDateYmd, setShiftDateYmd] = useState<string>(() => toYmd(new Date()));
+  const [shiftRows, setShiftRows] = useState<ShiftWithStatus[]>([]);
+  const [shiftsLoading, setShiftsLoading] = useState<boolean>(false);
   const [errors, setErrors] = useState<ErrorRow[]>([]);
 
   const allowed = currentUser?.role === Role.ADMIN && canSeeDeviceInfo(currentUser?.email);
@@ -132,26 +146,19 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
       return all;
     };
 
-    // Bugün ve yarın için vardiya + QR durumu (helper içinde gece geçişleri dahil)
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
     Promise.all([
       fetchAllLogs(),
       supabase
         .from('profiles')
         .select('id, full_name')
         .limit(1000),
-      fetchShiftsForDate(today),
-      fetchShiftsForDate(tomorrow),
       supabase
         .from('qr_scan_attempts')
         .select('id, employee_id, employee_name, error_kind, error_detail, action, branch, device_info, attempted_at')
         .eq('status', 'error')
         .order('attempted_at', { ascending: false })
         .limit(200),
-    ]).then(([logs, profilesRes, shiftsTodayRes, shiftsTomorrowRes, errorsRes]) => {
+    ]).then(([logs, profilesRes, errorsRes]) => {
       if (cancelled) return;
 
       const nameMap = new Map<string, string>();
@@ -248,8 +255,6 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
       setConflicts(confs);
       setScannedCount(logs.length);
       setOldestSeen(oldest);
-      setShiftsToday(shiftsTodayRes);
-      setShiftsTomorrow(shiftsTomorrowRes);
       setErrors(errorList);
       setLoading(false);
     });
@@ -307,29 +312,51 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
     );
   }, [conflicts, search]);
 
-  const shiftsSource = shiftFilter === 'today' ? shiftsToday : shiftsTomorrow;
+  // shiftDateYmd değişince ilgili günü çek
+  useEffect(() => {
+    if (!allowed) return;
+    let cancelled = false;
+    setShiftsLoading(true);
+    fetchShiftsForDate(fromYmd(shiftDateYmd))
+      .then(rs => { if (!cancelled) setShiftRows(rs); })
+      .catch(err => { if (!cancelled) { console.warn('[Vardiyalar] fetch error:', err); setShiftRows([]); } })
+      .finally(() => { if (!cancelled) setShiftsLoading(false); });
+    return () => { cancelled = true; };
+  }, [shiftDateYmd, allowed]);
+
   const filteredShifts = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return shiftsSource;
-    return shiftsSource.filter(s =>
+    if (!q) return shiftRows;
+    return shiftRows.filter(s =>
       s.employeeName.toLowerCase().includes(q) ||
       (s.branch || '').toLowerCase().includes(q) ||
       s.status.toLowerCase().includes(q)
     );
-  }, [shiftsSource, search]);
+  }, [shiftRows, search]);
 
-  // Özet sayaç: bugünkü vardiyalardan kaçı tamam, kaçı eksik vb.
+  // Özet sayaç
   const shiftSummary = useMemo(() => {
-    const src = shiftsSource;
     return {
-      total: src.length,
-      complete: src.filter(s => s.status === 'complete').length,
-      active: src.filter(s => s.status === 'active').length,
-      missing: src.filter(s => s.status === 'no_show').length,
-      pending: src.filter(s => s.status === 'pending').length,
-      missingOut: src.filter(s => s.status === 'missing_out').length,
+      total: shiftRows.length,
+      complete: shiftRows.filter(s => s.status === 'complete').length,
+      active: shiftRows.filter(s => s.status === 'active').length,
+      missing: shiftRows.filter(s => s.status === 'no_show').length,
+      pending: shiftRows.filter(s => s.status === 'pending').length,
+      missingOut: shiftRows.filter(s => s.status === 'missing_out').length,
     };
-  }, [shiftsSource]);
+  }, [shiftRows]);
+
+  // Tarih navigasyon yardımcıları
+  const todayYmd = toYmd(new Date());
+  const tomorrowYmd = toYmd(addDays(new Date(), 1));
+  const yesterdayYmd = toYmd(addDays(new Date(), -1));
+  const shiftDate = fromYmd(shiftDateYmd);
+  const shiftDateLabel = formatDate(shiftDate.toISOString(), {
+    weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
+  });
+  const isToday = shiftDateYmd === todayYmd;
+  const isTomorrow = shiftDateYmd === tomorrowYmd;
+  const isYesterday = shiftDateYmd === yesterdayYmd;
 
   const filteredErrors = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -430,11 +457,11 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
             <CalendarDays size={14} />
             {t('devices.tabShifts')}
             <span className={`text-[10px] tabular-nums px-1.5 py-0.5 rounded ${
-              shiftsToday.length > 0
+              shiftRows.length > 0
                 ? 'bg-indigo-900/50 text-indigo-200'
                 : 'bg-slate-50 dark:bg-zinc-950/60 text-slate-600 dark:text-zinc-400'
             }`}>
-              {shiftsToday.length}
+              {shiftRows.length}
             </span>
           </button>
           <button
@@ -457,41 +484,85 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
           </button>
         </div>
 
-        {/* Vardiyalar alt filtresi: bugün / yarın + özet rozet */}
+        {/* Vardiyalar — tarih navigasyonu + özet rozet */}
         {tab === 'shifts' && (
-          <div className="mt-3 flex items-center gap-3 flex-wrap">
-            <div className="inline-flex bg-white dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 rounded-lg p-1">
+          <div className="mt-3 space-y-2.5">
+            {/* Tarih navigatörü */}
+            <div className="flex items-center gap-2 flex-wrap">
               <button
-                onClick={() => setShiftFilter('today')}
-                className={`px-3 py-1 text-xs font-medium rounded-md transition-all inline-flex items-center gap-1.5 ${
-                  shiftFilter === 'today'
-                    ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white shadow'
-                    : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:text-zinc-300'
-                }`}
-              >
-                <Clock size={12} />
-                {t('devices.shiftsToday')}
-                <span className="text-[10px] tabular-nums px-1.5 py-0.5 rounded bg-slate-50 dark:bg-zinc-950/60 text-slate-600 dark:text-zinc-400">
-                  {shiftsToday.length}
+                onClick={() => setShiftDateYmd(toYmd(addDays(shiftDate, -1)))}
+                className="w-8 h-8 inline-flex items-center justify-center rounded-lg bg-white dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300 transition-colors"
+                title={t('devices.shiftDatePrev')}
+                aria-label={t('devices.shiftDatePrev')}
+              >‹</button>
+
+              {/* Tarih input — native picker. Native widget'ı kapatıp özel etiketi overlay olarak gösteriyoruz. */}
+              <div className="relative inline-flex items-center">
+                <input
+                  type="date"
+                  value={shiftDateYmd}
+                  onChange={(e) => e.target.value && setShiftDateYmd(e.target.value)}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  aria-label={t('devices.shiftDatePick')}
+                />
+                <span className="pointer-events-none inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 hover:border-cyan-600/40 transition-colors">
+                  <CalendarIcon size={14} className="text-cyan-500 dark:text-cyan-400" />
+                  <span className="text-xs font-medium text-slate-800 dark:text-zinc-200 whitespace-nowrap">
+                    {shiftDateLabel}
+                  </span>
                 </span>
-              </button>
+              </div>
+
               <button
-                onClick={() => setShiftFilter('tomorrow')}
-                className={`px-3 py-1 text-xs font-medium rounded-md transition-all inline-flex items-center gap-1.5 ${
-                  shiftFilter === 'tomorrow'
-                    ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white shadow'
-                    : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:text-zinc-300'
-                }`}
-              >
-                <CalendarIcon size={12} />
-                {t('devices.shiftsTomorrow')}
-                <span className="text-[10px] tabular-nums px-1.5 py-0.5 rounded bg-slate-50 dark:bg-zinc-950/60 text-slate-600 dark:text-zinc-400">
-                  {shiftsTomorrow.length}
-                </span>
-              </button>
+                onClick={() => setShiftDateYmd(toYmd(addDays(shiftDate, 1)))}
+                className="w-8 h-8 inline-flex items-center justify-center rounded-lg bg-white dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300 transition-colors"
+                title={t('devices.shiftDateNext')}
+                aria-label={t('devices.shiftDateNext')}
+              >›</button>
+
+              {/* Hızlı butonlar */}
+              <div className="inline-flex bg-white dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 rounded-lg p-0.5">
+                <button
+                  onClick={() => setShiftDateYmd(yesterdayYmd)}
+                  className={`px-2.5 py-1 text-[11px] font-medium rounded-md transition-all ${
+                    isYesterday
+                      ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white shadow'
+                      : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:text-zinc-300'
+                  }`}
+                >{t('devices.dateYesterday')}</button>
+                <button
+                  onClick={() => setShiftDateYmd(todayYmd)}
+                  className={`px-2.5 py-1 text-[11px] font-medium rounded-md transition-all ${
+                    isToday
+                      ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white shadow'
+                      : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:text-zinc-300'
+                  }`}
+                >{t('devices.dateToday')}</button>
+                <button
+                  onClick={() => setShiftDateYmd(tomorrowYmd)}
+                  className={`px-2.5 py-1 text-[11px] font-medium rounded-md transition-all ${
+                    isTomorrow
+                      ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white shadow'
+                      : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:text-zinc-300'
+                  }`}
+                >{t('devices.dateTomorrow')}</button>
+              </div>
+
+              {!isToday && (
+                <button
+                  onClick={() => setShiftDateYmd(todayYmd)}
+                  className="text-[11px] text-indigo-500 dark:text-indigo-400 hover:underline"
+                >
+                  {t('devices.backToToday')}
+                </button>
+              )}
             </div>
+
             {/* Özet sayaçlar */}
             <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[11px] text-slate-500 dark:text-zinc-500 mr-1">
+                {shiftSummary.total} {t('devices.shiftCount')}:
+              </span>
               {shiftSummary.complete > 0 && (
                 <span className={`text-[10px] px-2 py-0.5 rounded-full border ${STATUS_META.complete.tone}`}>
                   {STATUS_META.complete.emoji} {shiftSummary.complete} {t('shiftStatus.complete')}
@@ -538,14 +609,18 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
               <Loader2 size={16} className="animate-spin" /> {t('common.loading')}
             </div>
           ) : tab === 'shifts' ? (
-            filteredShifts.length === 0 ? (
+            shiftsLoading ? (
+              <div className="flex items-center gap-2 text-slate-500 dark:text-zinc-500 text-sm py-8 justify-center">
+                <Loader2 size={16} className="animate-spin" /> {t('common.loading')}
+              </div>
+            ) : filteredShifts.length === 0 ? (
               <div className="p-6 bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl text-center text-sm text-slate-500 dark:text-zinc-500 italic">
-                {shiftFilter === 'today' ? t('devices.shiftsEmptyToday') : t('devices.shiftsEmptyTomorrow')}
+                {t('devices.shiftsEmptyForDate')}
               </div>
             ) : (
               <>
                 <div className="text-[11px] text-slate-500 dark:text-zinc-500 px-1 pb-1">
-                  {shiftFilter === 'today' ? t('devices.shiftsHintToday') : t('devices.shiftsHintTomorrow')}
+                  {isToday ? t('devices.shiftsHintToday') : isYesterday ? t('devices.shiftsHintYesterday') : isTomorrow ? t('devices.shiftsHintTomorrow') : t('devices.shiftsHintGeneric')}
                 </div>
                 {filteredShifts.map((s, idx) => {
                   const meta = STATUS_META[s.status];
