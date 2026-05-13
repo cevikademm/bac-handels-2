@@ -29,6 +29,20 @@ export function parseTimeRange(label: string): { start: number; end: number } | 
   };
 }
 
+// Bir vardiya hücresi (days[dayIdx]) tek bir personel ID'si veya CSV ("id1,id2,…")
+// olabilir. Bu helper'lar formatı normalize eder; tek doğruluk kaynağı budur.
+// Boş string veya null → boş dizi (mevcut "boş hücre" davranışı korunur).
+export function parseCellIds(cell: string | null | undefined): string[] {
+  if (!cell) return [];
+  return String(cell).split(',').map(s => s.trim()).filter(Boolean);
+}
+
+// ID dizisini DB'ye yazmak için CSV string'ine çevirir. Set ile dedup yapar —
+// aynı personel iki kez eklense bile hücrede tek satır görünür.
+export function joinCellIds(ids: string[]): string {
+  return Array.from(new Set(ids.filter(Boolean))).join(',');
+}
+
 // Verilen anda kullanıcı atanmış vardiya içinde mi? schedules: shift_schedules satırları
 // (week_start_date, time_slot, days[7] — Pzt=0 ... Pzr=6).
 export function isUserOnShiftAt(userId: string, now: Date, schedules: any[]): boolean {
@@ -43,7 +57,9 @@ export function isUserOnShiftAt(userId: string, now: Date, schedules: any[]): bo
 
   for (const row of schedules) {
     if (row?.week_start_date !== weekKey) continue;
-    if (!Array.isArray(row.days) || row.days[dayIdx] !== userId) continue;
+    if (!Array.isArray(row.days)) continue;
+    // Hücre CSV olabilir — tüm ID'leri kontrol et
+    if (!parseCellIds(row.days[dayIdx]).includes(userId)) continue;
     const range = parseTimeRange(row.time_slot || '');
     if (!range) continue;
     if (minutesNow >= range.start && minutesNow < range.end) return true;

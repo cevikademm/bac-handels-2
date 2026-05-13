@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useLanguage } from '../lib/i18n';
+import { useTheme } from '../lib/theme';
 import { Branch, Employee, Role } from '../types';
-import { Save, ChevronLeft, ChevronRight, Copy, Plus, Trash2, Loader2, AlertTriangle, CheckCircle2, Lock, Send, Undo2 } from 'lucide-react';
+import { Save, ChevronLeft, ChevronRight, Copy, Plus, Trash2, Loader2, AlertTriangle, CheckCircle2, Lock, Send, Undo2, X } from 'lucide-react';
 import { includeAsPersonnel } from '../constants';
 import { supabase } from '../lib/supabase';
-import { formatLocalDate } from '../lib/utils';
+import { formatLocalDate, parseCellIds, joinCellIds } from '../lib/utils';
 import { GlowingEffect } from './ui/glowing-effect';
 
 
@@ -45,6 +46,28 @@ const getMonday = (d: Date) => {
 
 const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
   const { t, formatDate } = useLanguage();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  // Mobil header inline-style paleti — light'ta BAC marka kırmızı/beyaz, dark'ta indigo/zinc
+  const mobilePalette = isDark
+    ? {
+        cellBg: '#18181b', cellBorder: '#27272a', cellText: '#71717a',
+        activeBg: '#4f46e5', activeBorder: '#6366f1', activeText: '#ffffff',
+        primaryBg: '#4f46e5', primaryText: '#ffffff',
+        successBg: '#16a34a', successText: '#ffffff',
+        muted: '#a1a1aa', strong: '#ffffff', divider: '#71717a',
+        badgeBg: '#10b981', badgeShadow: '0 0 0 2px #09090b',
+        activeBadgeBg: '#ffffff', activeBadgeText: '#4f46e5',
+      }
+    : {
+        cellBg: '#ffffff', cellBorder: '#ffe4e9', cellText: '#7a4855',
+        activeBg: '#dd2d4a', activeBorder: '#dd2d4a', activeText: '#ffffff',
+        primaryBg: '#dd2d4a', primaryText: '#ffffff',
+        successBg: '#16a34a', successText: '#ffffff',
+        muted: '#7a4855', strong: '#1a0a0e', divider: '#a47480',
+        badgeBg: '#10b981', badgeShadow: '0 0 0 2px #ffffff',
+        activeBadgeBg: '#ffffff', activeBadgeText: '#dd2d4a',
+      };
   const isAdmin = currentUser.role === Role.ADMIN;
 
   // Personel artık şubeye bağlı değil - admin tüm şubeleri görür, personel de tüm şubeleri görebilir
@@ -325,6 +348,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
   };
 
   // Çakışma kontrolü: Bir personelin belirli bir günde diğer şubelerde çakışan vardiyası var mı?
+  // Diğer şubedeki hücre artık CSV olabilir — parseCellIds ile tüm ID'leri kontrol ederiz.
   const getConflict = (employeeId: string, dayIndex: number, currentTimeLabel: string): string | null => {
       if (!employeeId) return null;
       const currentRange = parseTimeRange(currentTimeLabel);
@@ -333,7 +357,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
       for (const schedule of otherBranchSchedules) {
           const otherRange = parseTimeRange(schedule.timeLabel);
           if (!otherRange) continue;
-          if (schedule.assignments[dayIndex] === employeeId && timeRangesOverlap(currentRange, otherRange)) {
+          if (parseCellIds(schedule.assignments[dayIndex]).includes(employeeId) && timeRangesOverlap(currentRange, otherRange)) {
               return `${schedule.branch} (${schedule.timeLabel})`;
           }
       }
@@ -353,7 +377,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                   for (const otherSchedule of otherBranchSchedules) {
                       const otherRange = parseTimeRange(otherSchedule.timeLabel);
                       if (!otherRange) continue;
-                      if (otherSchedule.assignments[dayIdx] === emp.id && timeRangesOverlap(currentRange, otherRange)) {
+                      if (parseCellIds(otherSchedule.assignments[dayIdx]).includes(emp.id) && timeRangesOverlap(currentRange, otherRange)) {
                           if (!conflicts.has(`${row.id}_${emp.id}`)) conflicts.set(`${row.id}_${emp.id}`, new Map());
                           conflicts.get(`${row.id}_${emp.id}`)!.set(dayIdx, `${otherSchedule.branch} ${otherSchedule.timeLabel}`);
                       }
@@ -384,32 +408,65 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
       } catch (err) { console.error(err); } finally { if (isMounted.current) setIsSaving(false); }
   };
 
-  const handleAssignmentChange = (rowId: string | undefined, dayIndex: number, employeeId: string) => {
+  // Ortak hücre mutasyon helper'ı — yeni ID dizisini hesaplayıp CSV olarak
+  // assignments[dayIndex]'e yazar ve DB'ye kaydeder. Aşağıdaki add/remove/replace
+  // handler'ları bunu kullanır; "tek hücre = tek string" olarak ham veri kalır.
+  const mutateCell = (rowId: string | undefined, dayIndex: number, mutator: (currentIds: string[]) => string[]) => {
       if (!isAdmin) return;
-
-      // Çakışma kontrolü
-      if (employeeId) {
-          const currentRow = rosterData.find(r => r.id === rowId);
-          if (currentRow) {
-              const conflict = getConflict(employeeId, dayIndex, currentRow.timeLabel);
-              if (conflict) {
-                  const empName = availableEmployees.find(e => e.id === employeeId)?.name || '';
-                  if (!confirm(t('shift.conflictWarn').replace('{name}', empName).replace('{conflict}', conflict))) {
-                      return;
-                  }
-              }
-          }
-      }
-
       const updatedRows = rosterData.map(row => {
           if (row.id !== rowId) return row;
+          const currentIds = parseCellIds(row.assignments[dayIndex]);
+          const nextIds = mutator(currentIds);
           const newAssignments = [...row.assignments];
-          newAssignments[dayIndex] = employeeId;
+          newAssignments[dayIndex] = joinCellIds(nextIds);
           return { ...row, assignments: newAssignments };
       });
       setRosterData(updatedRows);
       const rowToSave = updatedRows.find(r => r.id === rowId);
       if (rowToSave) saveRowToDb(rowToSave);
+  };
+
+  // Çakışma uyarısı + onay; kullanıcı reddederse false dön.
+  const confirmIfConflict = (employeeId: string, dayIndex: number, timeLabel: string): boolean => {
+      if (!employeeId) return true;
+      const conflict = getConflict(employeeId, dayIndex, timeLabel);
+      if (!conflict) return true;
+      const empName = availableEmployees.find(e => e.id === employeeId)?.name || '';
+      return confirm(t('shift.conflictWarn').replace('{name}', empName).replace('{conflict}', conflict));
+  };
+
+  // Hücreye yeni kişi ekle (zaten varsa eklemez)
+  const addAssignment = (rowId: string | undefined, dayIndex: number, employeeId: string) => {
+      if (!isAdmin || !employeeId) return;
+      const row = rosterData.find(r => r.id === rowId);
+      if (!row) return;
+      if (!confirmIfConflict(employeeId, dayIndex, row.timeLabel)) return;
+      mutateCell(rowId, dayIndex, ids => ids.includes(employeeId) ? ids : [...ids, employeeId]);
+  };
+
+  // Hücreden bir kişiyi çıkar
+  const removeAssignment = (rowId: string | undefined, dayIndex: number, employeeId: string) => {
+      if (!isAdmin || !employeeId) return;
+      mutateCell(rowId, dayIndex, ids => ids.filter(id => id !== employeeId));
+  };
+
+  // Hücredeki bir kişiyi başka biriyle değiştir (mevcut select onChange için)
+  const replaceAssignment = (rowId: string | undefined, dayIndex: number, oldId: string, newId: string) => {
+      if (!isAdmin) return;
+      const row = rosterData.find(r => r.id === rowId);
+      if (!row) return;
+      if (newId && !confirmIfConflict(newId, dayIndex, row.timeLabel)) return;
+      mutateCell(rowId, dayIndex, ids => {
+          if (!newId) return ids.filter(id => id !== oldId); // boş seçilirse kaldır
+          // Sırayı koruyarak swap; yeni ID zaten varsa dedup için filtre
+          const seen = new Set<string>();
+          const result: string[] = [];
+          for (const id of ids) {
+              const candidate = id === oldId ? newId : id;
+              if (!seen.has(candidate)) { result.push(candidate); seen.add(candidate); }
+          }
+          return result;
+      });
   };
 
   const handleTimeLabelChange = (rowId: string | undefined, newLabel: string) => {
@@ -456,7 +513,9 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
   // Yayınlanmamışsa boş tablo + uyarı (ayrı render edilir).
   const displayedRows = isAdmin
       ? rosterData
-      : (isPublished ? rosterData.filter(row => row.assignments.includes(currentUser.id)) : []);
+      : (isPublished
+          ? rosterData.filter(row => row.assignments.some(cell => parseCellIds(cell).includes(currentUser.id)))
+          : []);
 
 
   // --- Şube başına kullanıcının haftalık vardiya sayısı (badge için) ---
@@ -493,7 +552,8 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
           // Personel için onaylanmamış şubelerin sayımı sızmasın
           if (!isAdmin && !publishedBranches.has(branch)) return;
           const days: string[] = schedule.days || [];
-          const userDays = days.filter((empId: string) => empId === currentUser.id).length;
+          // Hücre CSV olabilir — her hücredeki ID'leri ayrı kontrol et
+          const userDays = days.filter((cell: string) => parseCellIds(cell).includes(currentUser.id)).length;
           if (userDays > 0) {
               counts.set(branch, (counts.get(branch) || 0) + userDays);
           }
@@ -514,10 +574,10 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                   {Object.values(Branch).map(b => {
                       const count = branchShiftCounts.get(b) || 0;
                       return (
-                          <button key={b} onClick={() => setActiveBranch(b)} style={{ position: 'relative', minHeight: '48px', borderRadius: '12px', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', border: '1px solid', transition: 'all 0.2s', borderColor: activeBranch === b ? '#6366f1' : '#27272a', backgroundColor: activeBranch === b ? '#4f46e5' : '#18181b', color: activeBranch === b ? '#fff' : '#71717a' }}>
+                          <button key={b} onClick={() => setActiveBranch(b)} style={{ position: 'relative', minHeight: '48px', borderRadius: '12px', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', border: '1px solid', transition: 'all 0.2s', borderColor: activeBranch === b ? mobilePalette.activeBorder : mobilePalette.cellBorder, backgroundColor: activeBranch === b ? mobilePalette.activeBg : mobilePalette.cellBg, color: activeBranch === b ? mobilePalette.activeText : mobilePalette.cellText }}>
                               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '0 4px' }}>{b}</span>
                               {count > 0 && (
-                                  <span style={{ position: 'absolute', top: '-8px', right: '-8px', minWidth: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '9999px', fontSize: '10px', fontWeight: 900, padding: '0 6px', boxShadow: '0 0 0 2px #09090b', backgroundColor: activeBranch === b ? '#fff' : '#10b981', color: activeBranch === b ? '#4f46e5' : '#fff' }}>
+                                  <span style={{ position: 'absolute', top: '-8px', right: '-8px', minWidth: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '9999px', fontSize: '10px', fontWeight: 900, padding: '0 6px', boxShadow: mobilePalette.badgeShadow, backgroundColor: activeBranch === b ? mobilePalette.activeBadgeBg : mobilePalette.badgeBg, color: activeBranch === b ? mobilePalette.activeBadgeText : '#fff' }}>
                                       {count}
                                   </span>
                               )}
@@ -525,23 +585,23 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                       );
                   })}
                   {/* Tarih sekmesi — 6. hücre, şubelerle aynı boyut */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#18181b', borderRadius: '12px', border: '1px solid #27272a', minHeight: '48px' }}>
-                      <button onClick={() => handleWeekChange('prev')} style={{ padding: '6px', color: '#a1a1aa', flexShrink: 0 }}><ChevronLeft size={16}/></button>
-                      <div style={{ fontSize: '10px', fontWeight: 700, color: '#fff', textAlign: 'center', flex: 1, lineHeight: 1.3 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: mobilePalette.cellBg, borderRadius: '12px', border: `1px solid ${mobilePalette.cellBorder}`, minHeight: '48px' }}>
+                      <button onClick={() => handleWeekChange('prev')} style={{ padding: '6px', color: mobilePalette.muted, flexShrink: 0 }}><ChevronLeft size={16}/></button>
+                      <div style={{ fontSize: '10px', fontWeight: 700, color: mobilePalette.strong, textAlign: 'center', flex: 1, lineHeight: 1.3 }}>
                           <span>{formatDate(currentWeekStart, { day: 'numeric', month: 'short' })}</span>
-                          <span style={{ color: '#71717a', margin: '0 2px' }}>-</span>
+                          <span style={{ color: mobilePalette.divider, margin: '0 2px' }}>-</span>
                           <span>{formatDate(currentWeekEnd, { day: 'numeric', month: 'short' })}</span>
                       </div>
-                      <button onClick={() => handleWeekChange('next')} style={{ padding: '6px', color: '#a1a1aa', flexShrink: 0 }}><ChevronRight size={16}/></button>
+                      <button onClick={() => handleWeekChange('next')} style={{ padding: '6px', color: mobilePalette.muted, flexShrink: 0 }}><ChevronRight size={16}/></button>
                   </div>
               </div>
 
               {/* Admin butonları */}
               {isAdmin && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-                      <button onClick={handleCopyNextWeek} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '12px', color: '#a1a1aa', minHeight: '44px' }} title={t('shift.copyTitle')}><Copy size={18} /></button>
-                      <button onClick={addNewRow} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#4f46e5', border: 'none', borderRadius: '12px', color: '#fff', fontWeight: 700, minHeight: '44px' }} title={t('shift.newRow')}><Plus size={18} /></button>
-                      <button onClick={handleManualSave} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#16a34a', border: 'none', borderRadius: '12px', color: '#fff', fontWeight: 700, minHeight: '44px' }} title={t('shift.saveTitle')}>{isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}</button>
+                      <button onClick={handleCopyNextWeek} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: mobilePalette.cellBg, border: `1px solid ${mobilePalette.cellBorder}`, borderRadius: '12px', color: mobilePalette.muted, minHeight: '44px' }} title={t('shift.copyTitle')}><Copy size={18} /></button>
+                      <button onClick={addNewRow} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: mobilePalette.primaryBg, border: 'none', borderRadius: '12px', color: mobilePalette.primaryText, fontWeight: 700, minHeight: '44px' }} title={t('shift.newRow')}><Plus size={18} /></button>
+                      <button onClick={handleManualSave} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: mobilePalette.successBg, border: 'none', borderRadius: '12px', color: mobilePalette.successText, fontWeight: 700, minHeight: '44px' }} title={t('shift.saveTitle')}>{isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}</button>
                   </div>
               )}
           </div>
@@ -666,26 +726,95 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                                         <td className="p-2 border-r border-slate-200 dark:border-zinc-800 sticky left-0 z-10 bg-slate-50 dark:bg-zinc-950 shadow-[2px_0_8px_rgba(0,0,0,0.5)]">
                                             {isAdmin ? (<input type="text" value={row.timeLabel} onChange={(e) => handleTimeLabelChange(row.id, e.target.value)} onBlur={() => { saveRowToDb(row); fetchOtherBranchData(); }} className="w-full bg-transparent text-center font-bold text-slate-800 dark:text-zinc-200 outline-none" placeholder="00:00-00:00"/>) : (<div className="text-center font-bold text-slate-900 dark:text-white">{row.timeLabel}</div>)}
                                         </td>
-                                        {row.assignments.map((empId, dayIdx) => {
-                                            const conflict = empId ? getConflict(empId, dayIdx, row.timeLabel) : null;
+                                        {row.assignments.map((cellRaw, dayIdx) => {
+                                            // Hücre artık CSV: birden çok personel olabilir.
+                                            const cellIds = parseCellIds(cellRaw);
+                                            // Hücredeki herhangi bir kişide çakışma varsa hücre arka planı kırmızı tonlu.
+                                            const cellHasConflict = cellIds.some(id => !!getConflict(id, dayIdx, row.timeLabel));
+                                            // Bu hücrede zaten atanmış ID'leri "+ Kişi ekle" dropdown'ından çıkar.
+                                            const assignedSet = new Set(cellIds);
                                             return (
-                                            <td key={dayIdx} className={`p-2 border-r border-slate-200 dark:border-zinc-800/30 ${conflict ? 'bg-red-900/10' : ''}`}>
-                                                <div className="flex flex-col items-center">
-                                                    <div className="flex justify-center h-8 w-full">
-                                                        {isAdmin ? (
-                                                            <select value={empId} onChange={(e) => handleAssignmentChange(row.id, dayIdx, e.target.value)} className={`w-full bg-transparent text-center text-xs outline-none cursor-pointer ${conflict ? 'text-red-400 font-black' : empId ? 'text-slate-900 dark:text-white font-black' : 'text-zinc-800'}`}>
-                                                                <option value="" className="bg-white dark:bg-zinc-900 text-slate-900 dark:text-white">-</option>
-                                                                {filteredEmployees.map(emp => {
-                                                                    const empConflict = getEmployeeConflicts.get(`${row.id}_${emp.id}`)?.get(dayIdx);
-                                                                    return (<option key={emp.id} value={emp.id} className={`bg-white dark:bg-zinc-900 ${empConflict ? 'text-red-400' : 'text-slate-900 dark:text-white'}`}>{emp.name}{empConflict ? ' ⚠️' : ''}</option>);
-                                                                })}
-                                                            </select>
-                                                        ) : (<span className={`text-sm ${empId === currentUser.id ? 'text-green-500 font-black' : 'text-zinc-900'}`}>{empId === currentUser.id ? currentUser.name : '-'}</span>)}
-                                                    </div>
-                                                    {conflict && (
-                                                        <div className="flex items-center gap-1 mt-0.5" title={`${t('shift.conflictTitle')}: ${conflict}`}>
+                                            <td key={dayIdx} className={`p-2 border-r border-slate-200 dark:border-zinc-800/30 align-top ${cellHasConflict ? 'bg-red-900/10' : ''}`}>
+                                                <div className="flex flex-col items-stretch gap-1 min-w-[120px]">
+                                                    {cellIds.length === 0 ? (
+                                                        // Boş hücre: admin için yalın dropdown, personel için "-"
+                                                        isAdmin ? (
+                                                            <div className="flex justify-center h-8 w-full">
+                                                                <select
+                                                                    value=""
+                                                                    onChange={(e) => addAssignment(row.id, dayIdx, e.target.value)}
+                                                                    className="w-full bg-transparent text-center text-xs outline-none cursor-pointer text-slate-400 dark:text-zinc-600"
+                                                                >
+                                                                    <option value="" className="bg-white dark:bg-zinc-900 text-slate-900 dark:text-white">-</option>
+                                                                    {filteredEmployees.map(emp => {
+                                                                        const empConflict = getEmployeeConflicts.get(`${row.id}_${emp.id}`)?.get(dayIdx);
+                                                                        return (<option key={emp.id} value={emp.id} className={`bg-white dark:bg-zinc-900 ${empConflict ? 'text-red-400' : 'text-slate-900 dark:text-white'}`}>{emp.name}{empConflict ? ' ⚠️' : ''}</option>);
+                                                                    })}
+                                                                </select>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-sm text-zinc-900">-</span>
+                                                        )
+                                                    ) : (
+                                                        <>
+                                                            {cellIds.map(id => {
+                                                                const conflict = getConflict(id, dayIdx, row.timeLabel);
+                                                                if (!isAdmin) {
+                                                                    // Personel: sadece kendi adını görür, diğer isimler gizli
+                                                                    if (id !== currentUser.id) return null;
+                                                                    return (
+                                                                        <span key={id} className="text-sm text-green-500 font-black text-center">{currentUser.name}</span>
+                                                                    );
+                                                                }
+                                                                // Admin: select + X
+                                                                return (
+                                                                    <div key={id} className="flex items-center gap-1 w-full">
+                                                                        <select
+                                                                            value={id}
+                                                                            onChange={(e) => replaceAssignment(row.id, dayIdx, id, e.target.value)}
+                                                                            className={`flex-1 min-w-0 bg-transparent text-center text-xs outline-none cursor-pointer ${conflict ? 'text-red-400 font-black' : 'text-slate-900 dark:text-white font-black'}`}
+                                                                        >
+                                                                            <option value="" className="bg-white dark:bg-zinc-900 text-slate-900 dark:text-white">— kaldır —</option>
+                                                                            {filteredEmployees.map(emp => {
+                                                                                // Bu mini-satırın mevcut ID'si HARİÇ, hücrede zaten olan diğerlerini opt-out
+                                                                                if (emp.id !== id && assignedSet.has(emp.id)) return null;
+                                                                                const empConflict = getEmployeeConflicts.get(`${row.id}_${emp.id}`)?.get(dayIdx);
+                                                                                return (<option key={emp.id} value={emp.id} className={`bg-white dark:bg-zinc-900 ${empConflict ? 'text-red-400' : 'text-slate-900 dark:text-white'}`}>{emp.name}{empConflict ? ' ⚠️' : ''}</option>);
+                                                                            })}
+                                                                        </select>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => removeAssignment(row.id, dayIdx, id)}
+                                                                            className="shrink-0 p-0.5 text-zinc-500 hover:text-red-500 transition-colors"
+                                                                            title={t('common.delete')}
+                                                                        >
+                                                                            <X size={12} />
+                                                                        </button>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                            {/* Admin için en altta "+ Kişi ekle" dropdown'ı */}
+                                                            {isAdmin && (
+                                                                <select
+                                                                    value=""
+                                                                    onChange={(e) => { addAssignment(row.id, dayIdx, e.target.value); e.target.value = ''; }}
+                                                                    className="w-full bg-transparent text-center text-[11px] outline-none cursor-pointer text-slate-400 dark:text-zinc-500 italic border-t border-dashed border-zinc-700/40 pt-1"
+                                                                >
+                                                                    <option value="" className="bg-white dark:bg-zinc-900 text-slate-900 dark:text-white">{t('shift.addPerson')}</option>
+                                                                    {filteredEmployees.filter(emp => !assignedSet.has(emp.id)).map(emp => {
+                                                                        const empConflict = getEmployeeConflicts.get(`${row.id}_${emp.id}`)?.get(dayIdx);
+                                                                        return (<option key={emp.id} value={emp.id} className={`bg-white dark:bg-zinc-900 ${empConflict ? 'text-red-400' : 'text-slate-900 dark:text-white'}`}>{emp.name}{empConflict ? ' ⚠️' : ''}</option>);
+                                                                    })}
+                                                                </select>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                    {cellHasConflict && (
+                                                        <div className="flex items-center justify-center gap-1 mt-0.5" title={t('shift.conflictTitle')}>
                                                             <AlertTriangle size={10} className="text-red-500"/>
-                                                            <span className="text-[9px] text-red-400 truncate max-w-[80px]">{conflict}</span>
+                                                            <span className="text-[9px] text-red-400 truncate max-w-[100px]">
+                                                                {cellIds.map(id => getConflict(id, dayIdx, row.timeLabel)).filter(Boolean).join(', ')}
+                                                            </span>
                                                         </div>
                                                     )}
                                                 </div>

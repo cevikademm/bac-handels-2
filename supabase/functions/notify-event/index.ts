@@ -49,7 +49,8 @@ interface EventBody {
     | 'off_shift_qr'
     | 'non_kiosk_check'
     | 'geofence_enter'
-    | 'geofence_exit';
+    | 'geofence_exit'
+    | 'qr_scan_error';
   employee_name?: string;
   employee_id?: string;
   branch?: string;
@@ -60,6 +61,10 @@ interface EventBody {
   lat?: number;
   lng?: number;
   distance_m?: number;
+  // qr_scan_error için ek alanlar
+  error_kind?: string;
+  error_detail?: string;
+  device_info?: string;
 }
 
 // Bildirim gövdesi formatı: "SS, HH:MM, DD.MM.YYYY" (Europe/Berlin)
@@ -124,6 +129,25 @@ const buildNotification = (e: EventBody): { title: string; body: string; url: st
         body: `${e.employee_name || 'Personel'} (${e.branch || '-'}) — ${t}`,
         url: '/map',
         tag: `geofence-exit-${e.employee_id || ''}`,
+      };
+    }
+    case 'qr_scan_error': {
+      const labels: Record<string, string> = {
+        camera_denied: 'kamera izni reddedildi',
+        no_camera: 'kamera bulunamadı',
+        insecure_context: 'HTTPS gerekli',
+        network: 'sunucuya ulaşılamadı',
+        invalid_qr: 'geçersiz QR',
+        already_checked_in: 'zaten giriş yapmış',
+        not_checked_in: 'giriş kaydı yok',
+        other: 'bilinmeyen hata',
+      };
+      const reason = labels[e.error_kind || ''] || (e.error_kind || 'hata');
+      return {
+        title: '❌ QR Mesai Hatası',
+        body: `${e.employee_name || 'Personel'} (${e.branch || '-'}) — ${reason}`,
+        url: '/devices',
+        tag: `qr-scan-error-${e.employee_id || ''}`,
       };
     }
     default:
@@ -194,6 +218,9 @@ serve(async (req) => {
       lat: body.lat ?? null,
       lng: body.lng ?? null,
       distance_m: body.distance_m ?? null,
+      error_kind: body.error_kind || null,
+      error_detail: body.error_detail || null,
+      device_info: body.device_info || null,
     },
   });
 

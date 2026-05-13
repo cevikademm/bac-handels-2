@@ -237,6 +237,9 @@ const translations: Record<Language, Record<string, string>> = {
     'pay.save': 'Kaydet',
     'pay.contact': 'İletişim',
     'pay.about': 'Hakkında',
+    'pay.editMyProfile': 'Profilimi Düzenle',
+    'pay.callPhone': 'Telefonu ara',
+    'pay.whatsappContact': 'WhatsApp ile yaz',
     'pay.addHours': 'Saat Ekle',
     'pay.editHours': 'Saatleri Düzelt',
     'pay.editAutoRecalc': 'Saatler değişince toplam çalışma süresi otomatik yeniden hesaplanır.',
@@ -304,6 +307,9 @@ const translations: Record<Language, Record<string, string>> = {
     // Messages
     'msg.chats': 'Sohbetler',
     'msg.new': 'Yeni',
+    'msg.whatsappAdmin': 'Admin\'e WhatsApp\'tan ulaş',
+    'msg.whatsappShort': 'WhatsApp',
+    'msg.whatsappComposeBtn': 'WhatsApp\'tan gönder',
     'msg.search': 'Sohbet ara...',
     'msg.empty': 'Mesaj kutunuz boş.',
     'msg.select': 'Sohbet başlatmak için bir kişi seçin.',
@@ -410,6 +416,7 @@ const translations: Record<Language, Record<string, string>> = {
     // Shift Schedule
     'shift.activeBranch': 'Aktif Şubeniz',
     'shift.copy': 'Kopyala',
+    'shift.addPerson': '+ Kişi ekle',
     'shift.save': 'Kaydet',
     'shift.addTime': 'Saat Ekle',
     'shift.transferStaff': 'Transfer Personel',
@@ -598,6 +605,11 @@ const translations: Record<Language, Record<string, string>> = {
     'qr.statusPending': 'Bekliyor (admin onayı)',
     'qr.statusApproved': 'Onaylandı',
     'qr.badge': 'QR',
+    'qr.reportWhatsapp': 'Ekran Görüntüsü Gönder',
+
+    // Destek / WhatsApp
+    'support.whatsappTitle': 'WhatsApp ile destek hattını arayın',
+    'support.whatsappAria': 'WhatsApp destek hattını aç',
 
     // ShiftSchedule
     'shift.copyTitle': 'Kopyala',
@@ -1151,6 +1163,9 @@ const translations: Record<Language, Record<string, string>> = {
     'pay.save': 'Speichern',
     'pay.contact': 'Kontakt',
     'pay.about': 'Über',
+    'pay.editMyProfile': 'Mein Profil bearbeiten',
+    'pay.callPhone': 'Anrufen',
+    'pay.whatsappContact': 'Per WhatsApp schreiben',
     'pay.addHours': 'Stunden eintragen',
     'pay.editHours': 'Zeiten bearbeiten',
     'pay.editAutoRecalc': 'Bei Zeitänderung wird die Gesamtarbeitszeit automatisch neu berechnet.',
@@ -1218,6 +1233,9 @@ const translations: Record<Language, Record<string, string>> = {
     // Messages
     'msg.chats': 'Chats',
     'msg.new': 'Neu',
+    'msg.whatsappAdmin': 'Admin per WhatsApp erreichen',
+    'msg.whatsappShort': 'WhatsApp',
+    'msg.whatsappComposeBtn': 'Per WhatsApp senden',
     'msg.search': 'Chats durchsuchen...',
     'msg.empty': 'Keine Nachrichten.',
     'msg.select': 'Wählen Sie einen Chat aus.',
@@ -1324,6 +1342,7 @@ const translations: Record<Language, Record<string, string>> = {
     // Shift Schedule
     'shift.activeBranch': 'Ihre aktive Filiale',
     'shift.copy': 'Kopieren',
+    'shift.addPerson': '+ Person hinzufügen',
     'shift.save': 'Speichern',
     'shift.addTime': 'Zeit hinzufügen',
     'shift.transferStaff': 'Transferpersonal',
@@ -1512,6 +1531,11 @@ const translations: Record<Language, Record<string, string>> = {
     'qr.statusPending': 'Wartet (Admin-Freigabe)',
     'qr.statusApproved': 'Genehmigt',
     'qr.badge': 'QR',
+    'qr.reportWhatsapp': 'Screenshot senden',
+
+    // Support / WhatsApp
+    'support.whatsappTitle': 'WhatsApp-Support öffnen',
+    'support.whatsappAria': 'WhatsApp-Support öffnen',
 
     // ShiftSchedule
     'shift.copyTitle': 'Kopieren',

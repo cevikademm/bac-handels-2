@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
 import { Employee, Branch, Role, TimeLog, AppNotification } from '../types';
-import { Search, Plus, Filter, Calculator, Save, Trash2, Phone, Mail, X, MapPin, Briefcase, Link as LinkIcon, ThumbsUp, ThumbsDown, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Wallet, Banknote, Map as MapIcon, Timer, Edit2, Loader2, ArrowRightLeft, Building2, CalendarRange, Lock, Rocket, PieChart, Upload, Shield, AlertTriangle, QrCode, AlarmClockOff, Zap } from 'lucide-react';
+import { Search, Plus, Filter, Calculator, Save, Trash2, Phone, Mail, X, MapPin, Briefcase, Link as LinkIcon, ThumbsUp, ThumbsDown, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Wallet, Banknote, Map as MapIcon, Timer, Edit2, Loader2, ArrowRightLeft, Building2, CalendarRange, Lock, Rocket, PieChart, Upload, Shield, AlertTriangle, QrCode, AlarmClockOff, Zap, MessageCircle } from 'lucide-react';
 import { includeAsPersonnel, isDualRoleAdmin, isRestrictedAdmin } from '../constants';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
@@ -405,6 +405,62 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
       [allEmployeeLogs, weekDates]
   );
 
+  // Personelin shift_schedules'taki tüm haftalardaki atamaları — Çalışma Geçmişi
+  // kartlarında "Plan: 06-14" rozeti olarak gösterilir. Plan vs gerçek karşılaştırması.
+  const [employeeSchedules, setEmployeeSchedules] = useState<Array<{
+      weekKey: string;
+      timeSlot: string;
+      days: string[];
+  }>>([]);
+
+  useEffect(() => {
+      if (!targetEmployeeId) { setEmployeeSchedules([]); return; }
+      let cancelled = false;
+      void (async () => {
+          try {
+              const { data, error } = await supabase
+                  .from('shift_schedules')
+                  .select('week_start_date, time_slot, days');
+              if (cancelled || error || !Array.isArray(data)) return;
+              const rows = data
+                  .filter((r: any) => Array.isArray(r.days) && r.days.includes(targetEmployeeId))
+                  .map((r: any) => ({
+                      weekKey: r.week_start_date as string,
+                      timeSlot: (r.time_slot as string) || '',
+                      days: r.days as string[],
+                  }));
+              setEmployeeSchedules(rows);
+          } catch (err) {
+              console.warn('[Payroll] shift_schedules fetch error:', err);
+          }
+      })();
+      return () => { cancelled = true; };
+  }, [targetEmployeeId]);
+
+  // Tarih → planlı time_slot listesi map'i. Bir kişi bir günde birden fazla
+  // slot'a atanmışsa ['06-14', '16-20'] gibi liste döner.
+  const plannedSlotsByDate = useMemo<Map<string, string[]>>(() => {
+      const map = new Map<string, string[]>();
+      if (!targetEmployeeId) return map;
+      employeeSchedules.forEach(s => {
+          if (!s.timeSlot || !Array.isArray(s.days)) return;
+          // week_start_date'i lokal saat ile parse et — Payroll'daki fmtDate
+          // (line 353) ile aynı YYYY-MM-DD formatına dönüştür.
+          const monday = new Date(s.weekKey + 'T00:00:00');
+          if (Number.isNaN(monday.getTime())) return;
+          s.days.forEach((eid, dayIdx) => {
+              if (eid !== targetEmployeeId) return;
+              const target = new Date(monday);
+              target.setDate(target.getDate() + dayIdx);
+              const dateStr = fmtDate(target);
+              const list = map.get(dateStr) || [];
+              list.push(s.timeSlot);
+              map.set(dateStr, list);
+          });
+      });
+      return map;
+  }, [employeeSchedules, targetEmployeeId]);
+
   // Bekleyen kayıt sayısı — kullanıcının onay bekleyen iş yüküne dair bilgi (uyarı şeridi).
   const pendingLogsCount = useMemo(
       () => allEmployeeLogs.filter(l => l.status !== 'Onaylandı' && l.status !== 'Reddedildi').length,
@@ -507,21 +563,31 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
   };
 
   const handleSave = async () => {
-      if (!editForm.name?.trim() || !editForm.email?.trim()) {
+      const isAdminUser = currentUser.role === Role.ADMIN;
+
+      // Admin tüm alanları zorunlu doldursun; personel self-edit ise sadece
+      // telefon/bio güncellediği için isim/email validasyonunu atla.
+      if (isAdminUser && (!editForm.name?.trim() || !editForm.email?.trim())) {
           alert(t('pay.nameEmailRequired'));
           return;
       }
 
       setIsLoading(true);
-      const dbData = {
-          full_name: editForm.name,
-          email: editForm.email,
-          role: editForm.role,
-          hourly_rate: editForm.hourlyRate,
-          avatar_url: editForm.avatarUrl,
-          phone: editForm.phone,
-          bio: editForm.bio
-      };
+      const dbData: Record<string, any> = isAdminUser
+          ? {
+              full_name: editForm.name,
+              email: editForm.email,
+              role: editForm.role,
+              hourly_rate: editForm.hourlyRate,
+              avatar_url: editForm.avatarUrl,
+              phone: editForm.phone,
+              bio: editForm.bio,
+          }
+          : {
+              // Personel kendi profilinde sadece iletişim/bio düzenleyebilir
+              phone: editForm.phone,
+              bio: editForm.bio,
+          };
 
       try {
           if (selectedEmployeeId === 'NEW') {
@@ -975,9 +1041,9 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
           // Mobil: alt nav bar (h-16 + güvenli alan) içeriği örtmesin diye pb-28 verildi.
           <div className="h-full flex flex-col items-stretch justify-start p-4 pb-28 md:p-6 md:pb-6 bg-slate-50 dark:bg-zinc-950 overflow-y-auto overscroll-contain">
               {/* MODIFIED: Removed max-w-lg to allow full width */}
-              <div className="w-full bg-gradient-to-br from-zinc-900 to-black border border-slate-200 dark:border-zinc-800 rounded-3xl shadow-2xl overflow-hidden relative">
-                  {/* Decorative Background */}
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-900/10 rounded-full blur-[80px] pointer-events-none"></div>
+              <div className="w-full bg-white dark:bg-gradient-to-br dark:from-zinc-900 dark:to-black border border-slate-200 dark:border-zinc-800 rounded-3xl shadow-2xl overflow-hidden relative">
+                  {/* Decorative Background — sadece dark modda görünür (light'ta tamamen beyaz kart) */}
+                  <div className="hidden dark:block absolute top-0 right-0 w-64 h-64 bg-emerald-900/10 rounded-full blur-[80px] pointer-events-none"></div>
                   
                   <div className="p-8 relative z-10">
                       {/* Header */}
@@ -1116,10 +1182,11 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
         return <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-zinc-600"><p>Görüntülemek için bir profil seçin</p></div>;
     }
     return (
-        <div className="flex h-full w-full flex-col bg-black relative overflow-hidden">
-            <div className="absolute top-0 w-full h-64 bg-gradient-to-b from-zinc-900 to-black pointer-events-none z-0"></div>
+        <div className="flex h-full w-full flex-col bg-white dark:bg-black relative overflow-hidden">
+            {/* Üst dekoratif gradient — sadece dark modda görünür */}
+            <div className="hidden dark:block absolute top-0 w-full h-64 bg-gradient-to-b from-zinc-900 to-black pointer-events-none z-0"></div>
             <div className="relative z-10 flex-1 w-full overflow-y-auto min-h-0 pb-28 md:pb-0">
-                <div className="sticky top-0 z-50 w-full flex items-center justify-between p-4 md:p-6 bg-gradient-to-b from-black/80 to-transparent backdrop-blur-[2px]">
+                <div className="sticky top-0 z-50 w-full flex items-center justify-between p-4 md:p-6 bg-gradient-to-b from-white/80 dark:from-black/80 to-transparent backdrop-blur-[2px]">
                     {/* Back Button for Admin on Mobile */}
                     <button 
                         onClick={() => setSelectedEmployeeId(null)}
@@ -1137,15 +1204,14 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                 </button>
                             </>
                         ) : (
-                            // Admin Actions - NOW VISIBLE TO ALL ADMINS
-                            currentUser.role === Role.ADMIN && (
+                            currentUser.role === Role.ADMIN ? (
                                 <>
                                     {/* DİKKAT ÇEKİCİ TRANSFER BUTONU */}
-                                    <button 
-                                        onClick={() => { setTargetBranch(Branch.DOM); setShowTransferModal(true); }} 
+                                    <button
+                                        onClick={() => { setTargetBranch(Branch.DOM); setShowTransferModal(true); }}
                                         className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-slate-900 dark:text-white text-sm font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(249,115,22,0.4)] hover:shadow-[0_0_25px_rgba(249,115,22,0.6)] hover:scale-105 active:scale-95 border border-orange-400/20"
                                     >
-                                        <ArrowRightLeft size={18} className="animate-pulse" /> 
+                                        <ArrowRightLeft size={18} className="animate-pulse" />
                                         <span className="hidden md:inline uppercase tracking-wide">{t('pay.transferBtn')}</span>
                                         <span className="md:hidden">Transfer</span>
                                     </button>
@@ -1160,6 +1226,18 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                         </button>
                                     </div>
                                 </>
+                            ) : (
+                                // Personel kendi profilini görüyorsa: telefon/bio düzenleme butonu
+                                selectedEmployeeForDetail?.id === currentUser.id && (
+                                    <button
+                                        onClick={() => setIsEditing(true)}
+                                        className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm rounded-lg transition-colors"
+                                        title={t('pay.editMyProfile')}
+                                    >
+                                        <Edit2 size={16} />
+                                        <span className="hidden sm:inline">{t('pay.editMyProfile')}</span>
+                                    </button>
+                                )
                             )
                         )}
                     </div>
@@ -1167,9 +1245,9 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
 
                 <div className="px-4 md:px-8 pb-12 w-full -mt-4">
                      <div className="flex flex-col items-center mb-12">
-                        <img src={isEditing ? editForm.avatarUrl : selectedEmployeeForDetail.avatarUrl} className="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-black shadow-2xl object-cover" referrerPolicy="no-referrer" />
+                        <img src={(isEditing && currentUser.role === Role.ADMIN) ? editForm.avatarUrl : selectedEmployeeForDetail.avatarUrl} className="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-black shadow-2xl object-cover" referrerPolicy="no-referrer" />
                         <div className="mt-6 text-center w-full space-y-2">
-                            {isEditing ? (
+                            {isEditing && currentUser.role === Role.ADMIN ? (
                                 <div className="flex flex-col gap-3 items-center w-full">
                                     <input value={editForm.name} onChange={(e) => setEditForm({...editForm, name: e.target.value})} className="text-3xl font-bold text-slate-900 dark:text-white bg-transparent border-b border-slate-300 dark:border-zinc-700 text-center w-full" placeholder="İsim" />
                                     <div className="flex gap-2">
@@ -1204,8 +1282,39 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                             <div className="p-6 rounded-2xl bg-white dark:bg-zinc-900/30 border border-slate-200 dark:border-zinc-800/50">
                                 <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-4 opacity-50">{t('pay.contact')}</h3>
                                 <div className="space-y-4">
-                                    <div className="flex items-center gap-4"><Mail size={18} className="text-slate-600 dark:text-zinc-400 min-w-[18px]"/>{isEditing ? <input value={editForm.email} onChange={e=>setEditForm({...editForm, email:e.target.value})} className="bg-transparent border-b border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-white w-full"/> : <span className="text-slate-700 dark:text-zinc-300 break-all">{selectedEmployeeForDetail.email}</span>}</div>
-                                    <div className="flex items-center gap-4"><Phone size={18} className="text-slate-600 dark:text-zinc-400 min-w-[18px]"/>{isEditing ? <input value={editForm.phone} onChange={e=>setEditForm({...editForm, phone:e.target.value})} className="bg-transparent border-b border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-white w-full"/> : <span className="text-slate-700 dark:text-zinc-300">{selectedEmployeeForDetail.phone || '-'}</span>}</div>
+                                    <div className="flex items-center gap-4"><Mail size={18} className="text-slate-600 dark:text-zinc-400 min-w-[18px]"/>{(isEditing && currentUser.role === Role.ADMIN) ? <input value={editForm.email} onChange={e=>setEditForm({...editForm, email:e.target.value})} className="bg-transparent border-b border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-white w-full"/> : <span className="text-slate-700 dark:text-zinc-300 break-all">{selectedEmployeeForDetail.email}</span>}</div>
+                                    <div className="flex items-center gap-4">
+                                        <Phone size={18} className="text-slate-600 dark:text-zinc-400 min-w-[18px]"/>
+                                        {isEditing ? (
+                                            <input value={editForm.phone || ''} onChange={e=>setEditForm({...editForm, phone:e.target.value})} placeholder={t('payroll.phonePlaceholder')} className="bg-transparent border-b border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-white w-full"/>
+                                        ) : (
+                                            <div className="flex items-center gap-2 flex-1 flex-wrap">
+                                                <span className="text-slate-700 dark:text-zinc-300">{selectedEmployeeForDetail.phone || '-'}</span>
+                                                {selectedEmployeeForDetail.phone && (
+                                                    <>
+                                                        <a
+                                                            href={`tel:${selectedEmployeeForDetail.phone}`}
+                                                            className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500 hover:text-white transition-colors"
+                                                            title={t('pay.callPhone')}
+                                                            aria-label={t('pay.callPhone')}
+                                                        >
+                                                            <Phone size={14} />
+                                                        </a>
+                                                        <a
+                                                            href={`https://wa.me/${selectedEmployeeForDetail.phone.replace(/\D/g, '')}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white transition-colors"
+                                                            title={t('pay.whatsappContact')}
+                                                            aria-label={t('pay.whatsappContact')}
+                                                        >
+                                                            <MessageCircle size={14} />
+                                                        </a>
+                                                    </>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
                                     {/* HOURLY RATE: NOW VISIBLE TO ALL ADMINS */}
                                     {currentUser.role === Role.ADMIN && (
                                         <div className="flex items-center gap-4"><Calculator size={18} className="text-slate-600 dark:text-zinc-400 min-w-[18px]"/>{isEditing ? <input type="number" value={editForm.hourlyRate} onChange={e=>setEditForm({...editForm, hourlyRate:parseFloat(e.target.value)})} className="bg-transparent border-b border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-white w-full"/> : <span className="text-slate-700 dark:text-zinc-300">€{selectedEmployeeForDetail.hourlyRate}</span>}</div>
@@ -1664,6 +1773,20 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                                         <Zap size={10} /> +{log.overtimeMinutes} dk
                                                     </span>
                                                 )}
+                                                {/* Vardiya planındaki saatler — shift_schedules'tan çekilir.
+                                                    Plan ile gerçek check-in/out karşılaştırması için. */}
+                                                {(() => {
+                                                    const slots = plannedSlotsByDate.get(log.date);
+                                                    if (!slots || slots.length === 0) return null;
+                                                    return (
+                                                        <span
+                                                            className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-900/20 text-indigo-300 border border-indigo-700/40 inline-flex items-center gap-1 font-mono"
+                                                            title="Vardiya planındaki saat"
+                                                        >
+                                                            <CalendarRange size={10} /> Plan: {slots.join(' · ')}
+                                                        </span>
+                                                    );
+                                                })()}
                                                 <span className={`text-[10px] px-2 py-1 rounded ${log.status==='Onaylandı'?'bg-green-900/20 text-green-400':log.status==='Reddedildi'?'bg-red-900/20 text-red-400':'bg-amber-900/20 text-amber-400'}`}>{log.status}</span>
                                             </div>
                                             {currentUser.role === Role.ADMIN && (
@@ -2250,8 +2373,31 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <h4 className={`text-sm font-semibold truncate ${selectedEmployeeId === emp.id ? 'text-slate-900 dark:text-white' : 'text-slate-700 dark:text-zinc-300'}`}>{emp.name}</h4>
-                                    <div className="flex items-center gap-2 mt-0.5">
+                                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                         <span className="text-[11px] text-slate-500 dark:text-zinc-500">{emp.role}</span>
+                                        {emp.phone && (
+                                            <>
+                                                <span className="text-[11px] text-slate-300 dark:text-zinc-700">•</span>
+                                                <a
+                                                    href={`tel:${emp.phone}`}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="text-[11px] text-slate-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-1 font-mono"
+                                                    title={t('pay.callPhone')}
+                                                >
+                                                    <Phone size={10} /> {emp.phone}
+                                                </a>
+                                                <a
+                                                    href={`https://wa.me/${emp.phone.replace(/\D/g, '')}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white transition-colors"
+                                                    title={t('pay.whatsappContact')}
+                                                >
+                                                    <MessageCircle size={11} />
+                                                </a>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                                 

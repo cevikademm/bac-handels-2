@@ -15,8 +15,10 @@ import {
   Map as MapIcon,
   Smartphone,
   Sun,
-  Moon
+  Moon,
+  MessageCircle
 } from 'lucide-react';
+import { SUPPORT_WHATSAPP_URL } from '../lib/support';
 import { useLanguage } from '../lib/i18n';
 import { useTheme } from '../lib/theme';
 import { Role } from '../types';
@@ -307,6 +309,26 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, user
             {children}
          </div>
       </main>
+
+      {/* --- WHATSAPP DESTEK FAB ---
+          - Her ekranda görünür (admin + personel).
+          - Mobilde: bottom-nav var (16h + safe-area). FAB onun üstüne otururken
+            klavye açıkken nav gibi gizlenir.
+          - Messages sekmesinde: yazma alanını kapatmasın diye gizlenir.
+          - Tıklayınca: +90 532 496 14 12 WhatsApp sohbeti, hazır mesajla açılır. */}
+      <a
+        href={SUPPORT_WHATSAPP_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={t('support.whatsappAria')}
+        title={t('support.whatsappTitle')}
+        className={`whatsapp-fab fixed right-4 md:right-6 z-[60] flex items-center justify-center w-14 h-14 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white shadow-lg shadow-emerald-900/40 ring-4 ring-emerald-500/15 transition-all active:scale-90 ${
+          activeTab === 'messages' || keyboardOpen ? 'opacity-0 pointer-events-none translate-y-2' : 'opacity-100'
+        }`}
+      >
+        <MessageCircle size={26} strokeWidth={2.2} />
+        <span className="sr-only">WhatsApp</span>
+      </a>
 
       {/* --- MOBILE BOTTOM NAVIGATION ---
           - paddingBottom env() Apple'da homebar boşluğunu, Samsung/diğerlerinde

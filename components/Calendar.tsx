@@ -3,7 +3,7 @@ import { Branch, Employee, Role, CalendarEvent, Task } from '../types';
 import { Plus, X, Calendar as CalendarIcon, Clock, MapPin, Users, Save, Building2, CheckCircle2, AlignLeft, Trash2, ChevronLeft, ChevronRight, AlertTriangle, CheckSquare, Loader2, Rocket, ArrowRightLeft, CalendarRange, MoreHorizontal, Filter, List } from 'lucide-react';
 import { includeAsPersonnel } from '../constants';
 import { supabase } from '../lib/supabase';
-import { formatLocalDate, formatHoursAsHM } from '../lib/utils';
+import { formatLocalDate, formatHoursAsHM, parseCellIds } from '../lib/utils';
 import { useLanguage } from '../lib/i18n';
 import { GlowingEffect } from './ui/glowing-effect';
 
@@ -229,8 +229,8 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
           const timeLabel = schedule.time_slot || "09:00 - 17:00";
           
           return schedule.days.map((assignedEmpId: string, index: number) => {
-              // Filter: Only create event if this slot is assigned to the current user
-              if (assignedEmpId !== currentUser.id) return null;
+              // Hücre CSV olabilir — kullanıcı listedeyse event üret
+              if (!parseCellIds(assignedEmpId).includes(currentUser.id)) return null;
               
               const eventDate = new Date(start);
               eventDate.setDate(eventDate.getDate() + index);
@@ -296,8 +296,8 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
 
       visibleShifts.forEach((schedule: any) => {
           if (schedule.week_start_date !== weekStartStr) return;
-          schedule.days.forEach((empId: string, dayIndex: number) => {
-              if (!empId || empId !== currentUser.id) return;
+          schedule.days.forEach((cellRaw: string, dayIndex: number) => {
+              if (!parseCellIds(cellRaw).includes(currentUser.id)) return;
               if (!dayMap.has(dayIndex)) dayMap.set(dayIndex, []);
               dayMap.get(dayIndex)!.push({ slot: schedule.time_slot || '09:00-17:00', branch: schedule.branch || '' });
           });
@@ -375,8 +375,9 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       const assignedIds = new Set<string>();
       visibleShifts.forEach((schedule: any) => {
           if (schedule.week_start_date !== weekStartStr) return;
-          schedule.days.forEach((empId: string) => {
-              if (empId) assignedIds.add(empId);
+          schedule.days.forEach((cellRaw: string) => {
+              // Hücre CSV olabilir — tüm ID'leri atanmış say
+              parseCellIds(cellRaw).forEach(id => assignedIds.add(id));
           });
       });
       return employees.filter(emp => !assignedIds.has(emp.id));

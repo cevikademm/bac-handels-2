@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Smartphone, Loader2, Search, ShieldAlert, Copy, Check, User as UserIcon, AlertTriangle
+  Smartphone, Loader2, Search, ShieldAlert, Copy, Check, User as UserIcon, AlertTriangle,
+  UserX, XCircle, Camera, Wifi, Lock, QrCode, Calendar as CalendarIcon, Clock
 } from 'lucide-react';
 import { Employee, Role } from '../types';
 import { supabase } from '../lib/supabase';
@@ -52,7 +53,70 @@ interface MacConflict {
 const PAGE_SIZE = 1000;
 const HARD_CAP = 100000;
 
-type TabView = 'people' | 'conflicts';
+type TabView = 'people' | 'conflicts' | 'missing' | 'errors';
+type MissingFilter = 'today' | 'week';
+
+// "Okutmayanlar" listesinde gösterilecek aktif personel kaydı
+interface MissingRow {
+  employeeId: string;
+  employeeName: string;
+  branch: string | null;
+}
+
+// QR scan hata kaydı (qr_scan_attempts tablosu)
+interface ErrorRow {
+  id: string;
+  employeeId: string | null;
+  employeeName: string;
+  errorKind: string;
+  errorDetail: string | null;
+  action: string | null;
+  branch: string | null;
+  deviceInfo: string | null;
+  attemptedAt: string;
+}
+
+// Avrupa/Berlin TZ'ye göre haftanın gününü ve hafta başlangıcını (Pzt) döndür.
+// shift_schedules.week_start_date 'YYYY-MM-DD' formatında tutuluyor.
+function getWeekStartIsoMonday(d: Date = new Date()): string {
+  // Postgres'in has_shift_today fonksiyonuyla aynı mantık
+  const local = new Date(d.toLocaleString('en-US', { timeZone: 'Europe/Berlin' }));
+  const isoDow = local.getDay() === 0 ? 7 : local.getDay(); // 1=Pzt..7=Paz
+  const monday = new Date(local);
+  monday.setDate(local.getDate() - (isoDow - 1));
+  monday.setHours(0, 0, 0, 0);
+  const y = monday.getFullYear();
+  const m = String(monday.getMonth() + 1).padStart(2, '0');
+  const day = String(monday.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function getDayIndexBerlin(d: Date = new Date()): number {
+  // 0=Pzt..6=Paz
+  const local = new Date(d.toLocaleString('en-US', { timeZone: 'Europe/Berlin' }));
+  const isoDow = local.getDay() === 0 ? 7 : local.getDay();
+  return isoDow - 1;
+}
+
+function ymdBerlin(d: Date = new Date()): string {
+  const local = new Date(d.toLocaleString('en-US', { timeZone: 'Europe/Berlin' }));
+  const y = local.getFullYear();
+  const m = String(local.getMonth() + 1).padStart(2, '0');
+  const day = String(local.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+// QR hatası türü → renkli rozet metaverisi
+const ERROR_META: Record<string, { color: string; icon: React.ComponentType<{ size?: number; className?: string }> }> = {
+  camera_denied:      { color: 'text-orange-400 bg-orange-500/10 border-orange-500/40',  icon: Camera },
+  no_camera:          { color: 'text-orange-400 bg-orange-500/10 border-orange-500/40',  icon: Camera },
+  insecure_context:   { color: 'text-amber-400 bg-amber-500/10 border-amber-500/40',     icon: Lock },
+  network:            { color: 'text-sky-400 bg-sky-500/10 border-sky-500/40',           icon: Wifi },
+  invalid_qr:         { color: 'text-red-400 bg-red-500/10 border-red-500/40',           icon: QrCode },
+  already_checked_in: { color: 'text-violet-400 bg-violet-500/10 border-violet-500/40',  icon: AlertTriangle },
+  not_checked_in:     { color: 'text-violet-400 bg-violet-500/10 border-violet-500/40',  icon: AlertTriangle },
+  other:              { color: 'text-zinc-400 bg-zinc-500/10 border-zinc-500/40',        icon: XCircle },
+};
 
 interface DeviceBrandsProps {
   currentUser: Employee;
@@ -68,6 +132,12 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
   const [tab, setTab] = useState<TabView>('people');
   const [scannedCount, setScannedCount] = useState<number>(0);
   const [oldestSeen, setOldestSeen] = useState<string>('');
+
+  // "Okutmayanlar" ve "Hatalar" sekmesi verileri
+  const [missingToday, setMissingToday] = useState<MissingRow[]>([]);
+  const [missingWeek, setMissingWeek] = useState<MissingRow[]>([]);
+  const [missingFilter, setMissingFilter] = useState<MissingFilter>('today');
+  const [errors, setErrors] = useState<ErrorRow[]>([]);
 
   const allowed = currentUser?.role === Role.ADMIN && canSeeDeviceInfo(currentUser?.email);
 

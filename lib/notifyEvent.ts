@@ -13,7 +13,8 @@ export type NotifyEventType =
   | 'off_shift_qr'
   | 'non_kiosk_check'
   | 'geofence_enter'
-  | 'geofence_exit';
+  | 'geofence_exit'
+  | 'qr_scan_error';
 
 export interface NotifyEventPayload {
   type: NotifyEventType;
@@ -27,6 +28,9 @@ export interface NotifyEventPayload {
   lat?: number;
   lng?: number;
   distance_m?: number;
+  error_kind?: string;
+  error_detail?: string;
+  device_info?: string;
 }
 
 export const notifyEvent = (payload: NotifyEventPayload): void => {

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   QrCode, Camera, MapPin, CheckCircle, AlertTriangle, XCircle, Loader2, LogIn, LogOut,
-  ShieldCheck, ShieldAlert, Smartphone
+  ShieldCheck, ShieldAlert, Smartphone, MessageCircle
 } from 'lucide-react';
 import { BrowserQRCodeReader, IScannerControls } from '@zxing/browser';
 import { Employee } from '../types';
@@ -43,6 +43,35 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 interface Props {
   currentUser: Employee;
   onComplete?: () => void;
+}
+
+// Her QR denemesini (başarılı/başarısız) qr_scan_attempts tablosuna log'lar.
+// Başarısız denemelerde ayrıca notifyEvent ile admin'e bildirim düşürür.
+// "fire-and-forget" — UI'ı bloklamaz.
+async function logScanAttempt(args: {
+  employee: Employee;
+  status: 'success' | 'error';
+  errorKind?: string | null;
+  errorDetail?: string;
+  action: ScanAction;
+  branch?: string | null;
+  deviceInfo?: string | null;
+}) {
+  try {
+    await supabase.from('qr_scan_attempts').insert({
+      employee_id: args.employee.id,
+      employee_name: args.employee.name,
+      status: args.status,
+      error_kind: args.errorKind || null,
+      error_detail: args.errorDetail || null,
+      action: args.action,
+      branch: args.branch || (args.employee as any).branch || null,
+      device_info: args.deviceInfo || null,
+      user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+    });
+  } catch (e) {
+    console.warn('[QR] qr_scan_attempts insert failed:', e);
+  }
 }
 
 const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
@@ -159,19 +188,42 @@ const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
         `message: ${msg}`,
       ];
       if (code) parts.push(`code: ${code}`);
-      setErrorDetail(parts.join('\n'));
+      const detail = parts.join('\n');
+      setErrorDetail(detail);
+      let kind: ErrorKind;
       if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
-        setErrorKind('camera_denied');
+        kind = 'camera_denied';
       } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
-        setErrorKind('no_camera');
+        kind = 'no_camera';
       } else if (name === 'NotReadableError' || name === 'TrackStartError') {
-        setErrorKind('no_camera');
+        kind = 'no_camera';
       } else if (name === 'SecurityError') {
-        setErrorKind('insecure_context');
+        kind = 'insecure_context';
       } else {
-        setErrorKind('other');
+        kind = 'other';
       }
+      setErrorKind(kind);
       setPhase('error');
+      // Hatayı log'la + admin'e bildirim düşür
+      void logScanAttempt({
+        employee: currentUser,
+        status: 'error',
+        errorKind: kind,
+        errorDetail: detail,
+        action: actionRef.current,
+        deviceInfo: deviceLabel,
+      });
+      notifyEvent({
+        type: 'qr_scan_error',
+        employee_id: currentUser.id,
+        employee_name: currentUser.name,
+        branch: (currentUser as any).branch,
+        action: actionRef.current,
+        error_kind: kind,
+        error_detail: detail,
+        device_info: deviceLabel,
+        at: new Date().toISOString(),
+      });
     };
 
     start();
@@ -227,23 +279,56 @@ const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
       const resp = data as RpcResponse;
       if (!resp?.ok) {
         // Farklı iş-kuralı hatalarını ayır
+        let kind: ErrorKind;
+        let detail: string;
         if (resp?.error === 'already_checked_in') {
-          setErrorKind('already_checked_in');
+          kind = 'already_checked_in';
           const extras: string[] = [`branch: ${(resp as any).branch ?? '—'}`];
           if ((resp as any).start_time) extras.push(`start_time: ${(resp as any).start_time}`);
-          setErrorDetail(extras.join('\n'));
+          detail = extras.join('\n');
         } else if (resp?.error === 'not_checked_in') {
-          setErrorKind('not_checked_in');
-          setErrorDetail('no open time_log row for today');
+          kind = 'not_checked_in';
+          detail = 'no open time_log row for today';
         } else {
-          setErrorKind('invalid_qr');
-          setErrorDetail(resp?.error || 'Unknown RPC error');
+          kind = 'invalid_qr';
+          detail = resp?.error || 'Unknown RPC error';
         }
+        setErrorKind(kind);
+        setErrorDetail(detail);
         setPhase('error');
+        void logScanAttempt({
+          employee: currentUser,
+          status: 'error',
+          errorKind: kind,
+          errorDetail: detail,
+          action: actionRef.current,
+          branch: (resp as any).branch,
+          deviceInfo: deviceLabel,
+        });
+        notifyEvent({
+          type: 'qr_scan_error',
+          employee_id: currentUser.id,
+          employee_name: currentUser.name,
+          branch: (resp as any).branch || (currentUser as any).branch,
+          action: actionRef.current,
+          error_kind: kind,
+          error_detail: detail,
+          device_info: deviceLabel,
+          at: new Date().toISOString(),
+        });
         return;
       }
       setResult(resp);
       setPhase('result');
+      // Başarılı denemeyi de log'la (zaten time_logs'a yazıldı ama
+      // qr_scan_attempts ortak metrik için tek noktada)
+      void logScanAttempt({
+        employee: currentUser,
+        status: 'success',
+        action: actionRef.current,
+        branch: resp.branch,
+        deviceInfo: deviceLabel,
+      });
       // Notify parent (Payroll) so list refreshes immediately on mobile
       onComplete?.();
 
@@ -266,7 +351,6 @@ const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
       });
     } catch (err: any) {
       console.error('[QR] qr_check_in_out RPC error:', err);
-      setErrorKind('network');
       const parts = [
         `name: ${err?.name || 'Error'}`,
         `message: ${err?.message || String(err)}`,
@@ -274,8 +358,29 @@ const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
       if (err?.code) parts.push(`code: ${err.code}`);
       if (err?.status) parts.push(`status: ${err.status}`);
       if (err?.hint) parts.push(`hint: ${err.hint}`);
-      setErrorDetail(parts.join('\n'));
+      const detail = parts.join('\n');
+      setErrorKind('network');
+      setErrorDetail(detail);
       setPhase('error');
+      void logScanAttempt({
+        employee: currentUser,
+        status: 'error',
+        errorKind: 'network',
+        errorDetail: detail,
+        action: actionRef.current,
+        deviceInfo: deviceLabel,
+      });
+      notifyEvent({
+        type: 'qr_scan_error',
+        employee_id: currentUser.id,
+        employee_name: currentUser.name,
+        branch: (currentUser as any).branch,
+        action: actionRef.current,
+        error_kind: 'network',
+        error_detail: detail,
+        device_info: deviceLabel,
+        at: new Date().toISOString(),
+      });
     }
   };
 
@@ -462,12 +567,33 @@ const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
                 <pre className="whitespace-pre-wrap break-words font-mono leading-relaxed">{errorDetail}</pre>
               </div>
             )}
-            <button
-              onClick={reset}
-              className="px-5 py-2 rounded-lg bg-slate-100 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-900 dark:text-white"
-            >
-              {t('qr.tryAgain')}
-            </button>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2">
+              <button
+                onClick={reset}
+                className="px-5 py-2 rounded-lg bg-slate-100 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-900 dark:text-white"
+              >
+                {t('qr.tryAgain')}
+              </button>
+              <a
+                href={(() => {
+                  const codeLine = errorKind ? `Hata kodu: ${errorKind}` : '';
+                  const detailLine = errorDetail ? `Detay: ${errorDetail}` : '';
+                  const msg = [
+                    'Merhaba, QR mesai açarken hata aldım.',
+                    codeLine,
+                    detailLine,
+                    'Ekran görüntüsü ekte.'
+                  ].filter(Boolean).join('\n');
+                  return `https://wa.me/905324961412?text=${encodeURIComponent(msg)}`;
+                })()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold shadow-lg shadow-emerald-900/30"
+              >
+                <MessageCircle size={18} />
+                {t('qr.reportWhatsapp')}
+              </a>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

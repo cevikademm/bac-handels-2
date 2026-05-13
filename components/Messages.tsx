@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Message, Employee, Role } from '../types';
-import { Search, Send, Mail, ChevronLeft, MessageSquare, Plus, X, Loader2, Check, CheckCheck, ShieldAlert, Trash2 } from 'lucide-react';
+import { Search, Send, Mail, ChevronLeft, MessageSquare, Plus, X, Loader2, Check, CheckCheck, ShieldAlert, Trash2, MessageCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
 import { GlowingEffect } from './ui/glowing-effect';
+import { buildWhatsAppUrl } from '../lib/support';
 
 
 interface MessagesProps {
@@ -535,13 +536,31 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
                                     className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:border-indigo-500 outline-none min-h-[100px]"
                                 />
                             </div>
-                            <button 
-                                type="submit" 
+                            <button
+                                type="submit"
                                 disabled={isSending}
                                 className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-slate-900 dark:text-white rounded-xl font-medium shadow-lg flex items-center justify-center gap-2"
                             >
                                 {isSending ? <Loader2 className="animate-spin" size={18}/> : t('msg.send')}
                             </button>
+
+                            {/* Acil durumlar için WhatsApp kestirme yolu — sadece personel görür,
+                                admin kendi numarasını mesaj yazma ekranında görmesine gerek yok. */}
+                            {currentUser.role !== Role.ADMIN && (
+                                <a
+                                    href={buildWhatsAppUrl(
+                                        composeForm.content
+                                            ? `Merhaba, ben ${currentUser.name}. ${composeForm.subject ? `Konu: ${composeForm.subject}\n` : ''}${composeForm.content}`
+                                            : `Merhaba, ben ${currentUser.name}. Bir konuda yardımınıza ihtiyaç duyuyorum.`
+                                    )}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl font-medium shadow-lg flex items-center justify-center gap-2 transition-colors"
+                                    title={t('msg.whatsappAdmin')}
+                                >
+                                    <MessageCircle size={18} /> {t('msg.whatsappComposeBtn')}
+                                </a>
+                            )}
                         </form>
                     </div>
                 </div>
@@ -550,11 +569,28 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
             {/* LIST PANEL (SOL) */}
             <div className={`w-full md:w-1/3 min-w-[300px] border-r border-slate-200 dark:border-zinc-800 flex flex-col bg-slate-50 dark:bg-zinc-950/50 absolute md:relative inset-0 z-10 md:z-auto transition-transform duration-300 ${activeChatPartnerId ? '-translate-x-full md:translate-x-0' : 'translate-x-0'}`}>
                 <div className="p-4 border-b border-slate-200 dark:border-zinc-800">
-                    <div className="flex justify-between items-center mb-4">
+                    <div className="flex justify-between items-center mb-4 gap-2">
                         <h2 className="font-bold text-slate-900 dark:text-white text-lg">{t('msg.chats')}</h2>
-                        <button onClick={handleOpenCompose} className="bg-indigo-600 p-2 rounded-lg text-slate-900 dark:text-white hover:bg-indigo-500 shadow-lg flex items-center gap-2 px-3">
-                            <Plus size={18} /> <span className="text-xs font-bold">{t('msg.new')}</span>
-                        </button>
+                        <div className="flex items-center gap-2">
+                            {/* WhatsApp: personelin acil durumda admin'e direkt ulaşması için.
+                                Admin'ler de kendi WhatsApp numarasını görmesin diye sadece personele gösterilir. */}
+                            {currentUser.role !== Role.ADMIN && (
+                                <a
+                                    href={buildWhatsAppUrl(`Merhaba, ben ${currentUser.name}. Bir konuda yardımınıza ihtiyaç duyuyorum.`)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="bg-emerald-500 hover:bg-emerald-400 p-2 rounded-lg text-white shadow-lg flex items-center gap-2 px-3 transition-colors"
+                                    title={t('msg.whatsappAdmin')}
+                                    aria-label={t('msg.whatsappAdmin')}
+                                >
+                                    <MessageCircle size={18} />
+                                    <span className="text-xs font-bold hidden sm:inline">{t('msg.whatsappShort')}</span>
+                                </a>
+                            )}
+                            <button onClick={handleOpenCompose} className="bg-indigo-600 p-2 rounded-lg text-slate-900 dark:text-white hover:bg-indigo-500 shadow-lg flex items-center gap-2 px-3">
+                                <Plus size={18} /> <span className="text-xs font-bold">{t('msg.new')}</span>
+                            </button>
+                        </div>
                     </div>
                     <div className="relative">
                         <Search size={16} className="absolute left-3 top-2.5 text-slate-500 dark:text-zinc-500" />
@@ -622,7 +658,7 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
                     <>
                         <div className="p-4 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/30 backdrop-blur-md flex items-center gap-3">
                             <button onClick={() => setActiveChatPartnerId(null)} className="md:hidden text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"><ChevronLeft size={24} /></button>
-                            
+
                             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-800 to-zinc-800 flex items-center justify-center text-slate-900 dark:text-white font-bold border border-slate-300 dark:border-zinc-700 overflow-hidden relative">
                                 {activeChatPartnerId === ADMIN_BOARD_ID ? (
                                     <ShieldAlert size={20} />
@@ -632,14 +668,29 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
                                     getName(activeChatPartnerId).charAt(0)
                                 )}
                             </div>
-                            
-                            <div>
-                                <h2 className="text-base font-bold text-slate-900 dark:text-white">{getName(activeChatPartnerId)}</h2>
+
+                            <div className="flex-1 min-w-0">
+                                <h2 className="text-base font-bold text-slate-900 dark:text-white truncate">{getName(activeChatPartnerId)}</h2>
                                 <p className="text-xs text-slate-500 dark:text-zinc-500">
                                     {activeChatPartnerId === 'ALL' ? t('msg.generalChannel') :
                                      activeChatPartnerId === ADMIN_BOARD_ID ? t('msg.adminDept') : t('msg.staff')}
                                 </p>
                             </div>
+
+                            {/* Admin sohbetinde personele WhatsApp kestirme — yazışma yavaş kaldığında
+                                acil bir konuyu doğrudan admin'in WhatsApp'ına götürebilsin. */}
+                            {activeChatPartnerId === ADMIN_BOARD_ID && currentUser.role !== Role.ADMIN && (
+                                <a
+                                    href={buildWhatsAppUrl(`Merhaba, ben ${currentUser.name}. Mesajlar üzerinden yazdım, ayrıca buradan da iletmek istedim.`)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-semibold shadow-md transition-colors"
+                                    title={t('msg.whatsappAdmin')}
+                                >
+                                    <MessageCircle size={16} />
+                                    <span className="hidden sm:inline">{t('msg.whatsappShort')}</span>
+                                </a>
+                            )}
                         </div>
 
                         <div ref={scrollRef} className="flex-1 p-4 md:p-6 overflow-y-auto custom-scrollbar space-y-4">
