@@ -62,22 +62,33 @@ BEGIN
     END IF;
     v_status := CASE WHEN v_in_rng THEN 'Onaylandı' ELSE 'Bekliyor' END;
 
-    -- FIX (gece vardiyası): tarih yerine zaman bazlı 18 saatlik açık-pencere.
-    -- Eski versiyonda 'date = v_today' filtresi yüzünden dün gece check-in
-    -- yapıp bugün sabah çıkış yapmaya çalışan personel yanlış 'not_checked_in'
-    -- hatası alıyordu.
+    -- FIX (gece vardiyası + orphan koruması):
+    --   Önceki sürüm 'date = v_today' filtresi yüzünden gece geçen vardiyada
+    --   yanlış 'not_checked_in' veriyordu. Ara fix 18h penceresi koydu, ancak
+    --   o da auto_close çalışmadığında (24h+ açık kalan satırlar) yeni INSERT
+    --   denenince 'uniq_open_qr_shift_per_employee' partial-unique constraint'i
+    --   tetikliyordu (23505 duplicate_key).
+    --   Çözüm: zaman penceresini kaldır. 'check_out_at IS NULL' satırı varsa
+    --   RPC onu doğru yönetir (action='out' kapatır, action='in' already_checked_in
+    --   döner). Orphan satırlar için ek bilgi 'stale' bayrağı ile gönderilir.
     SELECT * INTO v_open FROM public.time_logs
      WHERE employee_id  = p_employee_id
        AND entry_method = 'qr'
        AND check_out_at IS NULL
-       AND check_in_at  >= v_now - INTERVAL '18 hours'
      ORDER BY check_in_at DESC LIMIT 1;
     v_found := FOUND;
 
-    -- Niyet doğrulama: personel yanlış butona bastıysa ret
+    -- Niyet doğrulama: personel yanlış butona bastıysa ret.
+    -- 'stale' bayrağı: açık satır 16 saatten eski ise (orphan/unutulmuş)
+    -- frontend ek uyarı + admin'e başvur yönlendirmesi yapar.
     IF p_action = 'in' AND v_found THEN
-        RETURN jsonb_build_object('ok', false, 'error', 'already_checked_in',
-          'branch', v_open.branch, 'start_time', v_open.start_time);
+        RETURN jsonb_build_object(
+          'ok', false, 'error', 'already_checked_in',
+          'branch', v_open.branch, 'start_time', v_open.start_time,
+          'open_log_id', v_open.id,
+          'open_for_hours', ROUND(EXTRACT(EPOCH FROM (v_now - v_open.check_in_at))/3600.0, 2),
+          'stale', (v_now - v_open.check_in_at) > INTERVAL '16 hours'
+        );
     END IF;
     IF p_action = 'out' AND NOT v_found THEN
         RETURN jsonb_build_object('ok', false, 'error', 'not_checked_in');

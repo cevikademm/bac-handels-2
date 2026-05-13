@@ -563,21 +563,26 @@ BEGIN
     v_status := CASE WHEN v_in_rng THEN 'Onaylandı' ELSE 'Bekliyor' END;
 
     -- Açık QR kaydı (şube bağımsız — farklı şubede çıkış yapabilsinler).
-    -- FIX (gece vardiyası): tarih filtresi yerine 18 saatlik zaman penceresi.
-    -- Eski 'date = v_today' filtresi gece geçen vardiyalarda yanlış olarak
-    -- 'not_checked_in' üretiyordu (dün 22:00 check-in → bugün 06:00 check-out).
+    -- FIX (gece vardiyası + orphan): zaman penceresi yok; tüm açık QR
+    -- satırlarını kapsar. Pencere koymak orphan satırlarda (>18h açık
+    -- ve auto_close çalışmamış) duplicate-key constraint'ine yol açıyordu.
     SELECT * INTO v_open FROM public.time_logs
      WHERE employee_id  = p_employee_id
        AND entry_method = 'qr'
        AND check_out_at IS NULL
-       AND check_in_at  >= v_now - INTERVAL '18 hours'
      ORDER BY check_in_at DESC LIMIT 1;
     v_found := FOUND;
 
-    -- Niyet doğrulama: personel yanlış butona bastıysa ret
+    -- Niyet doğrulama: personel yanlış butona bastıysa ret.
+    -- 'stale': açık satır 16h+ eski ise frontend admin yönlendirmesi yapar.
     IF p_action = 'in' AND v_found THEN
-        RETURN jsonb_build_object('ok', false, 'error', 'already_checked_in',
-          'branch', v_open.branch, 'start_time', v_open.start_time);
+        RETURN jsonb_build_object(
+          'ok', false, 'error', 'already_checked_in',
+          'branch', v_open.branch, 'start_time', v_open.start_time,
+          'open_log_id', v_open.id,
+          'open_for_hours', ROUND(EXTRACT(EPOCH FROM (v_now - v_open.check_in_at))/3600.0, 2),
+          'stale', (v_now - v_open.check_in_at) > INTERVAL '16 hours'
+        );
     END IF;
     IF p_action = 'out' AND NOT v_found THEN
         RETURN jsonb_build_object('ok', false, 'error', 'not_checked_in');

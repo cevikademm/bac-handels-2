@@ -26,6 +26,10 @@ type RpcResponse = {
   total_hours?: number;
   in_range?: boolean;
   log_id?: string;
+  // already_checked_in için ek alanlar (RPC'den):
+  open_log_id?: string;
+  open_for_hours?: number;
+  stale?: boolean;
 };
 
 type ErrorKind =
@@ -35,6 +39,7 @@ type ErrorKind =
   | 'network'
   | 'invalid_qr'
   | 'already_checked_in'
+  | 'already_checked_in_stale'
   | 'not_checked_in'
   | 'other';
 
@@ -282,9 +287,11 @@ const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
         let kind: ErrorKind;
         let detail: string;
         if (resp?.error === 'already_checked_in') {
-          kind = 'already_checked_in';
-          const extras: string[] = [`branch: ${(resp as any).branch ?? '—'}`];
-          if ((resp as any).start_time) extras.push(`start_time: ${(resp as any).start_time}`);
+          kind = resp.stale ? 'already_checked_in_stale' : 'already_checked_in';
+          const extras: string[] = [`branch: ${resp.branch ?? '—'}`];
+          if (resp.start_time) extras.push(`start_time: ${resp.start_time}`);
+          if (typeof resp.open_for_hours === 'number') extras.push(`open_for_hours: ${resp.open_for_hours}`);
+          if (resp.open_log_id) extras.push(`open_log_id: ${resp.open_log_id}`);
           detail = extras.join('\n');
         } else if (resp?.error === 'not_checked_in') {
           kind = 'not_checked_in';
@@ -400,6 +407,7 @@ const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
       case 'network': return t('qr.networkError');
       case 'invalid_qr': return t('qr.invalidQr');
       case 'already_checked_in': return t('qr.alreadyCheckedIn');
+      case 'already_checked_in_stale': return t('qr.alreadyCheckedInStale');
       case 'not_checked_in': return t('qr.notCheckedIn');
       default: return t('qr.networkError');
     }
