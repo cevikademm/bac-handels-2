@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Bell, X, ShoppingBag, Clock, FileText, BarChart3, CheckCheck, Loader2, Inbox, AlarmClockOff, MessageSquare } from 'lucide-react';
+import { Bell, X, ShoppingBag, Clock, FileText, BarChart3, CheckCheck, Loader2, Inbox, AlarmClockOff, MessageSquare, XCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { canSeeNotificationCenter } from '../constants';
 
@@ -15,7 +15,7 @@ import { canSeeNotificationCenter } from '../constants';
 
 interface NotificationRow {
   id: string;
-  type: 'off_shift_sale' | 'off_shift_qr' | 'non_kiosk_check' | 'weekly_sales_anomaly' | 'auto_closed_shift' | string;
+  type: 'off_shift_sale' | 'off_shift_qr' | 'non_kiosk_check' | 'weekly_sales_anomaly' | 'auto_closed_shift' | 'qr_scan_error' | string;
   title: string;
   body: string | null;
   url: string | null;
@@ -38,6 +38,7 @@ const ICON_BY_TYPE: Record<string, { icon: React.ComponentType<{ size?: number; 
   weekly_sales_anomaly: { icon: BarChart3, color: 'text-purple-400 bg-purple-500/10 border-purple-500/30' },
   auto_closed_shift: { icon: AlarmClockOff, color: 'text-rose-400 bg-rose-500/10 border-rose-500/30' },
   new_message: { icon: MessageSquare, color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/30' },
+  qr_scan_error: { icon: XCircle, color: 'text-red-400 bg-red-500/10 border-red-500/30' },
 };
 
 const formatRelative = (iso: string): string => {

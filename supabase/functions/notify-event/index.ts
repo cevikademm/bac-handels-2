@@ -146,7 +146,7 @@ const buildNotification = (e: EventBody): { title: string; body: string; url: st
       return {
         title: '❌ QR Mesai Hatası',
         body: `${e.employee_name || 'Personel'} (${e.branch || '-'}) — ${reason}`,
-        url: '/devices',
+        url: '/device-brands',
         tag: `qr-scan-error-${e.employee_id || ''}`,
       };
     }

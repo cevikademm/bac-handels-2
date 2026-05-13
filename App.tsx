@@ -1,4 +1,5 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { lazyWithRetry } from './lib/lazyWithRetry';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import Messages from './components/Messages';
@@ -19,9 +20,10 @@ import { canSeeMap } from './lib/geofence';
 import { canSeeDeviceInfo } from './lib/utils';
 
 // Lazy: zxing/browser top-level import'u prod minify'da bozuluyordu
-const QrCheckIn = lazy(() => import('./components/QrCheckIn'));
+// lazyWithRetry: yeni deployment sonrası eski hash'li chunk için MIME hatasında auto-recover
+const QrCheckIn = lazyWithRetry(() => import('./components/QrCheckIn'));
 // Lazy: Leaflet+react-leaflet ~140kB; harita sekmesine girilene dek yüklenmesin
-const Map = lazy(() => import('./components/Map'));
+const Map = lazyWithRetry(() => import('./components/Map'));
 import { Settings as SettingsIcon, Shield, Volume2, Upload, RefreshCw, Play, Loader2, KeyRound, Globe, Lock, Server, CheckCircle, Sun, Moon } from 'lucide-react';
 import { MOCK_EMPLOYEES, NOTIFICATION_SOUND, isDualRoleAdmin } from './constants';
 import { Employee, Role, AppNotification } from './types';

@@ -1,6 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { GlowingEffect } from './ui/glowing-effect';
+import { isChunkLoadError } from '../lib/lazyWithRetry';
 
 
 // Define the interface for props to include children
@@ -13,6 +14,8 @@ interface State {
   hasError: boolean;
   error: Error | null;
 }
+
+const CHUNK_RELOAD_KEY = 'bac:chunk-reloaded';
 
 // ErrorBoundary class to catch and handle frontend errors gracefully.
 class ErrorBoundary extends Component<Props, State> {
@@ -29,11 +32,55 @@ class ErrorBoundary extends Component<Props, State> {
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // Log the error to an error reporting service
     console.error('Uncaught error:', error, errorInfo);
+
+    // Yeni deployment + eski tab: dinamik chunk MIME/load hatası ise
+    // SW + cache temizle ve tek seferlik sert reload. sessionStorage
+    // flag ile reload-loop'a karşı koruyoruz.
+    if (isChunkLoadError(error)) {
+      let reloaded = false;
+      try { reloaded = sessionStorage.getItem(CHUNK_RELOAD_KEY) === '1'; } catch { /* ignore */ }
+      if (!reloaded) {
+        try { sessionStorage.setItem(CHUNK_RELOAD_KEY, '1'); } catch { /* ignore */ }
+        (async () => {
+          try {
+            if (typeof caches !== 'undefined') {
+              const keys = await caches.keys();
+              await Promise.all(keys.map((k) => caches.delete(k)));
+            }
+          } catch { /* ignore */ }
+          try {
+            if ('serviceWorker' in navigator) {
+              const regs = await navigator.serviceWorker.getRegistrations();
+              await Promise.all(regs.map((r) => r.unregister()));
+            }
+          } catch { /* ignore */ }
+          const url = new URL(window.location.href);
+          url.searchParams.set('_v', Date.now().toString(36));
+          window.location.replace(url.toString());
+        })();
+      }
+    }
   }
 
   private handleReset = () => {
-      this.setState({ hasError: false, error: null });
-      window.location.href = '/'; // Hard reload to clear state
+      // Manuel "Sistemi Yenile" — SW + cache de temizlensin ki
+      // kullanıcı eski hash'li chunk'a takılı kalmasın.
+      (async () => {
+        try {
+          if (typeof caches !== 'undefined') {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((k) => caches.delete(k)));
+          }
+        } catch { /* ignore */ }
+        try {
+          if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map((r) => r.unregister()));
+          }
+        } catch { /* ignore */ }
+        try { sessionStorage.removeItem(CHUNK_RELOAD_KEY); } catch { /* ignore */ }
+        window.location.href = '/?_v=' + Date.now().toString(36);
+      })();
   }
 
   public render() {

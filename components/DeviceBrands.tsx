@@ -167,17 +167,92 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
       return all;
     };
 
+    // "Okutmayanlar" hesabı için yardımcı tarih sınırları (Berlin TZ)
+    const weekStart = getWeekStartIsoMonday();
+    const dayIdx = getDayIndexBerlin();
+    const todayYmd = ymdBerlin();
+    const weekStartIso = new Date(weekStart + 'T00:00:00').toISOString();
+    const todayStartIso = new Date(todayYmd + 'T00:00:00').toISOString();
+
     Promise.all([
       fetchAllLogs(),
       supabase
         .from('profiles')
-        .select('id, full_name')
+        .select('id, full_name, branch, role')
         .limit(1000),
-    ]).then(([logs, profilesRes]) => {
+      supabase
+        .from('shift_schedules')
+        .select('branch, days')
+        .eq('week_start_date', weekStart),
+      supabase
+        .from('time_logs')
+        .select('employee_id, check_in_at')
+        .eq('entry_method', 'qr')
+        .gte('check_in_at', weekStartIso),
+      supabase
+        .from('qr_scan_attempts')
+        .select('id, employee_id, employee_name, error_kind, error_detail, action, branch, device_info, attempted_at')
+        .eq('status', 'error')
+        .order('attempted_at', { ascending: false })
+        .limit(200),
+    ]).then(([logs, profilesRes, shiftsRes, weekQrRes, errorsRes]) => {
       if (cancelled) return;
 
       const nameMap = new Map<string, string>();
-      (profilesRes.data || []).forEach((p: any) => { nameMap.set(p.id, p.full_name || '—'); });
+      const allEmployees: { id: string; name: string; branch: string | null }[] = [];
+      (profilesRes.data || []).forEach((p: any) => {
+        nameMap.set(p.id, p.full_name || '—');
+        // Sadece Personel rolündekiler "okutmayanlar" listesinde
+        if (p.role === 'Personel' || p.role === 'Personnel') {
+          allEmployees.push({ id: p.id, name: p.full_name || '—', branch: p.branch || null });
+        }
+      });
+
+      // === "Okutmayanlar" hesabı ===========================================
+      // 1) Bugün QR'a girmiş employee_id seti
+      const todayScannedSet = new Set<string>();
+      const weekScannedSet = new Set<string>();
+      (weekQrRes.data || []).forEach((r: any) => {
+        if (!r.check_in_at || !r.employee_id) return;
+        if (r.check_in_at >= todayStartIso) todayScannedSet.add(r.employee_id);
+        weekScannedSet.add(r.employee_id);
+      });
+
+      // 2) Bugün vardiyası planlı isimler (shift_schedules.days[dayIdx])
+      //    "ad, soyad, ..." şeklinde virgülle ayrılmış olabilir; ILIKE substring
+      //    eşleştirmesi yerine personel adının cell içinde geçmesini kontrol et.
+      const todayShiftNamesLower: string[] = [];
+      (shiftsRes.data || []).forEach((s: any) => {
+        const cell = (s.days?.[dayIdx] || '').trim();
+        if (cell) todayShiftNamesLower.push(cell.toLowerCase());
+      });
+      const isOnShiftToday = (employeeName: string): boolean => {
+        const n = employeeName.toLowerCase();
+        return todayShiftNamesLower.some(cell => cell.includes(n));
+      };
+
+      const missingTodayList: MissingRow[] = allEmployees
+        .filter(e => isOnShiftToday(e.name) && !todayScannedSet.has(e.id))
+        .map(e => ({ employeeId: e.id, employeeName: e.name, branch: e.branch }))
+        .sort((a, b) => a.employeeName.localeCompare(b.employeeName, 'tr'));
+
+      const missingWeekList: MissingRow[] = allEmployees
+        .filter(e => !weekScannedSet.has(e.id))
+        .map(e => ({ employeeId: e.id, employeeName: e.name, branch: e.branch }))
+        .sort((a, b) => a.employeeName.localeCompare(b.employeeName, 'tr'));
+
+      // === Hata listesi ====================================================
+      const errorList: ErrorRow[] = (errorsRes.data || []).map((r: any) => ({
+        id: r.id,
+        employeeId: r.employee_id,
+        employeeName: r.employee_name || nameMap.get(r.employee_id) || '—',
+        errorKind: r.error_kind || 'other',
+        errorDetail: r.error_detail,
+        action: r.action,
+        branch: r.branch,
+        deviceInfo: r.device_info,
+        attemptedAt: r.attempted_at,
+      }));
 
       // employee_id → MAC → { count, lastSeen }
       const perUser = new Map<string, Map<string, { count: number; lastSeen: string }>>();
@@ -255,10 +330,45 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
       setConflicts(confs);
       setScannedCount(logs.length);
       setOldestSeen(oldest);
+      setMissingToday(missingTodayList);
+      setMissingWeek(missingWeekList);
+      setErrors(errorList);
       setLoading(false);
     });
 
-    return () => { cancelled = true; };
+    // Realtime: yeni QR hatası anında "Hatalar" sekmesine düşsün
+    const channel = supabase
+      .channel('qr_scan_attempts_errors')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'qr_scan_attempts', filter: 'status=eq.error' },
+        (payload: any) => {
+          const r = payload.new;
+          if (!r) return;
+          setErrors(prev => {
+            // Duplicate guard
+            if (prev.some(x => x.id === r.id)) return prev;
+            const row: ErrorRow = {
+              id: r.id,
+              employeeId: r.employee_id,
+              employeeName: r.employee_name || '—',
+              errorKind: r.error_kind || 'other',
+              errorDetail: r.error_detail,
+              action: r.action,
+              branch: r.branch,
+              deviceInfo: r.device_info,
+              attemptedAt: r.attempted_at,
+            };
+            return [row, ...prev].slice(0, 200);
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      try { supabase.removeChannel(channel); } catch { /* ignore */ }
+    };
   }, [allowed]);
 
   const filteredPeople = useMemo(() => {
@@ -278,6 +388,26 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
       c.users.some(u => u.employeeName.toLowerCase().includes(q))
     );
   }, [conflicts, search]);
+
+  const missingSource = missingFilter === 'today' ? missingToday : missingWeek;
+  const filteredMissing = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return missingSource;
+    return missingSource.filter(r =>
+      r.employeeName.toLowerCase().includes(q) ||
+      (r.branch || '').toLowerCase().includes(q)
+    );
+  }, [missingSource, search]);
+
+  const filteredErrors = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return errors;
+    return errors.filter(e =>
+      e.employeeName.toLowerCase().includes(q) ||
+      e.errorKind.toLowerCase().includes(q) ||
+      (e.branch || '').toLowerCase().includes(q)
+    );
+  }, [errors, search]);
 
   const copyMac = async (mac: string) => {
     try {
@@ -323,14 +453,14 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
           )}
         </div>
 
-        {/* Sekme seçimi: Kişiler vs Çakışmalar */}
-        <div className="mt-4 inline-flex bg-white dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 rounded-lg p-1">
+        {/* Sekme seçimi: Kişiler / Çakışmalar / Okutmayanlar / Hatalar */}
+        <div className="mt-4 inline-flex flex-wrap gap-1 bg-white dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 rounded-lg p-1">
           <button
             onClick={() => setTab('people')}
             className={`px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all inline-flex items-center gap-2 ${
               tab === 'people'
                 ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white shadow'
-                : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-slate-700 dark:text-zinc-300'
+                : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:text-zinc-300'
             }`}
           >
             <UserIcon size={14} />
@@ -344,7 +474,7 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
             className={`px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all inline-flex items-center gap-2 ${
               tab === 'conflicts'
                 ? 'bg-red-950/60 text-red-200 shadow border border-red-900/40'
-                : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-slate-700 dark:text-zinc-300'
+                : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:text-zinc-300'
             }`}
           >
             <AlertTriangle size={14} />
@@ -357,7 +487,77 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
               {conflicts.length}
             </span>
           </button>
+          <button
+            onClick={() => setTab('missing')}
+            className={`px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all inline-flex items-center gap-2 ${
+              tab === 'missing'
+                ? 'bg-amber-950/60 text-amber-200 shadow border border-amber-900/40'
+                : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:text-zinc-300'
+            }`}
+          >
+            <UserX size={14} />
+            {t('devices.tabMissing')}
+            <span className={`text-[10px] tabular-nums px-1.5 py-0.5 rounded ${
+              missingToday.length > 0
+                ? 'bg-amber-900/50 text-amber-200'
+                : 'bg-slate-50 dark:bg-zinc-950/60 text-slate-600 dark:text-zinc-400'
+            }`}>
+              {missingToday.length}
+            </span>
+          </button>
+          <button
+            onClick={() => setTab('errors')}
+            className={`px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all inline-flex items-center gap-2 ${
+              tab === 'errors'
+                ? 'bg-red-950/60 text-red-200 shadow border border-red-900/40'
+                : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:text-zinc-300'
+            }`}
+          >
+            <XCircle size={14} />
+            {t('devices.tabErrors')}
+            <span className={`text-[10px] tabular-nums px-1.5 py-0.5 rounded ${
+              errors.length > 0
+                ? 'bg-red-900/50 text-red-200'
+                : 'bg-slate-50 dark:bg-zinc-950/60 text-slate-600 dark:text-zinc-400'
+            }`}>
+              {errors.length}
+            </span>
+          </button>
         </div>
+
+        {/* "Okutmayanlar" alt filtresi: bugün / bu hafta */}
+        {tab === 'missing' && (
+          <div className="mt-3 inline-flex bg-white dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 rounded-lg p-1">
+            <button
+              onClick={() => setMissingFilter('today')}
+              className={`px-3 py-1 text-xs font-medium rounded-md transition-all inline-flex items-center gap-1.5 ${
+                missingFilter === 'today'
+                  ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white shadow'
+                  : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:text-zinc-300'
+              }`}
+            >
+              <Clock size={12} />
+              {t('devices.missingToday')}
+              <span className="text-[10px] tabular-nums px-1.5 py-0.5 rounded bg-slate-50 dark:bg-zinc-950/60 text-slate-600 dark:text-zinc-400">
+                {missingToday.length}
+              </span>
+            </button>
+            <button
+              onClick={() => setMissingFilter('week')}
+              className={`px-3 py-1 text-xs font-medium rounded-md transition-all inline-flex items-center gap-1.5 ${
+                missingFilter === 'week'
+                  ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white shadow'
+                  : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:text-zinc-300'
+              }`}
+            >
+              <CalendarIcon size={12} />
+              {t('devices.missingWeek')}
+              <span className="text-[10px] tabular-nums px-1.5 py-0.5 rounded bg-slate-50 dark:bg-zinc-950/60 text-slate-600 dark:text-zinc-400">
+                {missingWeek.length}
+              </span>
+            </button>
+          </div>
+        )}
 
         <div className="mt-4 relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-zinc-500" />
@@ -375,6 +575,82 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
             <div className="flex items-center gap-2 text-slate-500 dark:text-zinc-500 text-sm py-8 justify-center">
               <Loader2 size={16} className="animate-spin" /> {t('common.loading')}
             </div>
+          ) : tab === 'missing' ? (
+            filteredMissing.length === 0 ? (
+              <div className="p-6 bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl text-center text-sm text-emerald-600 dark:text-emerald-400 italic">
+                {missingFilter === 'today' ? t('devices.missingEmptyToday') : t('devices.missingEmptyWeek')}
+              </div>
+            ) : (
+              <>
+                <div className="text-[11px] text-slate-500 dark:text-zinc-500 px-1 pb-1">
+                  {missingFilter === 'today' ? t('devices.missingHintToday') : t('devices.missingHintWeek')}
+                </div>
+                {filteredMissing.map(m => (
+                  <div
+                    key={m.employeeId}
+                    className="flex items-center gap-3 bg-amber-950/15 border border-amber-900/40 rounded-xl px-3 py-2.5"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-amber-900/40 border border-amber-700/40 flex items-center justify-center shrink-0">
+                      <UserX size={14} className="text-amber-300" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-semibold text-slate-900 dark:text-white truncate">{m.employeeName}</div>
+                      {m.branch && (
+                        <div className="text-[11px] text-slate-500 dark:text-zinc-500 truncate">{m.branch}</div>
+                      )}
+                    </div>
+                    <span className="text-[10px] uppercase tracking-wider bg-amber-900/40 text-amber-200 px-2 py-0.5 rounded border border-amber-800/60 shrink-0">
+                      {missingFilter === 'today' ? t('devices.notScannedToday') : t('devices.notScannedWeek')}
+                    </span>
+                  </div>
+                ))}
+              </>
+            )
+          ) : tab === 'errors' ? (
+            filteredErrors.length === 0 ? (
+              <div className="p-6 bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl text-center text-sm text-emerald-600 dark:text-emerald-400 italic">
+                {t('devices.errorsEmpty')}
+              </div>
+            ) : filteredErrors.map(e => {
+              const meta = ERROR_META[e.errorKind] || ERROR_META.other;
+              const Icon = meta.icon;
+              return (
+                <div
+                  key={e.id}
+                  className="bg-red-950/15 border border-red-900/40 rounded-xl p-3 md:p-4"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`w-9 h-9 rounded-lg border flex items-center justify-center shrink-0 ${meta.color}`}>
+                      <Icon size={16} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-semibold text-slate-900 dark:text-white truncate">{e.employeeName}</span>
+                        <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border font-mono ${meta.color}`}>
+                          {t(`qr.err.${e.errorKind}`)}
+                        </span>
+                        {e.action && (
+                          <span className="text-[10px] uppercase tracking-wider bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 px-2 py-0.5 rounded border border-slate-200 dark:border-zinc-700">
+                            {e.action === 'in' ? t('qr.actionIn') : t('qr.actionOut')}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-1 text-[11px] text-slate-500 dark:text-zinc-500 flex items-center gap-2 flex-wrap">
+                        {e.branch && <span>{e.branch}</span>}
+                        {e.branch && <span>·</span>}
+                        <span>{formatDate(e.attemptedAt, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                        {e.deviceInfo && <><span>·</span><span className="font-mono truncate max-w-[200px]">{e.deviceInfo}</span></>}
+                      </div>
+                      {e.errorDetail && (
+                        <pre className="mt-2 text-[10px] font-mono text-slate-600 dark:text-zinc-500 bg-slate-50 dark:bg-zinc-950/60 border border-slate-200 dark:border-zinc-800/60 rounded p-2 whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
+{e.errorDetail}
+                        </pre>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
           ) : tab === 'people' ? (
             filteredPeople.length === 0 ? (
               <div className="p-6 bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl text-center text-sm text-slate-500 dark:text-zinc-500 italic">

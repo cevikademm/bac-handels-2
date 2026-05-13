@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
+import { lazyWithRetry } from '../lib/lazyWithRetry';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, BarChart, Bar, Legend, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
 import { Bell, TrendingUp, Users, Clock, AlertCircle, Sparkles, CheckCircle2, Zap, Target, ArrowUpRight, Activity, ArrowRightLeft, Briefcase, CalendarCheck, Medal, AlertTriangle, DollarSign, MapPin, Coffee, Wallet, Timer, Filter, BarChart3, ListTodo, CheckSquare, PlusCircle, MessageSquare, ChevronRight, User, ShoppingBag, AlertOctagon, Tag, Trophy, Award, Upload, Loader2, QrCode, X } from 'lucide-react';
 import { AppNotification, Employee, Role, CalendarEvent, Branch, Task, Message, SalesLog } from '../types';
@@ -9,7 +10,8 @@ import { useTheme } from '../lib/theme';
 import { GlowingEffect } from './ui/glowing-effect';
 
 // QR scanner lazy: zxing/browser top-level import prod minify'da bozuluyor
-const QrCheckIn = lazy(() => import('./QrCheckIn'));
+// lazyWithRetry: yeni deployment sonrası eski hash'li chunk için MIME hatasında auto-recover
+const QrCheckIn = lazyWithRetry(() => import('./QrCheckIn'));
 
 
 interface DashboardProps {

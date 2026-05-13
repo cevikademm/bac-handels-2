@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
+import { lazyWithRetry } from '../lib/lazyWithRetry';
 import { Employee, Branch, Role, TimeLog, AppNotification } from '../types';
 import { Search, Plus, Filter, Calculator, Save, Trash2, Phone, Mail, X, MapPin, Briefcase, Link as LinkIcon, ThumbsUp, ThumbsDown, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Wallet, Banknote, Map as MapIcon, Timer, Edit2, Loader2, ArrowRightLeft, Building2, CalendarRange, Lock, Rocket, PieChart, Upload, Shield, AlertTriangle, QrCode, AlarmClockOff, Zap, MessageCircle } from 'lucide-react';
 import { includeAsPersonnel, isDualRoleAdmin, isRestrictedAdmin } from '../constants';
@@ -10,7 +11,8 @@ import { canSeeDeviceInfo, formatHoursHumanTR } from '../lib/utils';
 
 // QR sayfa yuklenirken patlamasin diye lazy yukleniyor (zxing/browser
 // production minify'da top-level import edilince mangled constructor hatasi veriyordu).
-const QrCheckIn = lazy(() => import('./QrCheckIn'));
+// lazyWithRetry: yeni deployment sonrası eski hash'li chunk için MIME hatasında auto-recover
+const QrCheckIn = lazyWithRetry(() => import('./QrCheckIn'));
 
 
 // Yeni sekme yapısı: FINANCIAL eklendi

@@ -11,7 +11,7 @@
 // - message : main thread'den postMessage ile lokal bildirim göster
 // =============================================================
 
-const CACHE_VERSION = 'bac-handels-v1';
+const CACHE_VERSION = 'bac-handels-v2';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -64,10 +64,33 @@ self.addEventListener('fetch', (event) => {
     req.mode === 'navigate' ||
     (req.headers.get('accept') || '').includes('text/html');
 
+  // JS/CSS chunk istekleri — yeni deployment'ta hash uyumsuzluğu varsa
+  // server text/html dönerse cache'lemeyi reddet ve hatayı yukarı at;
+  // istemcideki lazyWithRetry / ErrorBoundary tek seferlik reload yapar.
+  const isScriptOrStyle =
+    req.destination === 'script' ||
+    req.destination === 'style' ||
+    /\.(?:js|mjs|css|map)(?:\?|$)/i.test(url.pathname);
+
   event.respondWith(
     (async () => {
       try {
         const networkResp = await fetch(req);
+
+        // GUARD: JS/CSS istendi ama server HTML döndüyse → eski hash, yeni deploy
+        if (isScriptOrStyle && networkResp) {
+          const ct = (networkResp.headers.get('content-type') || '').toLowerCase();
+          if (ct.includes('text/html')) {
+            // Bu yanıtı CACHE'LEME ve istemciye HTML olarak da SERVE ETME;
+            // bunun yerine 404 üret → import() doğru "load failed" fırlatır,
+            // lazyWithRetry yakalar.
+            return new Response('', {
+              status: 404,
+              statusText: 'Chunk not found (stale build)',
+            });
+          }
+        }
+
         // Başarılı yanıtı arkadan cache'e koy
         if (networkResp && networkResp.ok && networkResp.type === 'basic') {
           const copy = networkResp.clone();
