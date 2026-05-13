@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
 import { useTheme } from '../lib/theme';
 import { GlowingEffect } from './ui/glowing-effect';
+import { fetchShiftsForDate, ShiftWithStatus, STATUS_META } from '../lib/shiftStatus';
 
 // QR scanner lazy: zxing/browser top-level import prod minify'da bozuluyor
 // lazyWithRetry: yeni deployment sonrası eski hash'li chunk için MIME hatasında auto-recover
@@ -71,14 +72,7 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
   // NEW: Operasyon KPI state'leri (modern admin paneli için)
   const [todayCheckInsCount, setTodayCheckInsCount] = useState<number>(0);
   const [weekPlannedHours, setWeekPlannedHours] = useState<number>(0);
-  const [upcomingShifts, setUpcomingShifts] = useState<Array<{
-    employeeId: string;
-    employeeName: string;
-    avatarUrl?: string;
-    branch: string;
-    date: string;
-    timeSlot: string;
-  }>>([]);
+  const [upcomingShifts, setUpcomingShifts] = useState<Array<ShiftWithStatus & { isToday: boolean; avatarUrl?: string }>>([]);
 
   // Avatar Upload State
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -364,11 +358,6 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
         if (shiftRows) {
           // Toplam planlı saat = time_slot süresi × gün başına atanan personel sayısı
           let totalHours = 0;
-          const upcoming: typeof upcomingShifts = [];
-          // Bugün ve yarın tarih anahtarları (haftanın hangi günü olduğu)
-          const todayIdx = (new Date().getDay() + 6) % 7; // Pzt=0, ..., Paz=6
-          const tomorrowIdx = (todayIdx + 1) % 7;
-
           for (const row of shiftRows) {
             const slot = String(row.time_slot || '');
             const m = slot.match(/(\d{1,2})(?::(\d{2}))?\s*[-–]\s*(\d{1,2})(?::(\d{2}))?/);
@@ -378,36 +367,38 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
             let mins = (eH * 60 + eM) - (sH * 60 + sM);
             if (mins < 0) mins += 24 * 60;
             const hours = mins / 60;
-
             const days: any[] = row.days || [];
-            days.forEach((cell, idx) => {
+            days.forEach((cell) => {
               if (!cell) return;
               const empIds = String(cell).split(',').map(s => s.trim()).filter(Boolean);
               totalHours += hours * empIds.length;
-
-              // Bugün/yarın için ayrıntılı kayıt
-              if (idx === todayIdx || idx === tomorrowIdx) {
-                const cellDate = new Date(monday);
-                cellDate.setDate(monday.getDate() + idx);
-                empIds.forEach(empId => {
-                  const emp = allEmployees.find(e => e.id === empId);
-                  upcoming.push({
-                    employeeId: empId,
-                    employeeName: emp?.name || 'Personel',
-                    avatarUrl: emp?.avatarUrl,
-                    branch: row.branch,
-                    date: cellDate.toISOString().split('T')[0],
-                    timeSlot: `${String(sH).padStart(2,'0')}:${String(sM).padStart(2,'0')} - ${String(eH).padStart(2,'0')}:${String(eM).padStart(2,'0')}`,
-                  });
-                });
-              }
             });
           }
           setWeekPlannedHours(Math.round(totalHours));
-          // Bugün önce, sonra yarın; tarih + saat sıralı, maks 8
-          upcoming.sort((a, b) => (a.date + a.timeSlot).localeCompare(b.date + b.timeSlot));
-          setUpcomingShifts(upcoming.slice(0, 8));
         }
+
+        // Bugün + yarın vardiyalarını QR durumu ile birlikte çek
+        const todayDate = new Date();
+        const tomorrowDate = new Date(todayDate);
+        tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+        const [todayShifts, tomorrowShifts] = await Promise.all([
+          fetchShiftsForDate(todayDate),
+          fetchShiftsForDate(tomorrowDate),
+        ]);
+        const todayYmd = todayDate.toISOString().split('T')[0];
+        const merged: typeof upcomingShifts = [];
+        const seen = new Set<string>();
+        const push = (s: ShiftWithStatus, isToday: boolean) => {
+          const key = `${s.employeeId}-${s.shiftStartIso}`;
+          if (seen.has(key)) return;
+          seen.add(key);
+          const emp = allEmployees.find(e => e.id === s.employeeId);
+          merged.push({ ...s, isToday, avatarUrl: emp?.avatarUrl });
+        };
+        todayShifts.forEach(s => push(s, true));
+        tomorrowShifts.forEach(s => push(s, s.shiftStartIso.slice(0, 10) === todayYmd));
+        merged.sort((a, b) => a.shiftStartIso.localeCompare(b.shiftStartIso));
+        setUpcomingShifts(merged.slice(0, 12));
       } catch { /* tablo yoksa sessizce geç */ }
       if(salesData) {
           setSalesLogs(salesData.map((s:any) => ({
@@ -822,10 +813,18 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                   </div>
                   <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1">
                       {upcomingShifts.length > 0 ? upcomingShifts.map((s, i) => {
-                          const today = new Date().toISOString().split('T')[0];
-                          const isToday = s.date === today;
+                          const meta = STATUS_META[s.status];
+                          const fmtTime = (iso: string | null): string => {
+                            if (!iso) return '—';
+                            const d = new Date(iso);
+                            return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                          };
                           return (
-                              <div key={i} className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-900/50 hover:bg-slate-100 dark:hover:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800/50 transition-colors">
+                              <div
+                                  key={`${s.employeeId}-${i}`}
+                                  onClick={() => navigateTo('device-brands')}
+                                  className="cursor-pointer flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-900/50 hover:bg-slate-100 dark:hover:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800/50 transition-colors"
+                              >
                                   <img
                                       src={s.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.employeeName)}&background=6366f1&color=fff`}
                                       alt={s.employeeName}
@@ -833,20 +832,42 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
                                       referrerPolicy="no-referrer"
                                   />
                                   <div className="flex-1 min-w-0">
-                                      <div className="text-sm font-medium text-slate-800 dark:text-zinc-200 truncate">{s.employeeName}</div>
-                                      <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-zinc-500">
-                                          <span className="font-mono">{s.timeSlot}</span>
-                                          <span className="opacity-40">•</span>
-                                          <span>{s.branch}</span>
+                                      <div className="text-sm font-medium text-slate-800 dark:text-zinc-200 truncate flex items-center gap-1.5">
+                                        {s.employeeName}
+                                        {s.spansMidnight && (
+                                          <span className="text-[8px] uppercase tracking-wider bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 px-1 py-0.5 rounded">
+                                            {language === 'de' ? 'Nacht' : 'Gece'}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-zinc-500 flex-wrap">
+                                          <span className="font-mono">{s.startTime}–{s.endTime}</span>
+                                          <span className="opacity-40">·</span>
+                                          <span className="truncate">{s.branch}</span>
+                                          {s.checkInAt && (
+                                            <>
+                                              <span className="opacity-40">·</span>
+                                              <span className="text-emerald-600 dark:text-emerald-400 font-mono">✓ {fmtTime(s.checkInAt)}</span>
+                                            </>
+                                          )}
+                                          {s.checkOutAt && (
+                                            <span className="text-orange-600 dark:text-orange-400 font-mono">→ {fmtTime(s.checkOutAt)}</span>
+                                          )}
                                       </div>
                                   </div>
-                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                      isToday
-                                          ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-                                          : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-500'
-                                  }`}>
-                                      {isToday ? (language === 'de' ? 'Heute' : 'Bugün') : (language === 'de' ? 'Morgen' : 'Yarın')}
-                                  </span>
+                                  <div className="flex flex-col items-end gap-1 shrink-0">
+                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                                        s.isToday
+                                            ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                                            : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-500'
+                                    }`}>
+                                        {s.isToday ? (language === 'de' ? 'Heute' : 'Bugün') : (language === 'de' ? 'Morgen' : 'Yarın')}
+                                    </span>
+                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border inline-flex items-center gap-0.5 ${meta.tone}`}>
+                                      <span aria-hidden="true">{meta.emoji}</span>
+                                      {t(meta.tKey)}
+                                    </span>
+                                  </div>
                               </div>
                           );
                       }) : (

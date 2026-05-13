@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Smartphone, Loader2, Search, ShieldAlert, Copy, Check, User as UserIcon, AlertTriangle,
-  UserX, XCircle, Camera, Wifi, Lock, QrCode, Calendar as CalendarIcon, Clock
+  UserX, XCircle, Camera, Wifi, Lock, QrCode, Calendar as CalendarIcon, Clock,
+  LogIn, LogOut, CalendarDays
 } from 'lucide-react';
 import { Employee, Role } from '../types';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
 import { canSeeDeviceInfo } from '../lib/utils';
+import { fetchShiftsForDate, ShiftWithStatus, STATUS_META } from '../lib/shiftStatus';
 
 interface RawLog {
   employee_id: string;
@@ -53,15 +55,8 @@ interface MacConflict {
 const PAGE_SIZE = 1000;
 const HARD_CAP = 100000;
 
-type TabView = 'people' | 'conflicts' | 'missing' | 'errors';
-type MissingFilter = 'today' | 'week';
-
-// "Okutmayanlar" listesinde gösterilecek aktif personel kaydı
-interface MissingRow {
-  employeeId: string;
-  employeeName: string;
-  branch: string | null;
-}
+type TabView = 'people' | 'conflicts' | 'shifts' | 'errors';
+type ShiftFilter = 'today' | 'tomorrow';
 
 // QR scan hata kaydı (qr_scan_attempts tablosu)
 interface ErrorRow {
@@ -74,36 +69,6 @@ interface ErrorRow {
   branch: string | null;
   deviceInfo: string | null;
   attemptedAt: string;
-}
-
-// Avrupa/Berlin TZ'ye göre haftanın gününü ve hafta başlangıcını (Pzt) döndür.
-// shift_schedules.week_start_date 'YYYY-MM-DD' formatında tutuluyor.
-function getWeekStartIsoMonday(d: Date = new Date()): string {
-  // Postgres'in has_shift_today fonksiyonuyla aynı mantık
-  const local = new Date(d.toLocaleString('en-US', { timeZone: 'Europe/Berlin' }));
-  const isoDow = local.getDay() === 0 ? 7 : local.getDay(); // 1=Pzt..7=Paz
-  const monday = new Date(local);
-  monday.setDate(local.getDate() - (isoDow - 1));
-  monday.setHours(0, 0, 0, 0);
-  const y = monday.getFullYear();
-  const m = String(monday.getMonth() + 1).padStart(2, '0');
-  const day = String(monday.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-function getDayIndexBerlin(d: Date = new Date()): number {
-  // 0=Pzt..6=Paz
-  const local = new Date(d.toLocaleString('en-US', { timeZone: 'Europe/Berlin' }));
-  const isoDow = local.getDay() === 0 ? 7 : local.getDay();
-  return isoDow - 1;
-}
-
-function ymdBerlin(d: Date = new Date()): string {
-  const local = new Date(d.toLocaleString('en-US', { timeZone: 'Europe/Berlin' }));
-  const y = local.getFullYear();
-  const m = String(local.getMonth() + 1).padStart(2, '0');
-  const day = String(local.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
 }
 
 // QR hatası türü → renkli rozet metaverisi
@@ -133,10 +98,10 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
   const [scannedCount, setScannedCount] = useState<number>(0);
   const [oldestSeen, setOldestSeen] = useState<string>('');
 
-  // "Okutmayanlar" ve "Hatalar" sekmesi verileri
-  const [missingToday, setMissingToday] = useState<MissingRow[]>([]);
-  const [missingWeek, setMissingWeek] = useState<MissingRow[]>([]);
-  const [missingFilter, setMissingFilter] = useState<MissingFilter>('today');
+  // "Bugünün Vardiyaları" ve "Hatalar" sekmesi verileri
+  const [shiftsToday, setShiftsToday] = useState<ShiftWithStatus[]>([]);
+  const [shiftsTomorrow, setShiftsTomorrow] = useState<ShiftWithStatus[]>([]);
+  const [shiftFilter, setShiftFilter] = useState<ShiftFilter>('today');
   const [errors, setErrors] = useState<ErrorRow[]>([]);
 
   const allowed = currentUser?.role === Role.ADMIN && canSeeDeviceInfo(currentUser?.email);
@@ -167,79 +132,32 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
       return all;
     };
 
-    // "Okutmayanlar" hesabı için yardımcı tarih sınırları (Berlin TZ)
-    const weekStart = getWeekStartIsoMonday();
-    const dayIdx = getDayIndexBerlin();
-    const todayYmd = ymdBerlin();
-    const weekStartIso = new Date(weekStart + 'T00:00:00').toISOString();
-    const todayStartIso = new Date(todayYmd + 'T00:00:00').toISOString();
+    // Bugün ve yarın için vardiya + QR durumu (helper içinde gece geçişleri dahil)
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
 
     Promise.all([
       fetchAllLogs(),
       supabase
         .from('profiles')
-        .select('id, full_name, branch, role')
+        .select('id, full_name')
         .limit(1000),
-      supabase
-        .from('shift_schedules')
-        .select('branch, days')
-        .eq('week_start_date', weekStart),
-      supabase
-        .from('time_logs')
-        .select('employee_id, check_in_at')
-        .eq('entry_method', 'qr')
-        .gte('check_in_at', weekStartIso),
+      fetchShiftsForDate(today),
+      fetchShiftsForDate(tomorrow),
       supabase
         .from('qr_scan_attempts')
         .select('id, employee_id, employee_name, error_kind, error_detail, action, branch, device_info, attempted_at')
         .eq('status', 'error')
         .order('attempted_at', { ascending: false })
         .limit(200),
-    ]).then(([logs, profilesRes, shiftsRes, weekQrRes, errorsRes]) => {
+    ]).then(([logs, profilesRes, shiftsTodayRes, shiftsTomorrowRes, errorsRes]) => {
       if (cancelled) return;
 
       const nameMap = new Map<string, string>();
-      const allEmployees: { id: string; name: string; branch: string | null }[] = [];
       (profilesRes.data || []).forEach((p: any) => {
         nameMap.set(p.id, p.full_name || '—');
-        // Sadece Personel rolündekiler "okutmayanlar" listesinde
-        if (p.role === 'Personel' || p.role === 'Personnel') {
-          allEmployees.push({ id: p.id, name: p.full_name || '—', branch: p.branch || null });
-        }
       });
-
-      // === "Okutmayanlar" hesabı ===========================================
-      // 1) Bugün QR'a girmiş employee_id seti
-      const todayScannedSet = new Set<string>();
-      const weekScannedSet = new Set<string>();
-      (weekQrRes.data || []).forEach((r: any) => {
-        if (!r.check_in_at || !r.employee_id) return;
-        if (r.check_in_at >= todayStartIso) todayScannedSet.add(r.employee_id);
-        weekScannedSet.add(r.employee_id);
-      });
-
-      // 2) Bugün vardiyası planlı isimler (shift_schedules.days[dayIdx])
-      //    "ad, soyad, ..." şeklinde virgülle ayrılmış olabilir; ILIKE substring
-      //    eşleştirmesi yerine personel adının cell içinde geçmesini kontrol et.
-      const todayShiftNamesLower: string[] = [];
-      (shiftsRes.data || []).forEach((s: any) => {
-        const cell = (s.days?.[dayIdx] || '').trim();
-        if (cell) todayShiftNamesLower.push(cell.toLowerCase());
-      });
-      const isOnShiftToday = (employeeName: string): boolean => {
-        const n = employeeName.toLowerCase();
-        return todayShiftNamesLower.some(cell => cell.includes(n));
-      };
-
-      const missingTodayList: MissingRow[] = allEmployees
-        .filter(e => isOnShiftToday(e.name) && !todayScannedSet.has(e.id))
-        .map(e => ({ employeeId: e.id, employeeName: e.name, branch: e.branch }))
-        .sort((a, b) => a.employeeName.localeCompare(b.employeeName, 'tr'));
-
-      const missingWeekList: MissingRow[] = allEmployees
-        .filter(e => !weekScannedSet.has(e.id))
-        .map(e => ({ employeeId: e.id, employeeName: e.name, branch: e.branch }))
-        .sort((a, b) => a.employeeName.localeCompare(b.employeeName, 'tr'));
 
       // === Hata listesi ====================================================
       const errorList: ErrorRow[] = (errorsRes.data || []).map((r: any) => ({
@@ -330,8 +248,8 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
       setConflicts(confs);
       setScannedCount(logs.length);
       setOldestSeen(oldest);
-      setMissingToday(missingTodayList);
-      setMissingWeek(missingWeekList);
+      setShiftsToday(shiftsTodayRes);
+      setShiftsTomorrow(shiftsTomorrowRes);
       setErrors(errorList);
       setLoading(false);
     });
@@ -389,15 +307,29 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
     );
   }, [conflicts, search]);
 
-  const missingSource = missingFilter === 'today' ? missingToday : missingWeek;
-  const filteredMissing = useMemo(() => {
+  const shiftsSource = shiftFilter === 'today' ? shiftsToday : shiftsTomorrow;
+  const filteredShifts = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return missingSource;
-    return missingSource.filter(r =>
-      r.employeeName.toLowerCase().includes(q) ||
-      (r.branch || '').toLowerCase().includes(q)
+    if (!q) return shiftsSource;
+    return shiftsSource.filter(s =>
+      s.employeeName.toLowerCase().includes(q) ||
+      (s.branch || '').toLowerCase().includes(q) ||
+      s.status.toLowerCase().includes(q)
     );
-  }, [missingSource, search]);
+  }, [shiftsSource, search]);
+
+  // Özet sayaç: bugünkü vardiyalardan kaçı tamam, kaçı eksik vb.
+  const shiftSummary = useMemo(() => {
+    const src = shiftsSource;
+    return {
+      total: src.length,
+      complete: src.filter(s => s.status === 'complete').length,
+      active: src.filter(s => s.status === 'active').length,
+      missing: src.filter(s => s.status === 'no_show').length,
+      pending: src.filter(s => s.status === 'pending').length,
+      missingOut: src.filter(s => s.status === 'missing_out').length,
+    };
+  }, [shiftsSource]);
 
   const filteredErrors = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -488,21 +420,21 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
             </span>
           </button>
           <button
-            onClick={() => setTab('missing')}
+            onClick={() => setTab('shifts')}
             className={`px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all inline-flex items-center gap-2 ${
-              tab === 'missing'
-                ? 'bg-amber-950/60 text-amber-200 shadow border border-amber-900/40'
+              tab === 'shifts'
+                ? 'bg-indigo-950/60 text-indigo-200 shadow border border-indigo-900/40'
                 : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:text-zinc-300'
             }`}
           >
-            <UserX size={14} />
-            {t('devices.tabMissing')}
+            <CalendarDays size={14} />
+            {t('devices.tabShifts')}
             <span className={`text-[10px] tabular-nums px-1.5 py-0.5 rounded ${
-              missingToday.length > 0
-                ? 'bg-amber-900/50 text-amber-200'
+              shiftsToday.length > 0
+                ? 'bg-indigo-900/50 text-indigo-200'
                 : 'bg-slate-50 dark:bg-zinc-950/60 text-slate-600 dark:text-zinc-400'
             }`}>
-              {missingToday.length}
+              {shiftsToday.length}
             </span>
           </button>
           <button
@@ -525,37 +457,67 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
           </button>
         </div>
 
-        {/* "Okutmayanlar" alt filtresi: bugün / bu hafta */}
-        {tab === 'missing' && (
-          <div className="mt-3 inline-flex bg-white dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 rounded-lg p-1">
-            <button
-              onClick={() => setMissingFilter('today')}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition-all inline-flex items-center gap-1.5 ${
-                missingFilter === 'today'
-                  ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white shadow'
-                  : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:text-zinc-300'
-              }`}
-            >
-              <Clock size={12} />
-              {t('devices.missingToday')}
-              <span className="text-[10px] tabular-nums px-1.5 py-0.5 rounded bg-slate-50 dark:bg-zinc-950/60 text-slate-600 dark:text-zinc-400">
-                {missingToday.length}
-              </span>
-            </button>
-            <button
-              onClick={() => setMissingFilter('week')}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition-all inline-flex items-center gap-1.5 ${
-                missingFilter === 'week'
-                  ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white shadow'
-                  : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:text-zinc-300'
-              }`}
-            >
-              <CalendarIcon size={12} />
-              {t('devices.missingWeek')}
-              <span className="text-[10px] tabular-nums px-1.5 py-0.5 rounded bg-slate-50 dark:bg-zinc-950/60 text-slate-600 dark:text-zinc-400">
-                {missingWeek.length}
-              </span>
-            </button>
+        {/* Vardiyalar alt filtresi: bugün / yarın + özet rozet */}
+        {tab === 'shifts' && (
+          <div className="mt-3 flex items-center gap-3 flex-wrap">
+            <div className="inline-flex bg-white dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 rounded-lg p-1">
+              <button
+                onClick={() => setShiftFilter('today')}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-all inline-flex items-center gap-1.5 ${
+                  shiftFilter === 'today'
+                    ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white shadow'
+                    : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:text-zinc-300'
+                }`}
+              >
+                <Clock size={12} />
+                {t('devices.shiftsToday')}
+                <span className="text-[10px] tabular-nums px-1.5 py-0.5 rounded bg-slate-50 dark:bg-zinc-950/60 text-slate-600 dark:text-zinc-400">
+                  {shiftsToday.length}
+                </span>
+              </button>
+              <button
+                onClick={() => setShiftFilter('tomorrow')}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-all inline-flex items-center gap-1.5 ${
+                  shiftFilter === 'tomorrow'
+                    ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white shadow'
+                    : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:text-zinc-300'
+                }`}
+              >
+                <CalendarIcon size={12} />
+                {t('devices.shiftsTomorrow')}
+                <span className="text-[10px] tabular-nums px-1.5 py-0.5 rounded bg-slate-50 dark:bg-zinc-950/60 text-slate-600 dark:text-zinc-400">
+                  {shiftsTomorrow.length}
+                </span>
+              </button>
+            </div>
+            {/* Özet sayaçlar */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {shiftSummary.complete > 0 && (
+                <span className={`text-[10px] px-2 py-0.5 rounded-full border ${STATUS_META.complete.tone}`}>
+                  {STATUS_META.complete.emoji} {shiftSummary.complete} {t('shiftStatus.complete')}
+                </span>
+              )}
+              {shiftSummary.active > 0 && (
+                <span className={`text-[10px] px-2 py-0.5 rounded-full border ${STATUS_META.active.tone}`}>
+                  {STATUS_META.active.emoji} {shiftSummary.active} {t('shiftStatus.active')}
+                </span>
+              )}
+              {shiftSummary.missing > 0 && (
+                <span className={`text-[10px] px-2 py-0.5 rounded-full border ${STATUS_META.no_show.tone}`}>
+                  {STATUS_META.no_show.emoji} {shiftSummary.missing} {t('shiftStatus.noShow')}
+                </span>
+              )}
+              {shiftSummary.missingOut > 0 && (
+                <span className={`text-[10px] px-2 py-0.5 rounded-full border ${STATUS_META.missing_out.tone}`}>
+                  {STATUS_META.missing_out.emoji} {shiftSummary.missingOut} {t('shiftStatus.missingOut')}
+                </span>
+              )}
+              {shiftSummary.pending > 0 && (
+                <span className={`text-[10px] px-2 py-0.5 rounded-full border ${STATUS_META.pending.tone}`}>
+                  {STATUS_META.pending.emoji} {shiftSummary.pending} {t('shiftStatus.pending')}
+                </span>
+              )}
+            </div>
           </div>
         )}
 
@@ -575,35 +537,71 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
             <div className="flex items-center gap-2 text-slate-500 dark:text-zinc-500 text-sm py-8 justify-center">
               <Loader2 size={16} className="animate-spin" /> {t('common.loading')}
             </div>
-          ) : tab === 'missing' ? (
-            filteredMissing.length === 0 ? (
-              <div className="p-6 bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl text-center text-sm text-emerald-600 dark:text-emerald-400 italic">
-                {missingFilter === 'today' ? t('devices.missingEmptyToday') : t('devices.missingEmptyWeek')}
+          ) : tab === 'shifts' ? (
+            filteredShifts.length === 0 ? (
+              <div className="p-6 bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl text-center text-sm text-slate-500 dark:text-zinc-500 italic">
+                {shiftFilter === 'today' ? t('devices.shiftsEmptyToday') : t('devices.shiftsEmptyTomorrow')}
               </div>
             ) : (
               <>
                 <div className="text-[11px] text-slate-500 dark:text-zinc-500 px-1 pb-1">
-                  {missingFilter === 'today' ? t('devices.missingHintToday') : t('devices.missingHintWeek')}
+                  {shiftFilter === 'today' ? t('devices.shiftsHintToday') : t('devices.shiftsHintTomorrow')}
                 </div>
-                {filteredMissing.map(m => (
-                  <div
-                    key={m.employeeId}
-                    className="flex items-center gap-3 bg-amber-950/15 border border-amber-900/40 rounded-xl px-3 py-2.5"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-amber-900/40 border border-amber-700/40 flex items-center justify-center shrink-0">
-                      <UserX size={14} className="text-amber-300" />
+                {filteredShifts.map((s, idx) => {
+                  const meta = STATUS_META[s.status];
+                  const fmtTime = (iso: string | null): string => {
+                    if (!iso) return '—';
+                    const d = new Date(iso);
+                    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                  };
+                  return (
+                    <div
+                      key={`${s.employeeId}-${idx}`}
+                      className="flex items-center gap-3 bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl px-3 py-2.5"
+                    >
+                      <div className="w-9 h-9 rounded-full bg-indigo-900/40 border border-indigo-700/40 flex items-center justify-center shrink-0">
+                        <UserIcon size={14} className="text-indigo-300" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-semibold text-slate-900 dark:text-white truncate flex items-center gap-2">
+                          {s.employeeName}
+                          {s.spansMidnight && (
+                            <span className="text-[9px] uppercase tracking-wider bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 px-1.5 py-0.5 rounded border border-violet-200 dark:border-violet-700/40">
+                              {t('devices.nightShift')}
+                            </span>
+                          )}
+                          {s.hasError && (
+                            <span className="text-[9px] uppercase tracking-wider bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 px-1.5 py-0.5 rounded border border-red-200 dark:border-red-700/40 inline-flex items-center gap-0.5" title={s.errorKind || ''}>
+                              <AlertTriangle size={9} /> {t('devices.errorBadge')}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-slate-500 dark:text-zinc-500 flex items-center gap-2 flex-wrap">
+                          {s.branch && <span className="truncate">{s.branch}</span>}
+                          {s.branch && <span className="opacity-40">·</span>}
+                          <span className="font-mono">{s.startTime}–{s.endTime}</span>
+                          {s.checkInAt && (
+                            <>
+                              <span className="opacity-40">·</span>
+                              <span className="inline-flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400">
+                                <LogIn size={10} /> {fmtTime(s.checkInAt)}
+                              </span>
+                            </>
+                          )}
+                          {s.checkOutAt && (
+                            <span className="inline-flex items-center gap-0.5 text-orange-600 dark:text-orange-400">
+                              <LogOut size={10} /> {fmtTime(s.checkOutAt)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-1 rounded-full border shrink-0 inline-flex items-center gap-1 ${meta.tone}`}>
+                        <span aria-hidden="true">{meta.emoji}</span>
+                        {t(meta.tKey)}
+                      </span>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-semibold text-slate-900 dark:text-white truncate">{m.employeeName}</div>
-                      {m.branch && (
-                        <div className="text-[11px] text-slate-500 dark:text-zinc-500 truncate">{m.branch}</div>
-                      )}
-                    </div>
-                    <span className="text-[10px] uppercase tracking-wider bg-amber-900/40 text-amber-200 px-2 py-0.5 rounded border border-amber-800/60 shrink-0">
-                      {missingFilter === 'today' ? t('devices.notScannedToday') : t('devices.notScannedWeek')}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </>
             )
           ) : tab === 'errors' ? (
