@@ -143,11 +143,28 @@ const buildNotification = (e: EventBody): { title: string; body: string; url: st
         other: 'bilinmeyen hata',
       };
       const reason = labels[e.error_kind || ''] || (e.error_kind || 'hata');
+      const actionLabel = e.action === 'in' ? 'giriş' : e.action === 'out' ? 'çıkış' : '';
+      let body = `${e.employee_name || 'Personel'} (${e.branch || '-'}) — ${reason}`;
+      if (actionLabel) body += ` · ${actionLabel}`;
+      // Gerçek hata açıklamasının ilk anlamlı satırını ekle ki admin
+      // bildirimi açmadan da sorunun nedenini görsün
+      if (e.error_detail) {
+        const firstLine = e.error_detail
+          .split('\n')
+          .map((s) => s.trim())
+          .find((s) => s && !/^name:\s*error$/i.test(s)) || '';
+        const cleaned = firstLine.replace(/^message:\s*/i, '');
+        if (cleaned) {
+          body += `\n${cleaned.slice(0, 160)}${cleaned.length > 160 ? '…' : ''}`;
+        }
+      }
       return {
         title: '❌ QR Mesai Hatası',
-        body: `${e.employee_name || 'Personel'} (${e.branch || '-'}) — ${reason}`,
+        body,
         url: '/device-brands',
-        tag: `qr-scan-error-${e.employee_id || ''}`,
+        // Tag'e timestamp eklenerek her hata bildirimi push olarak ayrı
+        // tetiklensin; aynı kullanıcı için ardışık hatalar bastırılmasın
+        tag: `qr-scan-error-${e.employee_id || ''}-${Date.now()}`,
       };
     }
     default:

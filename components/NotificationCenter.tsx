@@ -335,7 +335,18 @@ const NotificationCenter: React.FC<Props> = ({ currentUserId, currentUserEmail, 
                           )}
                         </div>
                         {n.body && (
-                          <div className="text-xs text-slate-600 dark:text-zinc-400 mt-0.5 line-clamp-2 whitespace-pre-line">{n.body}</div>
+                          <div
+                            className={`text-xs text-slate-600 dark:text-zinc-400 mt-0.5 whitespace-pre-line ${
+                              n.type === 'qr_scan_error' ? '' : 'line-clamp-2'
+                            }`}
+                          >
+                            {n.body}
+                          </div>
+                        )}
+                        {n.type === 'qr_scan_error' && n.meta?.error_detail && (
+                          <pre className="mt-1.5 text-[10px] font-mono text-slate-600 dark:text-zinc-500 bg-slate-50 dark:bg-zinc-950/60 border border-slate-200 dark:border-zinc-800/60 rounded p-2 whitespace-pre-wrap break-words max-h-28 overflow-y-auto">
+{n.meta.error_detail}
+                          </pre>
                         )}
                         <div className="text-[10px] text-slate-500 dark:text-zinc-500 mt-1">{formatRelative(n.created_at)}</div>
                       </div>
