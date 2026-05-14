@@ -1,2 +1,68 @@
 /* BAC Handels - Global Styles */
 /* Tailwind handles most styling via CDN */
+
+/* =============================================================
+   LOGIN — Random Image Wallpaper (Slideshow)
+   public/backgrounds/bg-1.jpg .. bg-7.jpg dosyalarını rastgele
+   sırada crossfade ile döndürür. Tam ekran (mobil + desktop).
+   Form okunabilirliği için hafif dark/light overlay.
+   ============================================================= */
+
+.login-bg {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+    /* Image yüklenene kadar fallback */
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f1729 100%);
+}
+
+html.light .login-bg {
+    background: linear-gradient(135deg, #fff5f7 0%, #ffe4e9 50%, #fbcbd5 100%);
+}
+
+.login-bg-layer {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    opacity: 0;
+    transition: opacity 1500ms ease-in-out;
+    will-change: opacity;
+}
+
+.login-bg-layer.is-active {
+    opacity: 1;
+}
+
+/* Form okunabilirliği için katman overlay'i — dark modda image üzerinde
+   alttan üste koyu→hafif gradient; light modda beyaz pus. */
+.login-bg-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+        180deg,
+        rgba(0, 0, 0, 0.35) 0%,
+        rgba(0, 0, 0, 0.55) 60%,
+        rgba(0, 0, 0, 0.65) 100%
+    );
+}
+
+html.light .login-bg-overlay {
+    background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.55) 0%,
+        rgba(255, 255, 255, 0.72) 60%,
+        rgba(255, 255, 255, 0.80) 100%
+    );
+}
+
+/* Erişilebilirlik: hareket azaltma tercihinde fade'i kısalt */
+@media (prefers-reduced-motion: reduce) {
+    .login-bg-layer {
+        transition: opacity 200ms linear;
+    }
+}

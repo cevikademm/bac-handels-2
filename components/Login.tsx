@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { Employee, Role, Branch } from '../types';
 import { useLanguage } from '../lib/i18n';
 import { GlowingEffect } from './ui/glowing-effect';
+import LoginBackground from './LoginBackground';
 import { logAuditEvent, secureStorageGet, secureStorageSet, secureStorageRemove } from '../lib/security';
 
 
@@ -108,8 +109,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
     return (
         <div className="fixed inset-0 w-full h-full bg-slate-50 dark:bg-zinc-950 overflow-hidden z-[9999]">
-             <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-indigo-900/10 rounded-full blur-3xl pointer-events-none"></div>
-             <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-blue-900/10 rounded-full blur-3xl pointer-events-none"></div>
+             <LoginBackground />
 
              <div className="absolute inset-0 w-full h-full overflow-y-auto custom-scrollbar">
                  <div className="min-h-full w-full flex items-center justify-center p-4">

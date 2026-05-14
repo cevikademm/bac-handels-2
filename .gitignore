@@ -22,6 +22,12 @@ output.txt
 shannon/reports/
 shannon/.app_pid
 
+# Claude Code harness
+.claude/scheduled_tasks.lock
+
+# Supabase CLI cache
+supabase/.temp/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
