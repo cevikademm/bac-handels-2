@@ -11,7 +11,7 @@ import React, { useEffect, useMemo, useState } from 'react';
  */
 
 const BG_COUNT = 7;
-const ROTATION_MS = 7000;
+const ROTATION_MS = 60 * 60 * 1000;  // 1 saat
 
 const shuffle = (n: number): number[] => {
     const arr = Array.from({ length: n }, (_, i) => i + 1);

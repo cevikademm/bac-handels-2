@@ -37,26 +37,27 @@ html.light .login-bg {
     opacity: 1;
 }
 
-/* Form okunabilirliği için katman overlay'i — dark modda image üzerinde
-   alttan üste koyu→hafif gradient; light modda beyaz pus. */
+/* Görseller orijinal canlılığında kalsın — overlay minimum.
+   Form okunabilirliği zaten glass-panel + backdrop-blur ile sağlanıyor.
+   Sadece alt kenarda çok hafif vinyetting (yumuşak köşe karartma). */
 .login-bg-overlay {
     position: absolute;
     inset: 0;
     pointer-events: none;
     background: linear-gradient(
         180deg,
-        rgba(0, 0, 0, 0.35) 0%,
-        rgba(0, 0, 0, 0.55) 60%,
-        rgba(0, 0, 0, 0.65) 100%
+        rgba(0, 0, 0, 0) 0%,
+        rgba(0, 0, 0, 0.08) 70%,
+        rgba(0, 0, 0, 0.18) 100%
     );
 }
 
 html.light .login-bg-overlay {
     background: linear-gradient(
         180deg,
-        rgba(255, 255, 255, 0.55) 0%,
-        rgba(255, 255, 255, 0.72) 60%,
-        rgba(255, 255, 255, 0.80) 100%
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.12) 70%,
+        rgba(255, 255, 255, 0.22) 100%
     );
 }
 
