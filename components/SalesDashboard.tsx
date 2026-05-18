@@ -439,9 +439,13 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
             // stored branch yanlış olabilir.
             const matchesBranch = selectedBranch === 'ALL' || resolveSaleBranch(s) === selectedBranch;
 
-            return matchesYear && matchesMonth && matchesBranch;
+            // Grafik üzerinden seçilen ürün filtresi tabloyu da daraltır
+            // (kullanıcı grafikte "Veev" seçince aşağıda da sadece Veev satışları).
+            const matchesProduct = chartProduct === 'ALL' || s.productName === chartProduct;
+
+            return matchesYear && matchesMonth && matchesBranch && matchesProduct;
         });
-    }, [salesData, selectedYear, selectedMonth, selectedBranch, resolveSaleBranch]);
+    }, [salesData, selectedYear, selectedMonth, selectedBranch, resolveSaleBranch, chartProduct]);
 
     // Leaderboard Data (With Masking Logic & GLOBAL SCOPE)
     const leaderboardData = useMemo(() => {
@@ -1071,9 +1075,21 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
             <div className="bg-white dark:bg-zinc-900/30 border border-slate-200 dark:border-zinc-800 rounded-3xl overflow-hidden shadow-2xl">
                 <div className="p-6 border-b border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
                             <ListTodo className="text-blue-500" size={20}/>
                             {t('sales.tableTitle')}
+                            {chartProduct !== 'ALL' && (
+                                <button
+                                    type="button"
+                                    onClick={() => setChartProduct('ALL')}
+                                    title={t('sales.chartFilterAllProducts')}
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/30 hover:bg-orange-500/20 transition-colors"
+                                >
+                                    <Package size={12}/>
+                                    {chartProduct}
+                                    <X size={12} className="opacity-70"/>
+                                </button>
+                            )}
                         </h3>
                         <p className="text-xs text-slate-500 dark:text-zinc-500 mt-1">
                             {isAdmin ? t('sales.tableDescAdmin') : t('sales.tableDescStaff')}
