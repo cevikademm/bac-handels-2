@@ -8,6 +8,7 @@ import { useLanguage } from '../lib/i18n';
 import { GlowingEffect } from './ui/glowing-effect';
 import { notifyEvent } from '../lib/notifyEvent';
 import { canSeeDeviceInfo, formatHoursHumanTR } from '../lib/utils';
+import { buildEmployeeWhatsAppUrl, isValidWhatsAppPhone } from '../lib/phone';
 
 // QR sayfa yuklenirken patlamasin diye lazy yukleniyor (zxing/browser
 // production minify'da top-level import edilince mangled constructor hatasi veriyordu).
@@ -320,20 +321,30 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
     const dominant = new Map<string, string>();
     userDeviceCounts.forEach((counts, userId) => {
       const sorted = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
-      // Min 3 kayıt + diğer cihazlardan en az 2 kat fazla → "alışılmış cihaz"
-      if (sorted[0] && sorted[0][1] >= 3) {
+      // Min 2 kayıt + diğer cihazlardan en az 1.5 kat fazla → "alışılmış cihaz"
+      // (2026-05-17 gevşetildi: 3+2x → 2+1.5x; DeviceBrands.tsx ile senkron)
+      if (sorted[0] && sorted[0][1] >= 2) {
         const second = sorted[1]?.[1] || 0;
-        if (sorted[0][1] >= second * 2 || second === 0) dominant.set(userId, sorted[0][0]);
+        if (sorted[0][1] >= second * 1.5 || second === 0) dominant.set(userId, sorted[0][0]);
       }
+    });
+
+    // Cihaz → dominant sahibi haritası: çakışma sayılması için bu cihaz
+    // sistemde BAŞKA bir kişinin alışılmış telefonu olmalı.
+    const deviceOwner = new Map<string, string>();
+    dominant.forEach((device, userId) => {
+      if (!deviceOwner.has(device)) deviceOwner.set(device, userId);
     });
 
     const conflicts = new Map<string, { expected: string }>();
     timeLogs.forEach(log => {
       if (log.method !== 'qr' || !log.deviceInfo) return;
       const expected = dominant.get(log.employeeId);
-      if (expected && expected !== log.deviceInfo) {
-        conflicts.set(log.id, { expected });
-      }
+      if (!expected || expected === log.deviceInfo) return;
+      // Kullanılan cihaz sistemde başka bir kişiye ait (dominant) olmalı
+      const owner = deviceOwner.get(log.deviceInfo);
+      if (!owner || owner === log.employeeId) return;
+      conflicts.set(log.id, { expected });
     });
     return conflicts;
   }, [timeLogs]);
@@ -825,27 +836,44 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
           if (checkOutAtUpdate) updates.check_out_at = checkOutAtUpdate;
 
           try {
-              const { error } = await supabase.from('time_logs').update(updates).eq('id', editingLogId);
+              // RPC admin_update_time_log — RLS + trigger'ı tek seferde bypass eder.
+              // Doğrudan UPDATE yapılırsa (a) timelogs_admin_all RLS politikası ve
+              // (b) prevent_qr_time_edit_trg trigger'ı admin'i bloklayabiliyor.
+              // RPC SECURITY DEFINER + içeride GUC set ederek her ikisini de çözer.
+              const { error } = await supabase.rpc('admin_update_time_log', {
+                  p_caller_id: currentUser.id,
+                  p_log_id: editingLogId,
+                  p_date: timeForm.date,
+                  p_start_time: timeForm.startTime,
+                  p_end_time: timeForm.endTime,
+                  p_break_duration: timeForm.breakDuration || 0,
+                  p_total_hours: totalHours,
+                  p_branch: timeForm.branch,
+                  p_check_out_at: checkOutAtUpdate || null,
+              });
               if (error) throw error;
-          } catch (err) {
-              console.warn('Saat güncelleme hatası (yerel güncelleme yapılıyor):', err);
-              alert(t('pay.dbErrorLocal'));
-          }
 
-          // Optimistic local update — realtime event de gelecek ama UI'yi anında tazelemek için.
-          setTimeLogs(prev => prev.map(log => log.id === editingLogId ? {
-              ...log,
-              date: timeForm.date,
-              startTime: timeForm.startTime,
-              endTime: timeForm.endTime,
-              breakDuration: timeForm.breakDuration || 0,
-              totalHours,
-              branch: timeForm.branch,
-              checkOutAt: checkOutAtUpdate || log.checkOutAt,
-          } : log));
-          setShowTimeModal(false);
-          setEditingLogId(null);
-          setIsLoading(false);
+              // Yalnızca DB başarılıysa UI'yi tazele — yoksa kullanıcı kaydedilmiş sanır.
+              setTimeLogs(prev => prev.map(log => log.id === editingLogId ? {
+                  ...log,
+                  date: timeForm.date,
+                  startTime: timeForm.startTime,
+                  endTime: timeForm.endTime,
+                  breakDuration: timeForm.breakDuration || 0,
+                  totalHours,
+                  branch: timeForm.branch,
+                  checkOutAt: checkOutAtUpdate || log.checkOutAt,
+              } : log));
+              setShowTimeModal(false);
+              setEditingLogId(null);
+          } catch (err: any) {
+              console.error('Saat güncelleme hatası:', err);
+              const msg = err?.message || err?.error_description || 'Bilinmeyen hata';
+              alert(`${t('pay.dbErrorLocal')}\n\n${msg}`);
+              // Modalı açık bırak — kullanıcı düzeltip tekrar denesin.
+          } finally {
+              setIsLoading(false);
+          }
           return;
       }
 
@@ -1303,28 +1331,32 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                             <input value={editForm.phone || ''} onChange={e=>setEditForm({...editForm, phone:e.target.value})} placeholder={t('payroll.phonePlaceholder')} className="bg-transparent border-b border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-white w-full"/>
                                         ) : (
                                             <div className="flex items-center gap-2 flex-1 flex-wrap">
-                                                <span className="text-slate-700 dark:text-zinc-300">{selectedEmployeeForDetail.phone || '-'}</span>
-                                                {selectedEmployeeForDetail.phone && (
-                                                    <>
+                                                {selectedEmployeeForDetail.phone ? (
+                                                    isValidWhatsAppPhone(selectedEmployeeForDetail.phone) ? (
                                                         <a
-                                                            href={`tel:${selectedEmployeeForDetail.phone}`}
-                                                            className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500 hover:text-white transition-colors"
-                                                            title={t('pay.callPhone')}
-                                                            aria-label={t('pay.callPhone')}
-                                                        >
-                                                            <Phone size={14} />
-                                                        </a>
-                                                        <a
-                                                            href={`https://wa.me/${selectedEmployeeForDetail.phone.replace(/\D/g, '')}`}
+                                                            href={buildEmployeeWhatsAppUrl(selectedEmployeeForDetail.phone)}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
-                                                            className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white transition-colors"
+                                                            className="text-emerald-700 dark:text-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-300 hover:underline cursor-pointer"
                                                             title={t('pay.whatsappContact')}
-                                                            aria-label={t('pay.whatsappContact')}
                                                         >
-                                                            <MessageCircle size={14} />
+                                                            {selectedEmployeeForDetail.phone}
                                                         </a>
-                                                    </>
+                                                    ) : (
+                                                        <span className="text-slate-700 dark:text-zinc-300">{selectedEmployeeForDetail.phone}</span>
+                                                    )
+                                                ) : (
+                                                    <span className="text-slate-700 dark:text-zinc-300">-</span>
+                                                )}
+                                                {selectedEmployeeForDetail.phone && (
+                                                    <a
+                                                        href={`tel:${selectedEmployeeForDetail.phone}`}
+                                                        className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500 hover:text-white transition-colors"
+                                                        title={t('pay.callPhone')}
+                                                        aria-label={t('pay.callPhone')}
+                                                    >
+                                                        <Phone size={14} />
+                                                    </a>
                                                 )}
                                             </div>
                                         )}
@@ -2392,23 +2424,29 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                         {emp.phone && (
                                             <>
                                                 <span className="text-[11px] text-slate-300 dark:text-zinc-700">•</span>
+                                                {isValidWhatsAppPhone(emp.phone) ? (
+                                                    <a
+                                                        href={buildEmployeeWhatsAppUrl(emp.phone)}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="text-[11px] text-emerald-700 dark:text-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-300 flex items-center gap-1 font-mono"
+                                                        title={t('pay.whatsappContact')}
+                                                    >
+                                                        <MessageCircle size={10} /> {emp.phone}
+                                                    </a>
+                                                ) : (
+                                                    <span className="text-[11px] text-slate-500 dark:text-zinc-400 flex items-center gap-1 font-mono">
+                                                        <Phone size={10} /> {emp.phone}
+                                                    </span>
+                                                )}
                                                 <a
                                                     href={`tel:${emp.phone}`}
                                                     onClick={(e) => e.stopPropagation()}
-                                                    className="text-[11px] text-slate-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-1 font-mono"
+                                                    className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500 hover:text-white transition-colors"
                                                     title={t('pay.callPhone')}
                                                 >
-                                                    <Phone size={10} /> {emp.phone}
-                                                </a>
-                                                <a
-                                                    href={`https://wa.me/${emp.phone.replace(/\D/g, '')}`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white transition-colors"
-                                                    title={t('pay.whatsappContact')}
-                                                >
-                                                    <MessageCircle size={11} />
+                                                    <Phone size={11} />
                                                 </a>
                                             </>
                                         )}

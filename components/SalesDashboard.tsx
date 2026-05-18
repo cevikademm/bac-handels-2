@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { SalesLog, Employee, Role, Branch } from '../types';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
-import { formatLocalDate, isUserOnShiftAt, formatTimeOfDay, canSeeOffShiftAlerts, compressImageToJpeg } from '../lib/utils';
+import { formatLocalDate, isUserOnShiftAt, getUserBranchAt, formatTimeOfDay, canSeeOffShiftAlerts, compressImageToJpeg } from '../lib/utils';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
 import { Trophy, TrendingUp, ShoppingBag, MapPin, Award, Medal, Calendar, Package, Activity, BarChart3, ListTodo, User, Lock, EyeOff, Filter, ChevronDown, Clock, Tag, Send, Loader2, CheckCircle2, XCircle, Trash2, X, Star, Zap, Crown, Percent, Settings, AlertTriangle, Camera, Receipt, Upload } from 'lucide-react';
 import { GlowingEffect } from './ui/glowing-effect';
@@ -54,6 +54,10 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
 
     // Bu haftanın shift_schedules satırları — satış giriş anındaki vardiya kontrolü için.
     const [currentWeekShifts, setCurrentWeekShifts] = useState<any[]>([]);
+    // Tüm vardiya satırları (branch dahil) — geçmiş satışların görüntüde doğru
+    // şubeye eşlenmesi için. Personel havuzdan farklı şubelerde çalıştığı için
+    // sales_logs.branch yerine plana göre çözmek tek doğruluk kaynağı.
+    const [allShifts, setAllShifts] = useState<any[]>([]);
 
     // Filter States
     const [selectedBranch, setSelectedBranch] = useState<string>('ALL');
@@ -129,9 +133,25 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
             const weekKey = formatLocalDate(monday);
             const { data: shiftRows } = await supabase
                 .from('shift_schedules')
-                .select('week_start_date, time_slot, days')
+                .select('week_start_date, branch, time_slot, days')
                 .eq('week_start_date', weekKey);
-            if (shiftRows && isMounted.current) setCurrentWeekShifts(shiftRows);
+            if (shiftRows && isMounted.current) {
+                setCurrentWeekShifts(shiftRows);
+                // İlk yüklemede form default'u plana göre ayarla — currentUser.branch
+                // (ana şube) yerine o anki vardiyanın branch'i. Kullanıcı havuzda
+                // farklı bir şubedeyse Dom yerine doğru şube gelir.
+                const planBranch = getUserBranchAt(currentUser.id, new Date(), shiftRows);
+                if (planBranch) {
+                    setSalesForm(prev => ({ ...prev, branch: planBranch }));
+                }
+            }
+
+            // Tüm vardiya satırları — geçmiş satışların görüntüde doğru şubeye
+            // eşlenmesi için. (Tablo küçük: hafta × time_slot × branch.)
+            const { data: allShiftRows } = await supabase
+                .from('shift_schedules')
+                .select('week_start_date, branch, time_slot, days');
+            if (allShiftRows && isMounted.current) setAllShifts(allShiftRows);
 
             const { data: profiles } = await supabase.from('profiles').select('*');
             if (profiles && isMounted.current) {
@@ -246,10 +266,16 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
 
             // is_off_shift değeri formun submit'lendiği andaki vardiya durumuna göre
             const onShift = isUserOnShiftAt(currentUser.id, new Date(), currentWeekShifts);
+            // Branch: kullanıcı dropdown'dan değiştirdiyse onu, değiştirmediyse
+            // vardiya planındaki şubeyi kullan. Dropdown default zaten plandan
+            // dolduruluyor; bu satır, fetch tamamlanmadan submit edilen kenar
+            // durumlarda da plan branch'ini garanti eder.
+            const planBranch = getUserBranchAt(currentUser.id, new Date(), currentWeekShifts);
+            const effectiveBranch = salesForm.branch || planBranch || (currentUser.branch as string) || '';
 
             const payload = {
                 employee_id: currentUser.id,
-                branch: salesForm.branch,
+                branch: effectiveBranch,
                 product_name: salesForm.product,
                 quantity: salesForm.quantity,
                 sale_date: salesForm.date,
@@ -281,7 +307,7 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                         type: 'off_shift_sale',
                         employee_id: currentUser.id,
                         employee_name: currentUser.name,
-                        branch: salesForm.branch,
+                        branch: effectiveBranch,
                         product_name: salesForm.product,
                         quantity: salesForm.quantity,
                     });
@@ -312,19 +338,31 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
         } catch (err) { console.error(err); }
     };
 
+    // Bir satışın gösterilen şubesi: tek doğruluk kaynağı vardiya planıdır
+    // (personel havuzdan gelip o gün başka şubede çalışmış olabilir). Plana
+    // göre çözülemezse stored sales_logs.branch fallback olarak kullanılır.
+    // Referans an = createdAt (satışın girildiği fiili saat); eski kayıtlarda
+    // null ise sale_date öğleye normalize edilir.
+    const resolveSaleBranch = useCallback((log: SalesLog): string => {
+        const at = log.createdAt ? new Date(log.createdAt) : new Date(`${log.saleDate}T12:00:00`);
+        const planBranch = getUserBranchAt(log.employeeId, at, allShifts);
+        return planBranch || log.branch || '—';
+    }, [allShifts]);
+
     // Filtered Data Logic
     const filteredResults = useMemo(() => {
         return salesData.filter(s => {
             const date = new Date(s.saleDate);
             const matchesYear = date.getFullYear() === selectedYear;
             const matchesMonth = (date.getMonth() + 1) === selectedMonth;
-            
-            // Personel artık havuzda - herkes tüm satışları görebilir, admin şube filtresi kullanabilir
-            const matchesBranch = selectedBranch === 'ALL' || s.branch === selectedBranch;
+
+            // Şube filtresi de plandan çözülen şubeye bakar — eski kayıtlarda
+            // stored branch yanlış olabilir.
+            const matchesBranch = selectedBranch === 'ALL' || resolveSaleBranch(s) === selectedBranch;
 
             return matchesYear && matchesMonth && matchesBranch;
         });
-    }, [salesData, selectedYear, selectedMonth, selectedBranch]);
+    }, [salesData, selectedYear, selectedMonth, selectedBranch, resolveSaleBranch]);
 
     // Leaderboard Data (With Masking Logic & GLOBAL SCOPE)
     const leaderboardData = useMemo(() => {
@@ -366,7 +404,9 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
         
         const branchMap: Record<string, { approved: number, pending: number }> = {};
         filteredResults.forEach(s => {
-            const b = s.branch || 'Bilinmiyor';
+            // Şube grafiği de plandan çözülen şubeyi baz alır — havuzdaki
+            // personelin "ana şubesi" değil, o gün çalıştığı şube esas.
+            const b = resolveSaleBranch(s) || 'Bilinmiyor';
             if (!branchMap[b]) branchMap[b] = { approved: 0, pending: 0 };
             if (s.status === 'Onaylandı') branchMap[b].approved += s.quantity;
             else branchMap[b].pending += s.quantity;
@@ -385,7 +425,7 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
         const topProduct = Object.keys(productMap).sort((a, b) => productMap[b] - productMap[a])[0];
 
         return { approvedCount, pendingCount, chartData, topProduct, topProductVal: productMap[topProduct] || 0 };
-    }, [filteredResults]);
+    }, [filteredResults, resolveSaleBranch]);
 
     // --- HELPER: STAFF CARD CALCULATIONS ---
     const getStaffPerformance = (staffId: string) => {
@@ -887,7 +927,7 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                                         </td>
                                         <td className="p-4">
                                             <span className="text-xs font-bold text-slate-500 dark:text-zinc-500 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 px-2 py-1 rounded">
-                                                {log.branch}
+                                                {resolveSaleBranch(log)}
                                             </span>
                                         </td>
                                         <td className="p-4">
@@ -998,7 +1038,7 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                                     <div className="flex items-center gap-2 flex-wrap min-w-0">
                                         <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded">
                                             <MapPin size={12} className="text-emerald-400 shrink-0" />
-                                            <span className="text-xs font-bold text-emerald-300 truncate">{log.branch || '—'}</span>
+                                            <span className="text-xs font-bold text-emerald-300 truncate">{resolveSaleBranch(log)}</span>
                                         </div>
                                         <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded">
                                             <Package size={12} className="text-indigo-400 shrink-0" />

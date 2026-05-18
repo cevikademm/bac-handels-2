@@ -6,10 +6,11 @@ import { useLanguage } from '../lib/i18n';
 import { canSeeDeviceInfo } from '../lib/utils';
 
 // QR girişlerinde tespit edilen cihaz markası kayıtlardan gelir.
-// Min 3 kayıt + diğer cihazlardan en az 2 kat fazla kullanım → "alışılmış cihaz".
-// Bu eşik Payroll.tsx'teki deviceConflicts mantığıyla birebir aynıdır.
-const DOMINANT_MIN_COUNT = 3;
-const DOMINANCE_RATIO = 2;
+// Min 2 kayıt + diğer cihazlardan en az 1.5 kat fazla kullanım → "alışılmış cihaz".
+// Bu eşik DeviceBrands.tsx ve Payroll.tsx'teki deviceConflicts mantığıyla birebir
+// aynı tutulmalıdır (2026-05-17 gevşetildi: 3+2x → 2+1.5x).
+const DOMINANT_MIN_COUNT = 2;
+const DOMINANCE_RATIO = 1.5;
 
 interface RawLog {
   id: string;

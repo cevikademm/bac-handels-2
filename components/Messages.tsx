@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
 import { GlowingEffect } from './ui/glowing-effect';
 import { buildWhatsAppUrl } from '../lib/support';
+import { normalizePhoneForWhatsApp } from '../lib/phone';
 
 
 interface MessagesProps {
@@ -88,10 +89,10 @@ const Messages: React.FC<MessagesProps> = ({ currentUser }) => {
         return user?.role === Role.ADMIN;
     };
 
-    // Helper: ID'den telefon numarası bulma (sadece rakamlar — wa.me için)
+    // Helper: ID'den telefon numarası bulma (wa.me için DE uluslararası format)
     const getPhoneDigits = (id: string): string | null => {
         const user = recipientList.find(e => e.id === id);
-        const digits = user?.phone?.replace(/\D/g, '') || '';
+        const digits = normalizePhoneForWhatsApp(user?.phone);
         return digits.length >= 8 ? digits : null;
     };
 

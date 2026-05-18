@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   QrCode, Camera, MapPin, CheckCircle, AlertTriangle, XCircle, Loader2, LogIn, LogOut,
@@ -37,11 +37,48 @@ type ErrorKind =
   | 'no_camera'
   | 'insecure_context'
   | 'network'
+  | 'auth_error'
+  | 'rate_limit'
+  | 'server_error'
+  | 'duplicate_open_shift'
   | 'invalid_qr'
   | 'already_checked_in'
   | 'already_checked_in_stale'
   | 'not_checked_in'
   | 'other';
+
+// supabase.rpc(...) catch'inden gelen hatayı alt kovalara ayır. Eskiden
+// her şey tek "network" etiketine gidiyordu; gerçek sebep (DB constraint,
+// yetki, rate-limit, sunucu hatası) ayrılmadığı için Gül vakasında 4 ardışık
+// duplicate_open_shift "ağ sorunu" gibi görünüyordu.
+function classifyRpcError(err: any): ErrorKind {
+  const code = err?.code != null ? String(err.code) : '';
+  const status = typeof err?.status === 'number' ? err.status : Number(err?.status) || 0;
+  const msg = String(err?.message || err || '');
+
+  // Postgres unique violation — açık vardiya çakışması
+  if (code === '23505' || /duplicate key|unique constraint/i.test(msg)) {
+    return 'duplicate_open_shift';
+  }
+  // PostgREST yetki / RLS
+  if (status === 401 || status === 403 || code === 'PGRST301' || code === '42501') {
+    return 'auth_error';
+  }
+  // Rate limit
+  if (status === 429) {
+    return 'rate_limit';
+  }
+  // Supabase tarafı sunucu hatası
+  if (status >= 500 && status < 600) {
+    return 'server_error';
+  }
+  // Gerçek ağ hatası (fetch başarısız)
+  if (/Failed to fetch|NetworkError|Network request failed|TypeError/i.test(msg)) {
+    return 'network';
+  }
+  // Sınıflanamayanlar — UI yine ağ mesajı gösterir ama errorKind ayrı kalır
+  return 'network';
+}
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -371,13 +408,14 @@ const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
       if (err?.status) parts.push(`status: ${err.status}`);
       if (err?.hint) parts.push(`hint: ${err.hint}`);
       const detail = parts.join('\n');
-      setErrorKind('network');
+      const kind = classifyRpcError(err);
+      setErrorKind(kind);
       setErrorDetail(detail);
       setPhase('error');
       void logScanAttempt({
         employee: currentUser,
         status: 'error',
-        errorKind: 'network',
+        errorKind: kind,
         errorDetail: detail,
         action: actionRef.current,
         deviceInfo: deviceLabel,
@@ -388,7 +426,7 @@ const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
         employee_name: currentUser.name,
         branch: (currentUser as any).branch,
         action: actionRef.current,
-        error_kind: 'network',
+        error_kind: kind,
         error_detail: detail,
         device_info: deviceLabel,
         at: new Date().toISOString(),
@@ -410,6 +448,10 @@ const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
       case 'no_camera': return t('qr.noCamera');
       case 'insecure_context': return t('qr.insecureContext');
       case 'network': return t('qr.networkError');
+      case 'auth_error': return t('qr.authError');
+      case 'rate_limit': return t('qr.rateLimit');
+      case 'server_error': return t('qr.serverError');
+      case 'duplicate_open_shift': return t('qr.duplicateOpenShift');
       case 'invalid_qr': return t('qr.invalidQr');
       case 'already_checked_in': return t('qr.alreadyCheckedIn');
       case 'already_checked_in_stale': return t('qr.alreadyCheckedInStale');
@@ -421,7 +463,16 @@ const QrCheckIn: React.FC<Props> = ({ currentUser, onComplete }) => {
   // Tarayıcının User-Agent'ından cihaz markası+modelini çöz. Kullanıcının
   // kendi telefonu olduğu için herkes görür (admin filtresi yok); QR
   // taramadan önce hangi cihaz bilgisinin RPC'ye gideceği şeffaf olsun diye.
-  const deviceLabel = useMemo(() => detectDeviceInfo(), []);
+  // Chrome 110+ Android UA'sından gerçek modeli artık User-Agent Client
+  // Hints API'sinden async olarak çekiyoruz → detectDeviceInfo() Promise.
+  const [deviceLabel, setDeviceLabel] = useState<string>('');
+  useEffect(() => {
+    let cancelled = false;
+    detectDeviceInfo()
+      .then(label => { if (!cancelled) setDeviceLabel(label); })
+      .catch(() => { /* fallback boş kalır, UI deviceUnknown gösterir */ });
+    return () => { cancelled = true; };
+  }, []);
 
   // Environment diagnostics (pre-scan)
   const diag = (() => {

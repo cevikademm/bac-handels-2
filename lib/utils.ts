@@ -67,6 +67,41 @@ export function isUserOnShiftAt(userId: string, now: Date, schedules: any[]): bo
   return false;
 }
 
+// Verilen anda kullanıcı hangi şubede çalışıyor? Personel havuzdan farklı
+// şubelerde görev alabildiği için profiles.branch (ana şube) yanıltıcı olabilir
+// — tek doğruluk kaynağı vardiya planıdır. schedules: shift_schedules satırları
+// (week_start_date, branch, time_slot, days[7]).
+// Bulunamazsa null döner; aralık dışında ise en yakın aynı-gün vardiyasına
+// düşmeye çalışmaz (çağıran taraf fallback'i yönetir).
+export function getUserBranchAt(userId: string, at: Date, schedules: any[]): string | null {
+  if (!userId || !Array.isArray(schedules) || schedules.length === 0) return null;
+  const dayIdx = (at.getDay() + 6) % 7;
+  const minutesNow = at.getHours() * 60 + at.getMinutes();
+  const monday = new Date(at);
+  monday.setDate(monday.getDate() - dayIdx);
+  const weekKey = formatLocalDate(monday);
+
+  // 1) Tam saatte vardiyada olduğu satır
+  for (const row of schedules) {
+    if (row?.week_start_date !== weekKey) continue;
+    if (!row?.branch) continue;
+    if (!Array.isArray(row.days)) continue;
+    if (!parseCellIds(row.days[dayIdx]).includes(userId)) continue;
+    const range = parseTimeRange(row.time_slot || '');
+    if (!range) continue;
+    if (minutesNow >= range.start && minutesNow < range.end) return row.branch;
+  }
+  // 2) Aynı gün herhangi bir vardiyada (saat tutmasa bile) → tek atama varsa kullan
+  const sameDay = schedules.filter(row =>
+    row?.week_start_date === weekKey &&
+    !!row?.branch &&
+    Array.isArray(row.days) &&
+    parseCellIds(row.days[dayIdx]).includes(userId)
+  );
+  if (sameDay.length === 1) return sameDay[0].branch;
+  return null;
+}
+
 // Ondalık saat değerini "H:MM" string'ine çevir. Örn. 8.42 -> "8:25".
 // time_logs.total_hours bu formatta tutulur (2 ondalıklı), insan-okur biçimi.
 export function formatHoursAsHM(hours?: number | null): string {
@@ -194,43 +229,93 @@ export function getOrCreateDeviceId(): string {
   }
 }
 
-// QR check-in anında tarayıcının User-Agent'ından kısa bir cihaz etiketi üretir.
-// "Apple iPhone · A3:F7:C2:D1:B2:94", "Samsung Galaxy S23 Ultra · 5E:11:08:…"
-// formatında — marka/model + tarayıcıya özel kalıcı MAC-benzeri kimlik.
-// Kimlik localStorage'da saklanır; aynı kullanıcı aynı cihazdan tekrar
-// tarayınca aynı ID döner. Şifre paylaşımı tespiti: ID değişirse (cihaz
-// fiziksel olarak farklı veya kullanıcı verileri sildi) admin uyarı görür.
-export function detectDeviceInfo(): string {
+// Android UA'da (veya UA-CH hint'inde) yakalanan ham model string'ini bilinen
+// marka kalıplarına göre etiketler. Eşleşme yoksa modelin kendisi döner.
+function brandifyAndroidModel(rawModel: string): string {
+  const model = (rawModel || '').trim();
+  if (!model) return '';
+  if (/^SM-/i.test(model)) return samsungMarketingName(model);
+  if (/^Pixel/i.test(model)) return `Google ${model}`;
+  if (/^(Mi |Redmi|POCO|2\d{3}\w+)/i.test(model)) return `Xiaomi ${model}`;
+  if (/HUAWEI|HONOR|^(ALP|EVA|VOG|ELS|NOH|LIO|TAS|ANA|JNY|MAR|JAD)-/i.test(model)) {
+    return /HUAWEI|HONOR/i.test(model) ? model : `Huawei ${model}`;
+  }
+  if (/OnePlus|^(LE|GM|HD|IN|KB|CPH)\d{4}/i.test(model)) return `OnePlus ${model}`;
+  if (/^(SO-|SOG|XQ-)/i.test(model)) return `Sony ${model}`;
+  if (/^(RMX|realme)/i.test(model)) return `Realme ${model}`;
+  if (/^(V\d{4}|vivo)/i.test(model)) return `vivo ${model}`;
+  if (/^(CPH|OPPO)/i.test(model)) return `OPPO ${model}`;
+  if (/^(Nokia|TA-)/i.test(model)) return `Nokia ${model}`;
+  return model;
+}
+
+// Chrome 110+ (Android) User-Agent string'ini gizlilik amacıyla sabit "K"
+// değerine indirgedi — gerçek model artık UA-CH (User-Agent Client Hints)
+// API'siyle async olarak çekiliyor. Bu yüzden detectDeviceInfo() async oldu.
+// iOS Safari hâlâ "iPhone" sabitini döner (Apple model bilgisini paylaşmaz),
+// orada iOS sürümünü ekliyoruz ki en azından nesil ayırt edilebilsin.
+//
+// Çıktı formatı:
+//   "Android · Samsung Galaxy S23 Ultra · 2A:DB:BA:59:A3:EF"
+//   "Apple iPhone (iOS 17.4) · 62:4A:B4:F6:DD:59"
+//   "Apple iPad (iPadOS 17.4) · 5E:11:08:…"
+//   "Windows PC · …"  /  "Mac · …"
+//
+// MAC-benzeri kimlik localStorage'da saklanır; cihaz değişirse veya tarayıcı
+// verileri silinirse değişir → şifre paylaşımı tespiti.
+export async function detectDeviceInfo(): Promise<string> {
   const id = getOrCreateDeviceId();
   const idSuffix = id ? ` · ${id}` : '';
   const ua = (typeof navigator !== 'undefined' ? navigator.userAgent : '') || '';
 
-  const base = (() => {
-    if (/iPad/i.test(ua)) return 'Apple iPad';
-    if (/iPhone/i.test(ua)) return 'Apple iPhone';
-    const android = ua.match(/Android[^;]*;\s*([^;)]+?)(?:\s+Build|\))/i);
-    if (android) {
-      const model = android[1].trim();
-      if (/^SM-/i.test(model)) return samsungMarketingName(model);
-      if (/^Pixel/i.test(model)) return `Google ${model}`;
-      if (/^(Mi |Redmi|POCO|2\d{3}\w+)/i.test(model)) return `Xiaomi ${model}`;
-      if (/HUAWEI|HONOR|^(ALP|EVA|VOG|ELS|NOH|LIO|TAS|ANA|JNY|MAR|JAD)-/i.test(model)) {
-        return /HUAWEI|HONOR/i.test(model) ? model : `Huawei ${model}`;
-      }
-      if (/OnePlus|^(LE|GM|HD|IN|KB|CPH)\d{4}/i.test(model)) return `OnePlus ${model}`;
-      if (/^(SO-|SOG|XQ-)/i.test(model)) return `Sony ${model}`;
-      if (/^(RMX|realme)/i.test(model)) return `Realme ${model}`;
-      if (/^(V\d{4}|vivo)/i.test(model)) return `vivo ${model}`;
-      if (/^(CPH|OPPO)/i.test(model)) return `OPPO ${model}`;
-      if (/^(Nokia|TA-)/i.test(model)) return `Nokia ${model}`;
-      return model || 'Android cihaz';
-    }
-    if (/Windows/i.test(ua)) return 'Windows PC';
-    if (/Macintosh/i.test(ua)) return 'Mac';
-    return 'Bilinmeyen cihaz';
+  // iOS: Safari UA hiçbir zaman model adı içermez — sadece "iPhone" / "iPad".
+  // En faydalı ek bilgi iOS sürümü ("CPU iPhone OS 17_4_1 like Mac OS X").
+  const iosVer = (() => {
+    const m = ua.match(/OS (\d+)[_.](\d+)(?:[_.](\d+))?/);
+    if (!m) return '';
+    const parts = [m[1], m[2]].concat(m[3] ? [m[3]] : []);
+    return parts.join('.');
   })();
+  if (/iPad/i.test(ua)) {
+    return `Apple iPad${iosVer ? ` (iPadOS ${iosVer})` : ''}${idSuffix}`;
+  }
+  if (/iPhone/i.test(ua)) {
+    return `Apple iPhone${iosVer ? ` (iOS ${iosVer})` : ''}${idSuffix}`;
+  }
 
-  return `${base}${idSuffix}`;
+  // Android: önce UA-CH'den gerçek modeli çekmeyi dene (Chrome 90+).
+  // navigator.userAgentData mevcut değilse veya hint reddedilirse UA fallback.
+  const nav: any = typeof navigator !== 'undefined' ? navigator : null;
+  if (nav?.userAgentData && /Android/i.test(ua)) {
+    try {
+      const hints = await nav.userAgentData.getHighEntropyValues(['model', 'platformVersion']);
+      const model = (hints?.model || '').trim();
+      const branded = brandifyAndroidModel(model);
+      const verSuffix = hints?.platformVersion ? ` ${hints.platformVersion}` : '';
+      if (branded) return `Android${verSuffix} · ${branded}${idSuffix}`;
+      // Model boş döndüyse UA fallback'ine düş
+    } catch {
+      // izin reddi / desteklenmeyen tarayıcı — UA fallback'ine düş
+    }
+  }
+
+  // UA fallback (Chrome <110 veya UA-CH yoksa)
+  const androidMatch = ua.match(/Android\s*([\d.]+)?[^;]*;\s*([^;)]+?)(?:\s+Build|\))/i);
+  if (androidMatch) {
+    const verSuffix = androidMatch[1] ? ` ${androidMatch[1]}` : '';
+    const rawModel = androidMatch[2].trim();
+    // "K" Chrome 110+ placeholder'ı — anlamsız, gizle.
+    const isPlaceholder = /^K$/i.test(rawModel) || rawModel.length < 2;
+    if (isPlaceholder) {
+      return `Android${verSuffix} cihaz${idSuffix}`;
+    }
+    const branded = brandifyAndroidModel(rawModel);
+    return `Android${verSuffix} · ${branded || rawModel}${idSuffix}`;
+  }
+
+  if (/Windows/i.test(ua)) return `Windows PC${idSuffix}`;
+  if (/Macintosh/i.test(ua)) return `Mac${idSuffix}`;
+  return `Bilinmeyen cihaz${idSuffix}`;
 }
 
 // Fiş fotoğrafı için kanvas tabanlı sıkıştırma. Mobilde ham foto 3-5 MB

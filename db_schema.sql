@@ -668,12 +668,20 @@ WHERE entry_method = 'qr'
   AND check_in_at IS NOT NULL
   AND date = (NOW() AT TIME ZONE 'Europe/Berlin')::date;
 
--- 13b. QR girişlerinin zamanı bir daha manuel değiştirilemesin
+-- 13b. QR girişlerinin zamanı personel tarafından bir daha değiştirilemesin
 -- (start_time + check_in_at korunur; end_time/check_out_at çıkış RPC'si tarafından
--- yazılmaya devam eder).
+-- yazılmaya devam eder). Admin (app.current_user_role='Admin') bu kısıttan muaftır;
+-- manuel düzeltme yapabilir.
 CREATE OR REPLACE FUNCTION public.prevent_qr_time_edit()
 RETURNS TRIGGER AS $$
+DECLARE
+    v_role TEXT;
 BEGIN
+    v_role := current_setting('app.current_user_role', true);
+    IF v_role = 'Admin' THEN
+        RETURN NEW;
+    END IF;
+
     IF OLD.entry_method = 'qr' THEN
         IF NEW.start_time IS DISTINCT FROM OLD.start_time THEN
             RAISE EXCEPTION 'QR girişinin start_time alanı değiştirilemez (kayıt id: %)', OLD.id;

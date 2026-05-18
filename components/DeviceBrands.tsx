@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Smartphone, Loader2, Search, ShieldAlert, Copy, Check, User as UserIcon, AlertTriangle,
   UserX, XCircle, Camera, Wifi, Lock, QrCode, Calendar as CalendarIcon, Clock,
-  LogIn, LogOut, CalendarDays
+  LogIn, LogOut, CalendarDays, MapPin
 } from 'lucide-react';
 import { Employee, Role } from '../types';
 import { supabase } from '../lib/supabase';
@@ -12,9 +12,55 @@ import { fetchShiftsForDate, ShiftWithStatus, STATUS_META } from '../lib/shiftSt
 import { fmtBerlinHm } from '../lib/berlinTime';
 
 interface RawLog {
+  id: string;
   employee_id: string;
   device_info: string | null;
   check_in_at: string | null;
+  date: string;
+  start_time: string | null;
+  branch: string | null;
+}
+
+// Alışılmış cihaz eşikleri — DeviceTrustCard.tsx ile birebir aynı kalmalı.
+// 2026-05-17: Eşik gevşetildi (3+2x → 2+1.5x). Sebep: az QR girişi olan
+// personellerde bile sahip tespiti yapılabilsin, gerçek telefon çakışmaları
+// yakalanabilsin. Tek tek girişlerde sahte sahip atamasını önlemek için
+// MIN_COUNT 1'e indirilmedi.
+const DOMINANT_MIN_COUNT = 2;
+const DOMINANCE_RATIO = 1.5;
+
+// "Telefon çakışması" grubu: bir kullanıcının alışılmış cihazından farklı
+// bir cihazla yaptığı TÜM QR girişleri tek bir satırda toplanır.
+interface PhoneConflictOccurrence {
+  logId: string;
+  date: string;
+  time: string;
+  branch: string;
+  checkInAt: string | null;
+}
+
+// Aynı cihazı kullanan diğer kullanıcılar (dominant eşiğini geçmemiş olsalar
+// dahi, kim kaç kez kullanmış görelim).
+interface DeviceUser {
+  employeeId: string;
+  employeeName: string;
+  count: number;
+  isDominant: boolean;
+}
+
+interface PhoneConflictRow {
+  employeeId: string;
+  employeeName: string;
+  deviceUsed: string;
+  expectedDevice: string;
+  // Bu cihazı kullanan diğer kişiler (kendisi hariç) — kim kaç kez:
+  otherUsers: DeviceUser[];
+  // Cihazın "asıl sahibi" varsa (dominant device olarak başkasının kaydı):
+  dominantOwnerName: string | null;
+  dominantOwnerId: string | null;
+  occurrences: PhoneConflictOccurrence[];
+  firstSeen: string;
+  lastSeen: string;
 }
 
 // "Apple iPhone · 62:4A:B4:F6:DD:59" → "62:4A:B4:F6:DD:59"
@@ -23,8 +69,18 @@ function extractMac(deviceInfo: string): string {
   return (parts[1] || '').trim();
 }
 
+// "Apple iPhone · 62:4A:B4:F6:DD:59" → "Apple iPhone"
+// Ayraç yoksa veya ilk parça MAC görünümlüyse (":" içeriyor) marka yok say.
+function extractBrand(deviceInfo: string): string {
+  if (!deviceInfo.includes('·')) return '';
+  const first = (deviceInfo.split('·')[0] || '').trim();
+  if (!first || first.includes(':')) return '';
+  return first;
+}
+
 interface MacUsage {
   mac: string;
+  brand: string; // En son görülen cihaz markası ("Apple iPhone", "Samsung Galaxy", ...)
   count: number;
   lastSeen: string;
 }
@@ -106,7 +162,30 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
   const { t, formatDate } = useLanguage();
   const [rows, setRows] = useState<PersonRow[]>([]);
   const [conflicts, setConflicts] = useState<MacConflict[]>([]);
+  const [phoneConflicts, setPhoneConflicts] = useState<PhoneConflictRow[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Çakışma kayıtları için başlangıç eşiği (ISO string, dahil) — bu tarihten
+  // sonra yapılan QR girişleri analize girer. localStorage'da kalıcıdır.
+  // null = "tüm geçmişi göster". Cihazın asıl sahibi tespiti yine tüm
+  // verilerden yapılır; sadece phone-conflict satırları bu filtreye tâbidir.
+  const [conflictsSinceTs, setConflictsSinceTs] = useState<string | null>(() => {
+    try { return localStorage.getItem('phoneConflictsSinceTs'); } catch { return null; }
+  });
+  const updateConflictsSince = (iso: string | null) => {
+    setConflictsSinceTs(iso);
+    try {
+      if (iso) localStorage.setItem('phoneConflictsSinceTs', iso);
+      else localStorage.removeItem('phoneConflictsSinceTs');
+    } catch { /* ignore */ }
+  };
+  const startFromTodayMidnight = () => {
+    const d = new Date(); d.setHours(0, 0, 0, 0);
+    updateConflictsSince(d.toISOString());
+  };
+  const startFromNow = () => {
+    updateConflictsSince(new Date().toISOString());
+  };
   const [search, setSearch] = useState('');
   const [copiedMac, setCopiedMac] = useState<string | null>(null);
   const [tab, setTab] = useState<TabView>('people');
@@ -134,7 +213,7 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
       while (offset < HARD_CAP) {
         const { data, error } = await supabase
           .from('time_logs')
-          .select('employee_id, device_info, check_in_at')
+          .select('id, employee_id, device_info, check_in_at, date, start_time, branch')
           .eq('entry_method', 'qr')
           .not('device_info', 'is', null)
           .order('check_in_at', { ascending: false })
@@ -180,8 +259,9 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
         attemptedAt: r.attempted_at,
       }));
 
-      // employee_id → MAC → { count, lastSeen }
-      const perUser = new Map<string, Map<string, { count: number; lastSeen: string }>>();
+      // employee_id → MAC → { count, lastSeen, brand }
+      // brand: aynı MAC için en son görülen marka kazanır (lastSeen güncellenirken yenilenir).
+      const perUser = new Map<string, Map<string, { count: number; lastSeen: string; brand: string }>>();
       // MAC → employee_id → { count, firstSeen, lastSeen }  (çakışma hesabı için)
       const perMac = new Map<string, Map<string, { count: number; firstSeen: string; lastSeen: string }>>();
 
@@ -190,15 +270,20 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
         if (!l.device_info) return;
         const mac = extractMac(l.device_info).toUpperCase();
         if (!mac) return;
+        const brand = extractBrand(l.device_info);
         const ts = l.check_in_at || '';
         if (ts && (oldest === '' || ts < oldest)) oldest = ts;
 
         // perUser
         if (!perUser.has(l.employee_id)) perUser.set(l.employee_id, new Map());
         const userMap = perUser.get(l.employee_id)!;
-        const u = userMap.get(mac) || { count: 0, lastSeen: ts };
+        const u = userMap.get(mac) || { count: 0, lastSeen: ts, brand };
         u.count += 1;
-        if (ts > u.lastSeen) u.lastSeen = ts;
+        // En son görülen check-in'in markası kazanır
+        if (ts >= u.lastSeen) {
+          u.lastSeen = ts;
+          if (brand) u.brand = brand;
+        }
         userMap.set(mac, u);
 
         // perMac
@@ -215,7 +300,7 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
       const list: PersonRow[] = [];
       perUser.forEach((macMap, employeeId) => {
         const macs: MacUsage[] = Array.from(macMap.entries())
-          .map(([mac, v]) => ({ mac, count: v.count, lastSeen: v.lastSeen }))
+          .map(([mac, v]) => ({ mac, brand: v.brand, count: v.count, lastSeen: v.lastSeen }))
           .sort((a, b) => b.count - a.count);
         list.push({
           employeeId,
@@ -224,6 +309,115 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
         });
       });
       list.sort((a, b) => a.employeeName.localeCompare(b.employeeName, 'tr'));
+
+      // === Telefon Çakışmaları (kişinin alışılmış cihazından farklı cihaz) ===
+      // Önce her kullanıcı için device_info bazında alışılmış cihazı çıkar.
+      // Eşik DeviceTrustCard.tsx ile birebir aynı: ≥3 kullanım VE ikincinin
+      // en az iki katı (ya da ikinci hiç yoksa).
+      const perUserDevice = new Map<string, Map<string, number>>();
+      logs.forEach(l => {
+        if (!l.device_info) return;
+        if (!perUserDevice.has(l.employee_id)) perUserDevice.set(l.employee_id, new Map());
+        const c = perUserDevice.get(l.employee_id)!;
+        c.set(l.device_info, (c.get(l.device_info) || 0) + 1);
+      });
+      const dominantDevice = new Map<string, string>();
+      perUserDevice.forEach((counts, userId) => {
+        const sorted = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+        if (sorted[0] && sorted[0][1] >= DOMINANT_MIN_COUNT) {
+          const second = sorted[1]?.[1] || 0;
+          if (sorted[0][1] >= second * DOMINANCE_RATIO || second === 0) {
+            dominantDevice.set(userId, sorted[0][0]);
+          }
+        }
+      });
+      // device_info → asıl sahip (bu cihaz dominant olan ilk kullanıcı)
+      const deviceOwner = new Map<string, string>();
+      dominantDevice.forEach((device, userId) => {
+        if (!deviceOwner.has(device)) deviceOwner.set(device, userId);
+      });
+
+      // device_info → her kullanıcının bu cihazla yaptığı toplam giriş sayısı
+      // (her cihaz için "kim kaç kez kullandı" haritasını çıkarmak için).
+      const deviceUserCounts = new Map<string, Map<string, number>>();
+      logs.forEach(l => {
+        if (!l.device_info) return;
+        if (!deviceUserCounts.has(l.device_info)) deviceUserCounts.set(l.device_info, new Map());
+        const m = deviceUserCounts.get(l.device_info)!;
+        m.set(l.employee_id, (m.get(l.employee_id) || 0) + 1);
+      });
+
+      // Çakışmaları (employeeId, deviceUsed) çiftine göre grupla.
+      // Aynı personelin aynı yabancı cihazla yaptığı tüm girişler tek karta düşer.
+      // Cutoff: conflictsSinceTs varsa bu tarihten ÖNCEKİ kayıtlar listelenmez.
+      // (Sahip tespiti yine tüm geçmişten yapılır — yukarıdaki dominantDevice.)
+      const groupKey = (uid: string, dev: string) => `${uid} ${dev}`;
+      const groups = new Map<string, PhoneConflictRow>();
+      logs.forEach(l => {
+        if (!l.device_info) return;
+        const expected = dominantDevice.get(l.employee_id);
+        if (!expected || expected === l.device_info) return;
+        // Cutoff filtresi — eski kayıtları yok say
+        if (conflictsSinceTs) {
+          const ts = l.check_in_at || l.date;
+          if (!ts || ts < conflictsSinceTs) return;
+        }
+        // YENİ KURAL: Çakışma sayılması için kullanılan cihazın sistemde başka
+        // bir kişinin alışılmış telefonu olarak kayıtlı olması gerekir. Aksi
+        // halde kişinin ikinci/yedek telefonu olabilir, alarm üretmiyoruz.
+        const ownerOfUsedDevice = deviceOwner.get(l.device_info);
+        if (!ownerOfUsedDevice || ownerOfUsedDevice === l.employee_id) return;
+
+        const key = groupKey(l.employee_id, l.device_info);
+        let g = groups.get(key);
+        if (!g) {
+          // Bu cihazı kullanan diğer kişiler — sahibinin kendisi dışındakiler hariç tutulur
+          // (kendisi zaten "kullanan" kişi, "kimin telefonu" değil).
+          const userCounts = deviceUserCounts.get(l.device_info) || new Map();
+          const otherUsers: DeviceUser[] = Array.from(userCounts.entries())
+            .filter(([uid]) => uid !== l.employee_id)
+            .map(([uid, count]) => ({
+              employeeId: uid,
+              employeeName: nameMap.get(uid) || '—',
+              count,
+              isDominant: dominantDevice.get(uid) === l.device_info,
+            }))
+            .sort((a, b) => {
+              if (a.isDominant !== b.isDominant) return a.isDominant ? -1 : 1;
+              return b.count - a.count;
+            });
+          const ownerId = deviceOwner.get(l.device_info) || null;
+          g = {
+            employeeId: l.employee_id,
+            employeeName: nameMap.get(l.employee_id) || '—',
+            deviceUsed: l.device_info,
+            expectedDevice: expected,
+            otherUsers,
+            dominantOwnerName: ownerId ? (nameMap.get(ownerId) || null) : null,
+            dominantOwnerId: ownerId,
+            occurrences: [],
+            firstSeen: '',
+            lastSeen: '',
+          };
+          groups.set(key, g);
+        }
+        const ts = l.check_in_at || l.date;
+        g.occurrences.push({
+          logId: l.id,
+          date: l.date,
+          time: (l.start_time || '').slice(0, 5),
+          branch: l.branch || '—',
+          checkInAt: l.check_in_at,
+        });
+        if (!g.firstSeen || ts < g.firstSeen) g.firstSeen = ts;
+        if (ts > g.lastSeen) g.lastSeen = ts;
+      });
+      // Her grubun tarihlerini yeni → eski sırala
+      groups.forEach(g => {
+        g.occurrences.sort((a, b) => (b.checkInAt || b.date).localeCompare(a.checkInAt || a.date));
+      });
+      const phoneConfList: PhoneConflictRow[] = Array.from(groups.values())
+        .sort((a, b) => (b.lastSeen || '').localeCompare(a.lastSeen || ''));
 
       // Çakışma listesi: sadece 2+ farklı kişinin kullandığı MAC'ler
       const confs: MacConflict[] = [];
@@ -254,6 +448,7 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
 
       setRows(list);
       setConflicts(confs);
+      setPhoneConflicts(phoneConfList);
       setScannedCount(logs.length);
       setOldestSeen(oldest);
       setErrors(errorList);
@@ -293,7 +488,7 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
       cancelled = true;
       try { supabase.removeChannel(channel); } catch { /* ignore */ }
     };
-  }, [allowed]);
+  }, [allowed, conflictsSinceTs]);
 
   const filteredPeople = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -312,6 +507,21 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
       c.users.some(u => u.employeeName.toLowerCase().includes(q))
     );
   }, [conflicts, search]);
+
+  const filteredPhoneConflicts = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return phoneConflicts;
+    return phoneConflicts.filter(c =>
+      c.employeeName.toLowerCase().includes(q) ||
+      (c.dominantOwnerName || '').toLowerCase().includes(q) ||
+      c.deviceUsed.toLowerCase().includes(q) ||
+      c.expectedDevice.toLowerCase().includes(q) ||
+      c.otherUsers.some(u => u.employeeName.toLowerCase().includes(q)) ||
+      c.occurrences.some(o => (o.branch || '').toLowerCase().includes(q))
+    );
+  }, [phoneConflicts, search]);
+
+  const totalConflicts = phoneConflicts.length + conflicts.length;
 
   // shiftDateYmd değişince ilgili günü çek
   useEffect(() => {
@@ -440,11 +650,11 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
             <AlertTriangle size={14} />
             {t('devices.tabConflicts')}
             <span className={`text-[10px] tabular-nums px-1.5 py-0.5 rounded ${
-              conflicts.length > 0
+              totalConflicts > 0
                 ? 'bg-red-900/50 text-red-200'
                 : 'bg-slate-50 dark:bg-zinc-950/60 text-slate-600 dark:text-zinc-400'
             }`}>
-              {conflicts.length}
+              {totalConflicts}
             </span>
           </button>
           <button
@@ -745,13 +955,19 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {r.macs.map(({ mac }) => (
+                  {r.macs.map(({ mac, brand }) => (
                     <button
                       key={mac}
                       onClick={() => copyMac(mac)}
                       className="group inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 hover:border-cyan-700/60 transition-colors"
                       title={t('devices.copyMac')}
                     >
+                      {brand && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-cyan-700 dark:text-cyan-300 pr-1.5 mr-0.5 border-r border-slate-200 dark:border-zinc-800">
+                          <Smartphone size={10} className="text-cyan-500 dark:text-cyan-400" />
+                          {brand}
+                        </span>
+                      )}
                       <span className="text-[12px] font-mono text-slate-800 dark:text-zinc-200 tabular-nums">{mac}</span>
                       {copiedMac === mac
                         ? <Check size={12} className="text-emerald-400" />
@@ -762,16 +978,196 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
               </div>
             ))
           ) : (
-            // Çakışma sekmesi
-            filteredConflicts.length === 0 ? (
+            // Çakışma sekmesi — önce telefon çakışmaları (detaylı), sonra MAC çakışmaları
+            (filteredPhoneConflicts.length === 0 && filteredConflicts.length === 0) ? (
               <div className="p-6 bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl text-center text-sm text-slate-500 dark:text-zinc-500 italic">
                 {t('devices.conflictsEmpty')}
               </div>
-            ) : filteredConflicts.map(c => (
-              <div
-                key={c.mac}
-                className="bg-red-950/20 border border-red-900/40 rounded-xl p-3 md:p-4"
-              >
+            ) : (
+              <>
+                {/* TELEFON ÇAKIŞMALARI — alışılmış cihazından farklı telefonla QR mesai açma */}
+                {filteredPhoneConflicts.length > 0 && (
+                  <section className="bg-white dark:bg-zinc-900/40 border border-red-900/30 rounded-2xl p-3 md:p-4 mb-3">
+                    <header className="flex items-start gap-2 mb-3">
+                      <ShieldAlert size={18} className="text-red-500 mt-0.5 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-sm md:text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                          {t('set.phoneConflictsTitle')}
+                          <span className="text-[10px] uppercase tracking-wider bg-red-900/40 text-red-300 px-2 py-0.5 rounded-full border border-red-800/60 tabular-nums">
+                            {filteredPhoneConflicts.length}
+                          </span>
+                        </h3>
+                        <p className="text-[11px] text-slate-500 dark:text-zinc-500 mt-0.5">
+                          {t('set.phoneConflictsDesc')}
+                        </p>
+
+                        {/* Cutoff kontrol satırı — geçmişi yok say / tümünü göster */}
+                        <div className="mt-2 flex items-center gap-2 flex-wrap text-[11px]">
+                          {conflictsSinceTs ? (
+                            <>
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-900/30 border border-emerald-800/50 text-emerald-200">
+                                <Clock size={10} />
+                                Sadece <strong>{formatDate(conflictsSinceTs, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</strong> sonrası gösteriliyor
+                              </span>
+                              <button
+                                onClick={() => updateConflictsSince(null)}
+                                className="px-2 py-0.5 rounded border border-slate-300 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                                title="Tüm geçmiş çakışmaları yeniden göster"
+                              >
+                                Tüm geçmişi göster
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-slate-500 dark:text-zinc-500">Tüm geçmiş kayıtlar dahil.</span>
+                              <button
+                                onClick={startFromTodayMidnight}
+                                className="px-2 py-0.5 rounded border border-red-700/50 bg-red-900/20 text-red-200 hover:bg-red-900/40 transition-colors"
+                                title="Bugünden önceki tüm çakışmaları listeden çıkarır (kayıtlar silinmez)"
+                              >
+                                Bugünden başlat
+                              </button>
+                              <button
+                                onClick={startFromNow}
+                                className="px-2 py-0.5 rounded border border-slate-300 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                                title="Şu andan itibaren oluşacak çakışmaları gösterir"
+                              >
+                                Şu andan başlat
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </header>
+
+                    <ul className="space-y-2">
+                      {filteredPhoneConflicts.map(c => {
+                        const ownerLabel = c.dominantOwnerName || 'sahibi belirsiz';
+                        const otherUsersExceptOwner = c.otherUsers.filter(u => !u.isDominant);
+                        return (
+                        <li key={`${c.employeeId}-${c.deviceUsed}`} className="p-4 rounded-xl bg-red-900/10 border border-red-900/40">
+                          {/* ÜST: net cümle — X, Y'nin telefonunu kullandı */}
+                          <div className="flex items-start gap-3 mb-3 pb-3 border-b border-red-900/30">
+                            <AlertTriangle size={20} className="text-red-400 shrink-0 mt-0.5" />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-baseline gap-2 flex-wrap">
+                                <span className="text-base md:text-lg font-bold text-slate-900 dark:text-white">{c.employeeName}</span>
+                                <span className="text-slate-500 dark:text-zinc-500">→</span>
+                                <span className={`text-base md:text-lg font-bold ${c.dominantOwnerName ? 'text-amber-300' : 'text-slate-500 dark:text-zinc-500 italic'}`}>
+                                  {ownerLabel}
+                                </span>
+                                <span className="text-sm text-slate-600 dark:text-zinc-400">
+                                  adlı kişinin telefonunu <strong className="text-red-300">{c.occurrences.length}</strong> kez kullandı
+                                </span>
+                              </div>
+                              <div className="text-[11px] text-slate-500 dark:text-zinc-500 mt-1 flex items-center gap-2 flex-wrap">
+                                <span className="text-[10px] uppercase tracking-wider bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 px-1.5 py-0.5 rounded border border-slate-200 dark:border-zinc-700">QR</span>
+                                <span>İlk: <strong>{c.firstSeen && formatDate(c.firstSeen, { day: '2-digit', month: 'short', year: 'numeric' })}</strong></span>
+                                <span>·</span>
+                                <span>Son: <strong>{c.lastSeen && formatDate(c.lastSeen, { day: '2-digit', month: 'short', year: 'numeric' })}</strong></span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* İKİ SÜTUN: kullandığı telefon vs olması gereken */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3 text-xs">
+                            <div className="p-2.5 rounded-lg bg-red-950/30 border border-red-700/40">
+                              <div className="text-[10px] uppercase tracking-wider text-red-300 mb-1 flex items-center gap-1">
+                                <Smartphone size={11} />
+                                <strong>{c.employeeName}</strong>’in kullandığı telefon
+                              </div>
+                              <div className="text-slate-900 dark:text-white font-mono break-all text-[12px]">{c.deviceUsed}</div>
+                              {c.dominantOwnerName && (
+                                <div className="text-[11px] mt-1.5 text-amber-200 inline-flex items-center gap-1">
+                                  <UserIcon size={10} className="text-amber-300" />
+                                  Bu telefonun sahibi: <strong>{c.dominantOwnerName}</strong>
+                                </div>
+                              )}
+                            </div>
+                            <div className="p-2.5 rounded-lg bg-emerald-900/10 border border-emerald-800/40">
+                              <div className="text-[10px] uppercase tracking-wider text-emerald-300 mb-1 flex items-center gap-1">
+                                <Smartphone size={11} />
+                                <strong>{c.employeeName}</strong>’in kendi telefonu (olması gereken)
+                              </div>
+                              <div className="text-slate-700 dark:text-zinc-200 font-mono break-all text-[12px]">{c.expectedDevice}</div>
+                            </div>
+                          </div>
+
+                          {/* TARİH LİSTESİ — açıklayıcı başlıkla */}
+                          <div className="mt-3">
+                            <div className="text-[11px] text-slate-600 dark:text-zinc-400 mb-2 flex items-center gap-1.5">
+                              <CalendarIcon size={12} className="text-red-400" />
+                              <strong className="text-slate-700 dark:text-zinc-200">{c.employeeName}</strong>,
+                              <strong className="text-amber-300">{ownerLabel}</strong>’in telefonunu şu zamanlarda kullandı:
+                            </div>
+                            <ul className="space-y-1 text-[11px] max-h-64 overflow-y-auto custom-scrollbar pr-1">
+                              {c.occurrences.map(o => {
+                                const dow = formatDate(o.date, { weekday: 'short' });
+                                return (
+                                  <li
+                                    key={o.logId}
+                                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-white dark:bg-zinc-950/60 border border-red-900/30 hover:border-red-700/50 transition-colors"
+                                  >
+                                    <span className="inline-flex items-center gap-1.5 text-slate-700 dark:text-zinc-200 font-medium min-w-[110px]">
+                                      <CalendarIcon size={11} className="text-red-400 shrink-0" />
+                                      {formatDate(o.date, { day: '2-digit', month: 'short', year: 'numeric' })}
+                                    </span>
+                                    <span className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">
+                                      {dow}
+                                    </span>
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-900/20 border border-red-900/40 text-red-200 font-mono tabular-nums">
+                                      <Clock size={10} />
+                                      {o.time || '—:—'}
+                                    </span>
+                                    {o.branch && o.branch !== '—' && (
+                                      <span className="inline-flex items-center gap-1 text-slate-500 dark:text-zinc-400 ml-auto">
+                                        <MapPin size={10} className="shrink-0" />
+                                        <span className="truncate max-w-[140px]">{o.branch}</span>
+                                      </span>
+                                    )}
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+
+                          {/* DİĞER KULLANANLAR — küçük dipnot */}
+                          {otherUsersExceptOwner.length > 0 && (
+                            <div className="mt-3 pt-2 border-t border-red-900/20 text-[11px] text-slate-500 dark:text-zinc-500">
+                              <span className="text-[10px] uppercase tracking-wider mr-1">Aynı telefonu kullanan diğer kişiler:</span>
+                              {otherUsersExceptOwner.map((u, i) => (
+                                <span key={u.employeeId}>
+                                  {i > 0 && ', '}
+                                  <span className="text-slate-700 dark:text-zinc-300">{u.employeeName}</span>
+                                  <span className="text-slate-500 dark:text-zinc-500"> ({u.count}×)</span>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </li>
+                        );
+                      })}
+                    </ul>
+                  </section>
+                )}
+
+                {/* MAC ÇAKIŞMALARI — aynı MAC iki ya da daha fazla kullanıcıda */}
+                {filteredConflicts.length > 0 && (
+                  <section className="space-y-2">
+                    <header className="flex items-center gap-2 px-1">
+                      <AlertTriangle size={14} className="text-red-400" />
+                      <h3 className="text-xs uppercase tracking-wider font-semibold text-slate-600 dark:text-zinc-400">
+                        {t('devices.tabConflicts')} · MAC
+                      </h3>
+                      <span className="text-[10px] tabular-nums bg-red-900/40 text-red-200 px-1.5 py-0.5 rounded">
+                        {filteredConflicts.length}
+                      </span>
+                    </header>
+                    {filteredConflicts.map(c => (
+                      <div
+                        key={c.mac}
+                        className="bg-red-950/20 border border-red-900/40 rounded-xl p-3 md:p-4"
+                      >
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <button
                     onClick={() => copyMac(c.mac)}
@@ -823,7 +1219,11 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
                   ))}
                 </ul>
               </div>
-            ))
+                    ))}
+                  </section>
+                )}
+              </>
+            )
           )}
         </div>
       </div>
