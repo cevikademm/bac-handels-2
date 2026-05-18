@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
 import { formatLocalDate, isUserOnShiftAt, getUserBranchAt, formatTimeOfDay, canSeeOffShiftAlerts, compressImageToJpeg } from '../lib/utils';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
-import { Trophy, TrendingUp, ShoppingBag, MapPin, Award, Medal, Calendar, Package, Activity, BarChart3, ListTodo, User, Lock, EyeOff, Filter, ChevronDown, Clock, Tag, Send, Loader2, CheckCircle2, XCircle, Trash2, X, Star, Zap, Crown, Percent, Settings, AlertTriangle, Camera, Receipt, Upload } from 'lucide-react';
+import { Trophy, TrendingUp, ShoppingBag, MapPin, Award, Medal, Calendar, Package, Activity, BarChart3, ListTodo, User, Lock, EyeOff, Filter, ChevronDown, Clock, Tag, Send, Loader2, CheckCircle2, XCircle, Trash2, X, Star, Zap, Crown, Percent, Settings, AlertTriangle, Camera, Receipt, Upload, Edit2, Save } from 'lucide-react';
 import { GlowingEffect } from './ui/glowing-effect';
 import { notifyEvent } from '../lib/notifyEvent';
 
@@ -76,6 +76,19 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
     const [actionProducts, setActionProducts] = useState<ActionProduct[]>([]);
     const [showProductModal, setShowProductModal] = useState(false);
     const [newProductName, setNewProductName] = useState('');
+
+    // Satış düzenleme modal'ı — yanlış kaydedilen satışları düzeltmek için.
+    // İzin: admin her satırı; personel sadece kendi 'Bekliyor' satırını düzenleyebilir.
+    // Onaylandı/Reddedildi statüsündeki kayıtlar admin dışında düzenlenemez —
+    // aksi halde personel onaydan sonra geriye dönük değişiklik yapabilir.
+    const [editingSale, setEditingSale] = useState<SalesLog | null>(null);
+    const [editForm, setEditForm] = useState({
+        product: '',
+        quantity: 1,
+        date: '',
+        branch: '' as string,
+    });
+    const [isEditSaving, setIsEditSaving] = useState(false);
 
     // New Sales Form State
     // branch: Personel havuzdan farklı şubelerde çalışabildiği için satış girilirken
@@ -343,6 +356,67 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
         } catch (err) { console.error(err); }
     };
 
+    // Düzenleme yetkisi: admin daima; personel sadece kendi 'Bekliyor' kaydını.
+    const canEditSale = (log: SalesLog): boolean => {
+        if (isAdmin) return true;
+        return log.employeeId === currentUser.id && log.status === 'Bekliyor';
+    };
+
+    // Modal'ı aç ve formu mevcut değerlerle doldur.
+    const handleOpenEdit = (log: SalesLog) => {
+        if (!canEditSale(log)) return;
+        setEditingSale(log);
+        setEditForm({
+            product: log.productName,
+            quantity: log.quantity,
+            date: log.saleDate?.slice(0, 10) || new Date().toISOString().split('T')[0],
+            branch: (log.branch as string) || '',
+        });
+    };
+
+    const handleCloseEdit = () => {
+        if (isEditSaving) return;
+        setEditingSale(null);
+    };
+
+    // Düzenlenen satışı DB'ye yaz + listeyi güncelle.
+    // Status'a dokunmuyoruz: admin onay/red butonları ayrı; düzenleme sadece
+    // veri içeriğini (tarih/şube/ürün/adet) günceller.
+    const handleSaveEdit = async () => {
+        if (!editingSale || isEditSaving) return;
+        if (!editForm.product) { alert(t('sales.alertSelectProduct')); return; }
+        if (!editForm.quantity || editForm.quantity <= 0) { alert(t('sales.alertValidQty')); return; }
+        if (!editForm.branch) { alert(t('sales.branch')); return; }
+
+        setIsEditSaving(true);
+        try {
+            const payload = {
+                product_name: editForm.product,
+                quantity: editForm.quantity,
+                sale_date: editForm.date,
+                branch: editForm.branch,
+            };
+            const { error } = await supabase
+                .from('sales_logs')
+                .update(payload)
+                .eq('id', editingSale.id);
+            if (error) throw error;
+
+            setSalesData(prev => prev.map(l => l.id === editingSale.id ? {
+                ...l,
+                productName: editForm.product,
+                quantity: editForm.quantity,
+                saleDate: editForm.date,
+                branch: editForm.branch as any,
+            } : l));
+            setEditingSale(null);
+        } catch (err: any) {
+            alert((t('sales.alertUploadFailed') || 'Hata: ') + (err.message || err));
+        } finally {
+            if (isMounted.current) setIsEditSaving(false);
+        }
+    };
+
     // Bir satışın gösterilen şubesi: tek doğruluk kaynağı vardiya planıdır
     // (personel havuzdan gelip o gün başka şubede çalışmış olabilir). Plana
     // göre çözülemezse stored sales_logs.branch fallback olarak kullanılır.
@@ -432,15 +506,31 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
         return { approvedCount, pendingCount, chartData, topProduct, topProductVal: productMap[topProduct] || 0 };
     }, [filteredResults, resolveSaleBranch]);
 
-    // Şube Bazlı Dağılım grafiği için ürün listesi — hem aktif action_products
-    // hem de geçmiş satışlarda geçen ürün adları (silinmiş aksiyon ürünleri için
-    // geçmiş kayıtlar yine seçilebilsin).
+    // Şube Bazlı Dağılım grafiği için ürün listesi — sadece o anki filtre
+    // kapsamında (seçili yıl/ay + grafik şubesi) gerçekten satışı olan ürünleri
+    // göster. Aksi halde dropdown silinmiş veya bu dönemde hiç satılmayan
+    // ürünlerle dolup boşa seçim yaptırıyordu.
     const chartProductOptions = useMemo(() => {
         const set = new Set<string>();
-        actionProducts.forEach(p => { if (p.name) set.add(p.name); });
-        salesData.forEach(s => { if (s.productName) set.add(s.productName); });
+        salesData.forEach(s => {
+            if (!s.productName) return;
+            const d = new Date(s.saleDate);
+            if (d.getFullYear() !== selectedYear) return;
+            if ((d.getMonth() + 1) !== selectedMonth) return;
+            if (chartBranch !== 'ALL' && resolveSaleBranch(s) !== chartBranch) return;
+            set.add(s.productName);
+        });
         return Array.from(set).sort((a, b) => a.localeCompare(b, 'tr'));
-    }, [actionProducts, salesData]);
+    }, [salesData, selectedYear, selectedMonth, chartBranch, resolveSaleBranch]);
+
+    // Seçili ürün, daralan dropdown listesinin dışına çıktıysa (örn. kullanıcı
+    // şubeyi değiştirdi ve o şubede o ürün hiç satılmamış) "Tüm Ürünler"e düşür.
+    // Aksi halde grafik boş kalır ve sebebi belirsiz olur.
+    useEffect(() => {
+        if (chartProduct !== 'ALL' && !chartProductOptions.includes(chartProduct)) {
+            setChartProduct('ALL');
+        }
+    }, [chartProductOptions, chartProduct]);
 
     // Grafik verisi — chartBranch + chartProduct'a göre mod değişir:
     //   chartBranch='ALL'        → X ekseni = şube, stacked approved+pending
@@ -1083,6 +1173,9 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                                             {/* ADMIN ACTIONS OR STATUS BADGE */}
                                             {isAdmin && isPending ? (
                                                 <div className="flex justify-end gap-2">
+                                                    <button onClick={() => handleOpenEdit(log)} className="p-1.5 bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 hover:text-white rounded-lg transition-all" title={t('sales.editTitle')}>
+                                                        <Edit2 size={16}/>
+                                                    </button>
                                                     <button onClick={() => handleUpdateStatus(log.id, 'Onaylandı')} className="p-1.5 bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-slate-900 dark:hover:text-white rounded-lg transition-all" title={t('sales.statusApproved')}>
                                                         <CheckCircle2 size={16}/>
                                                     </button>
@@ -1096,13 +1189,19 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                                             ) : (
                                                 <div className="flex justify-end items-center gap-3">
                                                     <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-bold uppercase ${
-                                                        log.status === 'Onaylandı' ? 'bg-green-500/10 text-green-500 border-green-500/20' : 
-                                                        log.status === 'Reddedildi' ? 'bg-red-500/10 text-red-500 border-red-500/20' : 
+                                                        log.status === 'Onaylandı' ? 'bg-green-500/10 text-green-500 border-green-500/20' :
+                                                        log.status === 'Reddedildi' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
                                                         'bg-orange-500/10 text-orange-500 border-orange-500/20'
                                                     }`}>
                                                         {isPending ? <Clock size={10} className="animate-pulse" /> : null}
                                                         {log.status === 'Onaylandı' ? t('sales.statusApproved') : log.status === 'Reddedildi' ? t('sales.statusRejected') : t('sales.statusPending')}
                                                     </div>
+                                                    {/* Düzenle: admin her zaman; personel kendi 'Bekliyor' kaydında */}
+                                                    {canEditSale(log) && (
+                                                        <button onClick={() => handleOpenEdit(log)} className="p-1.5 text-slate-400 dark:text-zinc-600 hover:text-indigo-500 transition-colors" title={t('sales.editTitle')}>
+                                                            <Edit2 size={14}/>
+                                                        </button>
+                                                    )}
                                                     {/* Staff can delete only pending items, Admin can delete any */}
                                                     {(isAdmin || (isMe && isPending)) && (
                                                         <button onClick={() => handleDeleteSale(log.id)} className="p-1.5 text-slate-400 dark:text-zinc-600 hover:text-red-500 transition-colors">
