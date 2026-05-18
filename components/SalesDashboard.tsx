@@ -65,6 +65,13 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
     const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
     const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
 
+    // Şube Bazlı Dağılım grafiğinin yerel filtreleri — üst-seviye şube
+    // filtresinden bağımsız. ALL+ALL → şube bazlı stacked bar; spesifik şube
+    // seçilince günlük (1..N) dağılıma döner. Ürün filtresi her durumda
+    // uygulanır.
+    const [chartBranch, setChartBranch] = useState<string>('ALL');
+    const [chartProduct, setChartProduct] = useState<string>('ALL');
+
     // Product Management States
     const [actionProducts, setActionProducts] = useState<ActionProduct[]>([]);
     const [showProductModal, setShowProductModal] = useState(false);
@@ -424,6 +431,71 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
 
         return { approvedCount, pendingCount, chartData, topProduct, topProductVal: productMap[topProduct] || 0 };
     }, [filteredResults, resolveSaleBranch]);
+
+    // Şube Bazlı Dağılım grafiği için ürün listesi — hem aktif action_products
+    // hem de geçmiş satışlarda geçen ürün adları (silinmiş aksiyon ürünleri için
+    // geçmiş kayıtlar yine seçilebilsin).
+    const chartProductOptions = useMemo(() => {
+        const set = new Set<string>();
+        actionProducts.forEach(p => { if (p.name) set.add(p.name); });
+        salesData.forEach(s => { if (s.productName) set.add(s.productName); });
+        return Array.from(set).sort((a, b) => a.localeCompare(b, 'tr'));
+    }, [actionProducts, salesData]);
+
+    // Grafik verisi — chartBranch + chartProduct'a göre mod değişir:
+    //   chartBranch='ALL'        → X ekseni = şube, stacked approved+pending
+    //   chartBranch=<şube adı>   → X ekseni = ayın günleri, stacked aynı
+    const chartViewData = useMemo(() => {
+        const monthFiltered = salesData.filter(s => {
+            const d = new Date(s.saleDate);
+            return d.getFullYear() === selectedYear &&
+                   (d.getMonth() + 1) === selectedMonth;
+        });
+        const productFiltered = chartProduct === 'ALL'
+            ? monthFiltered
+            : monthFiltered.filter(s => s.productName === chartProduct);
+        const branchFiltered = chartBranch === 'ALL'
+            ? productFiltered
+            : productFiltered.filter(s => resolveSaleBranch(s) === chartBranch);
+
+        let totalApproved = 0;
+        let totalPending = 0;
+        branchFiltered.forEach(s => {
+            if (s.status === 'Onaylandı') totalApproved += s.quantity;
+            else if (s.status === 'Bekliyor') totalPending += s.quantity;
+        });
+
+        if (chartBranch === 'ALL') {
+            const map: Record<string, { approved: number; pending: number }> = {};
+            branchFiltered.forEach(s => {
+                const b = resolveSaleBranch(s) || 'Bilinmiyor';
+                if (!map[b]) map[b] = { approved: 0, pending: 0 };
+                if (s.status === 'Onaylandı') map[b].approved += s.quantity;
+                else if (s.status === 'Bekliyor') map[b].pending += s.quantity;
+            });
+            const data = Object.entries(map)
+                .map(([name, v]) => ({ name, approved: v.approved, pending: v.pending, total: v.approved + v.pending }))
+                .sort((a, b) => b.total - a.total);
+            return { mode: 'branch' as const, data, totalApproved, totalPending };
+        } else {
+            const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+            const map: Record<number, { approved: number; pending: number }> = {};
+            for (let d = 1; d <= daysInMonth; d++) map[d] = { approved: 0, pending: 0 };
+            branchFiltered.forEach(s => {
+                const day = new Date(s.saleDate).getDate();
+                if (!map[day]) map[day] = { approved: 0, pending: 0 };
+                if (s.status === 'Onaylandı') map[day].approved += s.quantity;
+                else if (s.status === 'Bekliyor') map[day].pending += s.quantity;
+            });
+            const data = Object.entries(map).map(([day, v]) => ({
+                name: String(day).padStart(2, '0'),
+                approved: v.approved,
+                pending: v.pending,
+                total: v.approved + v.pending,
+            }));
+            return { mode: 'day' as const, data, totalApproved, totalPending };
+        }
+    }, [salesData, selectedYear, selectedMonth, chartBranch, chartProduct, resolveSaleBranch]);
 
     // --- HELPER: STAFF CARD CALCULATIONS ---
     const getStaffPerformance = (staffId: string) => {
@@ -812,27 +884,95 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
             </div>
 
             <div className="mb-8">
-                {/* Visual Chart */}
+                {/* Visual Chart — şube + ürün dropdown'ları ile yerel filtre */}
                 <div className="bg-white dark:bg-zinc-900/30 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 flex flex-col">
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
-                        <BarChart3 className="text-indigo-500" size={20}/>
-                        {t('sales.chartTitle')}
-                    </h3>
-                    <div className="flex-1 min-h-[300px] w-full overflow-hidden">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={stats.chartData} barSize={40}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-                                <XAxis dataKey="name" stroke="#71717a" fontSize={12} tickLine={false} axisLine={false} dy={10}/>
-                                <YAxis stroke="#71717a" fontSize={12} tickLine={false} axisLine={false} />
-                                <Tooltip 
-                                    cursor={{fill: '#27272a', opacity: 0.2}}
-                                    contentStyle={{ backgroundColor: '#09090b', border: '1px solid #27272a', borderRadius: '12px', color: '#fff' }}
-                                />
-                                <Legend wrapperStyle={{paddingTop: '20px'}} />
-                                <Bar dataKey="approved" name={t('sales.statusApproved')} stackId="a" fill="#22c55e" radius={[0, 0, 4, 4]} />
-                                <Bar dataKey="pending" name={t('sales.statusPending')} stackId="a" fill="#f97316" radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
+                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-5">
+                        <div>
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                <BarChart3 className="text-indigo-500" size={20}/>
+                                {chartViewData.mode === 'branch' ? t('sales.chartTitle') : `${t('sales.chartByDay')} — ${chartBranch}`}
+                            </h3>
+                            <p className="text-xs text-slate-500 dark:text-zinc-500 mt-1">
+                                {chartProduct === 'ALL' ? t('sales.chartFilterAllProducts') : chartProduct}
+                                {' · '}
+                                {MONTHS.find(m => m.v === selectedMonth)?.l} {selectedYear}
+                            </p>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                            <div className="flex items-center gap-2 bg-slate-100 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-1.5 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors">
+                                <MapPin size={14} className="text-indigo-500 shrink-0"/>
+                                <select
+                                    value={chartBranch}
+                                    onChange={e => setChartBranch(e.target.value)}
+                                    className="bg-transparent text-sm font-semibold text-slate-700 dark:text-zinc-200 focus:outline-none cursor-pointer pr-1"
+                                    aria-label={t('sales.branch')}
+                                >
+                                    <option value="ALL">{t('sales.chartFilterAllBranches')}</option>
+                                    {Object.values(Branch).map(b => <option key={b} value={b}>{b}</option>)}
+                                </select>
+                            </div>
+                            <div className="flex items-center gap-2 bg-slate-100 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-1.5 hover:border-orange-400 dark:hover:border-orange-500 transition-colors">
+                                <Package size={14} className="text-orange-500 shrink-0"/>
+                                <select
+                                    value={chartProduct}
+                                    onChange={e => setChartProduct(e.target.value)}
+                                    className="bg-transparent text-sm font-semibold text-slate-700 dark:text-zinc-200 focus:outline-none cursor-pointer pr-1 max-w-[180px] truncate"
+                                    aria-label={t('sales.product')}
+                                >
+                                    <option value="ALL">{t('sales.chartFilterAllProducts')}</option>
+                                    {chartProductOptions.map(p => <option key={p} value={p}>{p}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Mini KPI — grafik filtresine göre özetler */}
+                    <div className="grid grid-cols-3 gap-3 mb-5">
+                        <div className="bg-slate-50 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 rounded-2xl p-3">
+                            <div className="text-[10px] uppercase tracking-wider font-bold text-slate-500 dark:text-zinc-500">{t('sales.chartTotal')}</div>
+                            <div className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1 tabular-nums">{chartViewData.totalApproved + chartViewData.totalPending}</div>
+                        </div>
+                        <div className="bg-green-500/5 border border-green-500/20 rounded-2xl p-3">
+                            <div className="text-[10px] uppercase tracking-wider font-bold text-green-600 dark:text-green-400">{t('sales.statusApproved')}</div>
+                            <div className="text-2xl font-extrabold text-green-600 dark:text-green-400 mt-1 tabular-nums">{chartViewData.totalApproved}</div>
+                        </div>
+                        <div className="bg-orange-500/5 border border-orange-500/20 rounded-2xl p-3">
+                            <div className="text-[10px] uppercase tracking-wider font-bold text-orange-600 dark:text-orange-400">{t('sales.statusPending')}</div>
+                            <div className="text-2xl font-extrabold text-orange-600 dark:text-orange-400 mt-1 tabular-nums">{chartViewData.totalPending}</div>
+                        </div>
+                    </div>
+
+                    <div className="flex-1 min-h-[320px] w-full overflow-hidden">
+                        {chartViewData.data.length === 0 || chartViewData.data.every(d => d.total === 0) ? (
+                            <div className="h-[320px] flex flex-col items-center justify-center gap-2 text-slate-400 dark:text-zinc-600">
+                                <BarChart3 size={36} className="opacity-30"/>
+                                <span className="text-sm italic">{t('sales.chartEmpty')}</span>
+                            </div>
+                        ) : (
+                            <ResponsiveContainer width="100%" height={320}>
+                                <BarChart data={chartViewData.data} barSize={chartViewData.mode === 'day' ? 14 : 40} margin={{ top: 8, right: 8, left: -16, bottom: 4 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#a1a1aa" strokeOpacity={0.25} vertical={false} />
+                                    <XAxis
+                                        dataKey="name"
+                                        stroke="#71717a"
+                                        fontSize={11}
+                                        tickLine={false}
+                                        axisLine={false}
+                                        dy={8}
+                                        interval={chartViewData.mode === 'day' ? 'preserveStartEnd' : 0}
+                                    />
+                                    <YAxis stroke="#71717a" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false}/>
+                                    <Tooltip
+                                        cursor={{fill: '#a1a1aa', opacity: 0.12}}
+                                        contentStyle={{ backgroundColor: 'rgba(9,9,11,0.95)', border: '1px solid #27272a', borderRadius: '12px', color: '#fff', fontSize: 12 }}
+                                        labelStyle={{ color: '#a1a1aa', fontWeight: 600, marginBottom: 4 }}
+                                    />
+                                    <Legend wrapperStyle={{paddingTop: '12px', fontSize: 12}} />
+                                    <Bar dataKey="approved" name={t('sales.statusApproved')} stackId="a" fill="#22c55e" radius={[0, 0, 4, 4]} />
+                                    <Bar dataKey="pending" name={t('sales.statusPending')} stackId="a" fill="#f97316" radius={[4, 4, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        )}
                     </div>
                 </div>
             </div>
