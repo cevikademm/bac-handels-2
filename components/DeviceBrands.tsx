@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Smartphone, Loader2, Search, ShieldAlert, Copy, Check, User as UserIcon, AlertTriangle,
   UserX, XCircle, Camera, Wifi, Lock, QrCode, Calendar as CalendarIcon, Clock,
-  LogIn, LogOut, CalendarDays, MapPin
+  LogIn, LogOut, CalendarDays, MapPin, Info, StickyNote, Save, Trash2, Flag
 } from 'lucide-react';
 import { Employee, Role } from '../types';
 import { supabase } from '../lib/supabase';
@@ -31,12 +31,29 @@ const DOMINANCE_RATIO = 1.5;
 
 // "Telefon çakışması" grubu: bir kullanıcının alışılmış cihazından farklı
 // bir cihazla yaptığı TÜM QR girişleri tek bir satırda toplanır.
+//
+// ownerActivity — bu girişin saatinde (±30 dk) cihazın "asıl sahibi"
+// neredeydi?
+//   'different' = sahip o saatte BAŞKA bir cihazdan giriş yapmıştı
+//                 (sahip telefonunu vermiş, kendisi başka cihaz kullanıyor —
+//                  en güçlü sinyal)
+//   'same'      = sahip de aynı cihazdan giriş yaptı (ardışık tarama;
+//                 sahip cihazını uzatmış, kullanıcı kendi hesabını okuttu)
+//   'absent'    = sahip o gün hiç giriş yapmamış (sahip o gün çalışmıyor,
+//                 cihaz ödünç verilmiş olabilir)
+//   'unknown'   = sahip dominant değil veya hesaplanamadı
+type OwnerActivity = 'different' | 'same' | 'absent' | 'unknown';
+
 interface PhoneConflictOccurrence {
   logId: string;
   date: string;
   time: string;
   branch: string;
   checkInAt: string | null;
+  ownerActivity: OwnerActivity;
+  // owner 'different' olduğunda hangi cihazdan giriş yaptıysa onun MAC'i —
+  // tek bir occurrence'a tooltip/etiket göstermek için.
+  ownerOtherDeviceMac?: string;
 }
 
 // Aynı cihazı kullanan diğer kullanıcılar (dominant eşiğini geçmemiş olsalar
@@ -53,6 +70,10 @@ interface PhoneConflictRow {
   employeeName: string;
   deviceUsed: string;
   expectedDevice: string;
+  // expectedDevice'tan en son giriş zamanı — "kendi telefonundan son giriş"
+  // satırı için (mazeret değerlendirmesinde önemli: kendi telefonunu hiç mi
+  // kullanmıyor, yoksa arada bir kullanıyor mu?)
+  expectedDeviceLastSeen: string;
   // Bu cihazı kullanan diğer kişiler (kendisi hariç) — kim kaç kez:
   otherUsers: DeviceUser[];
   // Cihazın "asıl sahibi" varsa (dominant device olarak başkasının kaydı):
@@ -61,6 +82,22 @@ interface PhoneConflictRow {
   occurrences: PhoneConflictOccurrence[];
   firstSeen: string;
   lastSeen: string;
+  // occurrences içindeki ownerActivity dağılımı — kart üzerinde özet rozet:
+  ownerCrossCheck: {
+    different: number; // sahibi başka cihazdan girmişti
+    same: number;      // sahibi de aynı cihazdan girmişti
+    absent: number;    // sahibi o gün girmemişti
+    unknown: number;
+  };
+}
+
+// Bir çakışma kartı için yönetici notu (Supabase'den yüklenen)
+interface ConflictNote {
+  employeeId: string;
+  deviceUsed: string;
+  note: string;
+  updatedAt: string;
+  updatedByName: string | null;
 }
 
 // "Apple iPhone · 62:4A:B4:F6:DD:59" → "62:4A:B4:F6:DD:59"
@@ -76,6 +113,12 @@ function extractBrand(deviceInfo: string): string {
   const first = (deviceInfo.split('·')[0] || '').trim();
   if (!first || first.includes(':')) return '';
   return first;
+}
+
+// i18n çevirileri içine basit `{var}` yerleştirme — t() interpolation
+// desteklemediği için string'i alıp manuel replace ediyoruz.
+function interpolate(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? `{${k}}`);
 }
 
 interface MacUsage {
@@ -165,6 +208,13 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
   const [phoneConflicts, setPhoneConflicts] = useState<PhoneConflictRow[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Yönetici notları — key: `${employeeId}|${deviceUsed}`
+  const [notes, setNotes] = useState<Map<string, ConflictNote>>(new Map());
+  // Hangi kartta not düzenleme açık? key aynı format
+  const [editingNoteKey, setEditingNoteKey] = useState<string | null>(null);
+  const [editingNoteDraft, setEditingNoteDraft] = useState<string>('');
+  const [savingNoteKey, setSavingNoteKey] = useState<string | null>(null);
+
   // Çakışma kayıtları için başlangıç eşiği (ISO string, dahil) — bu tarihten
   // sonra yapılan QR girişleri analize girer. localStorage'da kalıcıdır.
   // null = "tüm geçmişi göster". Cihazın asıl sahibi tespiti yine tüm
@@ -238,8 +288,28 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
         .eq('status', 'error')
         .order('attempted_at', { ascending: false })
         .limit(200),
-    ]).then(([logs, profilesRes, errorsRes]) => {
+      // Yönetici notları — tablo henüz uygulanmadıysa hata yutulur,
+      // notlar boş bir Map ile akar (özellik degrade çalışır).
+      supabase.rpc('dcn_list_notes', { p_caller_id: currentUser.id }),
+    ]).then(([logs, profilesRes, errorsRes, notesRes]) => {
       if (cancelled) return;
+
+      // Notları haritaya yaz (RPC hatası varsa sessizce boş bırak)
+      const notesMap = new Map<string, ConflictNote>();
+      if (!('error' in notesRes) || !notesRes.error) {
+        const rows = ((notesRes as any).data || []) as any[];
+        rows.forEach(r => {
+          if (!r?.employee_id || !r?.device_used) return;
+          notesMap.set(`${r.employee_id}|${r.device_used}`, {
+            employeeId: r.employee_id,
+            deviceUsed: r.device_used,
+            note: r.note || '',
+            updatedAt: r.updated_at,
+            updatedByName: r.updated_by_name || null,
+          });
+        });
+      }
+      setNotes(notesMap);
 
       const nameMap = new Map<string, string>();
       (profilesRes.data || []).forEach((p: any) => {
@@ -337,6 +407,69 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
         if (!deviceOwner.has(device)) deviceOwner.set(device, userId);
       });
 
+      // === Owner cross-check indeksleri ===
+      // 1) ownerLogsByDate: ownerId → date(YMD) → log listesi (saatli)
+      //    Her occurrence için sahibin aynı tarihte/saatte ne yaptığını sorgular.
+      // 2) ownLastSeen: employeeId → expectedDevice'tan SON giriş zamanı (ISO).
+      const ownerLogsByDate = new Map<string, Map<string, RawLog[]>>();
+      const ownLastSeen = new Map<string, string>();
+      logs.forEach(l => {
+        if (!l.device_info) return;
+        // ownLastSeen — sadece kullanıcının kendi dominant cihazı için
+        const own = dominantDevice.get(l.employee_id);
+        if (own && l.device_info === own) {
+          const ts = l.check_in_at || '';
+          if (ts) {
+            const prev = ownLastSeen.get(l.employee_id) || '';
+            if (ts > prev) ownLastSeen.set(l.employee_id, ts);
+          }
+        }
+        // ownerLogsByDate — sadece dominant kullanıcılar için indeks
+        if (!dominantDevice.has(l.employee_id)) return;
+        const date = (l.check_in_at || l.date || '').slice(0, 10);
+        if (!date) return;
+        if (!ownerLogsByDate.has(l.employee_id)) ownerLogsByDate.set(l.employee_id, new Map());
+        const dayMap = ownerLogsByDate.get(l.employee_id)!;
+        if (!dayMap.has(date)) dayMap.set(date, []);
+        dayMap.get(date)!.push(l);
+      });
+
+      // Verilen occurrence için sahibin aynı saatlerde ne yaptığını döndür.
+      // ±30 dk pencere; pencere dışında "absent" — pencere içinde aynı
+      // cihazsa 'same', farklı cihazsa 'different'.
+      const CROSS_CHECK_WINDOW_MS = 30 * 60 * 1000;
+      function computeOwnerActivity(
+        ownerId: string,
+        ownerDevice: string,
+        occurrenceTs: string,
+      ): { activity: OwnerActivity; otherDeviceMac?: string } {
+        if (!occurrenceTs) return { activity: 'unknown' };
+        const date = occurrenceTs.slice(0, 10);
+        const target = new Date(occurrenceTs).getTime();
+        if (isNaN(target)) return { activity: 'unknown' };
+        const dayLogs = ownerLogsByDate.get(ownerId)?.get(date);
+        if (!dayLogs || dayLogs.length === 0) return { activity: 'absent' };
+        // Pencere içindeki en yakın log
+        let closest: RawLog | null = null;
+        let closestDelta = Infinity;
+        for (const dl of dayLogs) {
+          if (!dl.check_in_at) continue;
+          const delta = Math.abs(new Date(dl.check_in_at).getTime() - target);
+          if (delta <= CROSS_CHECK_WINDOW_MS && delta < closestDelta) {
+            closest = dl;
+            closestDelta = delta;
+          }
+        }
+        if (!closest) return { activity: 'absent' };
+        if (closest.device_info === ownerDevice) {
+          return { activity: 'same' };
+        }
+        return {
+          activity: 'different',
+          otherDeviceMac: extractMac(closest.device_info || '').toUpperCase() || undefined,
+        };
+      }
+
       // device_info → her kullanıcının bu cihazla yaptığı toplam giriş sayısı
       // (her cihaz için "kim kaç kez kullandı" haritasını çıkarmak için).
       const deviceUserCounts = new Map<string, Map<string, number>>();
@@ -392,23 +525,34 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
             employeeName: nameMap.get(l.employee_id) || '—',
             deviceUsed: l.device_info,
             expectedDevice: expected,
+            expectedDeviceLastSeen: ownLastSeen.get(l.employee_id) || '',
             otherUsers,
             dominantOwnerName: ownerId ? (nameMap.get(ownerId) || null) : null,
             dominantOwnerId: ownerId,
             occurrences: [],
             firstSeen: '',
             lastSeen: '',
+            ownerCrossCheck: { different: 0, same: 0, absent: 0, unknown: 0 },
           };
           groups.set(key, g);
         }
         const ts = l.check_in_at || l.date;
+        // Owner cross-check — sadece sahip dominant ise hesaplanır
+        const ownerId = g.dominantOwnerId;
+        const ownerDevice = ownerId ? dominantDevice.get(ownerId) : undefined;
+        const cross = (ownerId && ownerDevice)
+          ? computeOwnerActivity(ownerId, ownerDevice, l.check_in_at || '')
+          : { activity: 'unknown' as OwnerActivity };
         g.occurrences.push({
           logId: l.id,
           date: l.date,
           time: (l.start_time || '').slice(0, 5),
           branch: l.branch || '—',
           checkInAt: l.check_in_at,
+          ownerActivity: cross.activity,
+          ownerOtherDeviceMac: cross.otherDeviceMac,
         });
+        g.ownerCrossCheck[cross.activity] += 1;
         if (!g.firstSeen || ts < g.firstSeen) g.firstSeen = ts;
         if (ts > g.lastSeen) g.lastSeen = ts;
       });
@@ -586,6 +730,46 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
       setTimeout(() => setCopiedMac(null), 1500);
     } catch {
       // sessizce yut
+    }
+  };
+
+  // Yönetici notunu kaydet / sil (boş not → silme). RPC mevcut değilse
+  // (migration uygulanmadıysa) hata UI'a yansır, kayıt yapılmaz.
+  const saveConflictNote = async (employeeId: string, deviceUsed: string, noteText: string) => {
+    const key = `${employeeId}|${deviceUsed}`;
+    setSavingNoteKey(key);
+    try {
+      const { data, error } = await supabase.rpc('dcn_save_note', {
+        p_caller_id: currentUser.id,
+        p_employee_id: employeeId,
+        p_device_used: deviceUsed,
+        p_note: noteText,
+      });
+      if (error) {
+        console.warn('[ConflictNote] save failed:', error);
+        alert(t('devices.noteSaveFailed') + (error.message ? ` (${error.message})` : ''));
+        return;
+      }
+      // Boş not → kayıt silindi, RPC null döner
+      setNotes(prev => {
+        const next = new Map(prev);
+        if (!data) {
+          next.delete(key);
+        } else {
+          next.set(key, {
+            employeeId: data.employee_id,
+            deviceUsed: data.device_used,
+            note: data.note,
+            updatedAt: data.updated_at,
+            updatedByName: data.updated_by_name || null,
+          });
+        }
+        return next;
+      });
+      setEditingNoteKey(null);
+      setEditingNoteDraft('');
+    } finally {
+      setSavingNoteKey(null);
     }
   };
 
@@ -1001,6 +1185,15 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
                           {t('set.phoneConflictsDesc')}
                         </p>
 
+                        {/* DİSCLAIMER — haksız suçlamayı önlemek için */}
+                        <div className="mt-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-700 dark:text-amber-200 flex items-start gap-2">
+                          <Info size={13} className="text-amber-500 dark:text-amber-300 shrink-0 mt-0.5" />
+                          <div className="leading-relaxed">
+                            <strong>{t('devices.disclaimerTitle')}</strong>{' '}
+                            {t('devices.disclaimerBody')}
+                          </div>
+                        </div>
+
                         {/* Cutoff kontrol satırı — geçmişi yok say / tümünü göster */}
                         <div className="mt-2 flex items-center gap-2 flex-wrap text-[11px]">
                           {conflictsSinceTs ? (
@@ -1090,6 +1283,18 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
                                 <strong>{c.employeeName}</strong>’in kendi telefonu (olması gereken)
                               </div>
                               <div className="text-slate-700 dark:text-zinc-200 font-mono break-all text-[12px]">{c.expectedDevice}</div>
+                              {/* Kendi cihazından son giriş — mazeret değerlendirmesi için */}
+                              {c.expectedDeviceLastSeen ? (
+                                <div className="text-[11px] mt-1.5 text-emerald-600 dark:text-emerald-300 inline-flex items-center gap-1">
+                                  <LogIn size={10} />
+                                  {t('devices.ownLastSeen')}: <strong>{formatDate(c.expectedDeviceLastSeen, { day: '2-digit', month: 'short', year: 'numeric' })}</strong>
+                                </div>
+                              ) : (
+                                <div className="text-[11px] mt-1.5 text-slate-500 dark:text-zinc-500 italic inline-flex items-center gap-1">
+                                  <LogIn size={10} />
+                                  {t('devices.ownLastSeenNever')}
+                                </div>
+                              )}
                             </div>
                           </div>
 
@@ -1103,10 +1308,33 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
                             <ul className="space-y-1 text-[11px] max-h-64 overflow-y-auto custom-scrollbar pr-1">
                               {c.occurrences.map(o => {
                                 const dow = formatDate(o.date, { weekday: 'short' });
+                                // Owner cross-check rozeti — bu girişin saatinde sahip neredeydi?
+                                const xMeta: Record<OwnerActivity, { tone: string; label: string; icon: typeof Flag; title: string } | null> = {
+                                  different: {
+                                    tone: 'bg-red-900/40 border-red-700/60 text-red-200',
+                                    label: t('devices.crossDifferent'),
+                                    icon: Flag,
+                                    title: interpolate(t('devices.crossDifferentTitle'), { owner: c.dominantOwnerName || '—', mac: o.ownerOtherDeviceMac || '—' }),
+                                  },
+                                  same: {
+                                    tone: 'bg-amber-900/30 border-amber-700/50 text-amber-200',
+                                    label: t('devices.crossSame'),
+                                    icon: UserIcon,
+                                    title: interpolate(t('devices.crossSameTitle'), { owner: c.dominantOwnerName || '—' }),
+                                  },
+                                  absent: {
+                                    tone: 'bg-slate-800/40 border-slate-700/40 text-slate-300',
+                                    label: t('devices.crossAbsent'),
+                                    icon: UserX,
+                                    title: interpolate(t('devices.crossAbsentTitle'), { owner: c.dominantOwnerName || '—' }),
+                                  },
+                                  unknown: null,
+                                };
+                                const x = xMeta[o.ownerActivity];
                                 return (
                                   <li
                                     key={o.logId}
-                                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-white dark:bg-zinc-950/60 border border-red-900/30 hover:border-red-700/50 transition-colors"
+                                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-white dark:bg-zinc-950/60 border border-red-900/30 hover:border-red-700/50 transition-colors flex-wrap"
                                   >
                                     <span className="inline-flex items-center gap-1.5 text-slate-700 dark:text-zinc-200 font-medium min-w-[110px]">
                                       <CalendarIcon size={11} className="text-red-400 shrink-0" />
@@ -1119,6 +1347,15 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
                                       <Clock size={10} />
                                       {o.time || '—:—'}
                                     </span>
+                                    {x && (
+                                      <span
+                                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-medium ${x.tone}`}
+                                        title={x.title}
+                                      >
+                                        <x.icon size={10} />
+                                        {x.label}
+                                      </span>
+                                    )}
                                     {o.branch && o.branch !== '—' && (
                                       <span className="inline-flex items-center gap-1 text-slate-500 dark:text-zinc-400 ml-auto">
                                         <MapPin size={10} className="shrink-0" />
@@ -1144,6 +1381,117 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
                               ))}
                             </div>
                           )}
+
+                          {/* ÇAPRAZ KONTROL ÖZETİ — sahibinin aynı saatlerde nerede olduğu dağılımı */}
+                          {c.dominantOwnerName && (c.ownerCrossCheck.different + c.ownerCrossCheck.same + c.ownerCrossCheck.absent) > 0 && (
+                            <div className="mt-3 pt-2 border-t border-red-900/20">
+                              <div className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-zinc-500 mb-1.5 flex items-center gap-1">
+                                <Flag size={11} className="text-red-400" />
+                                {interpolate(t('devices.crossCheckSummary'), { owner: c.dominantOwnerName || '—' })}
+                              </div>
+                              <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
+                                {c.ownerCrossCheck.different > 0 && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border bg-red-900/40 border-red-700/60 text-red-200" title={t('devices.crossDifferentDesc')}>
+                                    <Flag size={10} /> {c.ownerCrossCheck.different}× {t('devices.crossDifferent')}
+                                  </span>
+                                )}
+                                {c.ownerCrossCheck.same > 0 && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border bg-amber-900/30 border-amber-700/50 text-amber-200" title={t('devices.crossSameDesc')}>
+                                    <UserIcon size={10} /> {c.ownerCrossCheck.same}× {t('devices.crossSame')}
+                                  </span>
+                                )}
+                                {c.ownerCrossCheck.absent > 0 && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border bg-slate-800/40 border-slate-700/40 text-slate-300" title={t('devices.crossAbsentDesc')}>
+                                    <UserX size={10} /> {c.ownerCrossCheck.absent}× {t('devices.crossAbsent')}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* YÖNETİCİ NOTU — açıklama eklenir, kayıt silinmez */}
+                          {(() => {
+                            const noteKey = `${c.employeeId}|${c.deviceUsed}`;
+                            const existing = notes.get(noteKey);
+                            const isEditing = editingNoteKey === noteKey;
+                            const isSaving = savingNoteKey === noteKey;
+                            return (
+                              <div className="mt-3 pt-3 border-t border-red-900/20">
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                  <StickyNote size={12} className="text-amber-400" />
+                                  <span className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-zinc-500">
+                                    {t('devices.adminNote')}
+                                  </span>
+                                  {existing && !isEditing && (
+                                    <span className="text-[10px] text-slate-500 dark:text-zinc-500 ml-auto">
+                                      {existing.updatedByName ? `${existing.updatedByName} · ` : ''}
+                                      {formatDate(existing.updatedAt, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  )}
+                                </div>
+                                {isEditing ? (
+                                  <div className="space-y-1.5">
+                                    <textarea
+                                      value={editingNoteDraft}
+                                      onChange={(e) => setEditingNoteDraft(e.target.value)}
+                                      placeholder={t('devices.adminNotePlaceholder')}
+                                      rows={2}
+                                      className="w-full bg-white dark:bg-zinc-950/60 border border-amber-700/40 rounded-lg px-2.5 py-1.5 text-[12px] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-600 focus:border-amber-500/70 outline-none resize-y"
+                                      autoFocus
+                                    />
+                                    <div className="flex items-center gap-1.5">
+                                      <button
+                                        type="button"
+                                        disabled={isSaving}
+                                        onClick={() => saveConflictNote(c.employeeId, c.deviceUsed, editingNoteDraft)}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded border text-[11px] bg-emerald-900/30 border-emerald-700/50 text-emerald-200 hover:bg-emerald-900/50 transition-colors disabled:opacity-50"
+                                      >
+                                        {isSaving ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
+                                        {t('common.save')}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={isSaving}
+                                        onClick={() => { setEditingNoteKey(null); setEditingNoteDraft(''); }}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded border text-[11px] bg-slate-100 dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
+                                      >
+                                        {t('common.cancel')}
+                                      </button>
+                                      {existing && (
+                                        <button
+                                          type="button"
+                                          disabled={isSaving}
+                                          onClick={() => saveConflictNote(c.employeeId, c.deviceUsed, '')}
+                                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded border text-[11px] bg-red-900/20 border-red-800/40 text-red-300 hover:bg-red-900/40 transition-colors disabled:opacity-50 ml-auto"
+                                          title={t('devices.noteDelete')}
+                                        >
+                                          <Trash2 size={11} />
+                                          {t('devices.noteDelete')}
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                ) : existing ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => { setEditingNoteKey(noteKey); setEditingNoteDraft(existing.note); }}
+                                    className="w-full text-left px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 hover:border-amber-500/50 transition-colors text-[12px] text-slate-700 dark:text-zinc-200 whitespace-pre-wrap"
+                                  >
+                                    {existing.note}
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => { setEditingNoteKey(noteKey); setEditingNoteDraft(''); }}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded border text-[11px] bg-slate-50 dark:bg-zinc-900/60 border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:border-amber-500/50 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
+                                  >
+                                    <StickyNote size={11} />
+                                    {t('devices.adminNoteAdd')}
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </li>
                         );
                       })}
