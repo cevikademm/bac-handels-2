@@ -356,11 +356,11 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
         } catch (err) { console.error(err); }
     };
 
-    // Düzenleme yetkisi: admin daima; personel sadece kendi 'Bekliyor' kaydını.
-    const canEditSale = (log: SalesLog): boolean => {
-        if (isAdmin) return true;
-        return log.employeeId === currentUser.id && log.status === 'Bekliyor';
-    };
+    // Düzenleme yetkisi: SADECE admin. Personel kendi kayıtlarında bile
+    // tarih/şube/ürün/adet değiştiremez — yanlış girişler admin onayıyla
+    // düzeltilir, geriye dönük müdahale yetkisi kullanıcıya verilmez.
+    // (Parametre imzası canEditSale(log) kalır; çağıran taraflar değişmez.)
+    const canEditSale = (_log: SalesLog): boolean => isAdmin;
 
     // Modal'ı aç ve formu mevcut değerlerle doldur.
     const handleOpenEdit = (log: SalesLog) => {
