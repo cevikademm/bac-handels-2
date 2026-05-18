@@ -1298,6 +1298,9 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                                     {/* Actions / Status */}
                                     {isAdmin && isPending ? (
                                         <div className="flex justify-end gap-1.5">
+                                            <button onClick={() => handleOpenEdit(log)} className="p-1.5 bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 hover:text-white rounded-lg transition-all" title={t('sales.editTitle')}>
+                                                <Edit2 size={14}/>
+                                            </button>
                                             <button onClick={() => handleUpdateStatus(log.id, 'Onaylandı')} className="p-1.5 bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-slate-900 dark:hover:text-white rounded-lg transition-all" title={t('sales.statusApproved')}>
                                                 <CheckCircle2 size={14}/>
                                             </button>
@@ -1311,13 +1314,18 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                                     ) : (
                                         <div className="flex justify-end items-center gap-2">
                                             <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border text-[9px] font-bold uppercase ${
-                                                log.status === 'Onaylandı' ? 'bg-green-500/10 text-green-500 border-green-500/20' : 
-                                                log.status === 'Reddedildi' ? 'bg-red-500/10 text-red-500 border-red-500/20' : 
+                                                log.status === 'Onaylandı' ? 'bg-green-500/10 text-green-500 border-green-500/20' :
+                                                log.status === 'Reddedildi' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
                                                 'bg-orange-500/10 text-orange-500 border-orange-500/20'
                                             }`}>
                                                 {isPending ? <Clock size={10} className="animate-pulse" /> : null}
                                                 {log.status === 'Onaylandı' ? t('sales.statusApproved') : log.status === 'Reddedildi' ? t('sales.statusRejected') : t('sales.statusPending')}
                                             </div>
+                                            {canEditSale(log) && (
+                                                <button onClick={() => handleOpenEdit(log)} className="p-1.5 text-slate-400 dark:text-zinc-600 hover:text-indigo-500 transition-colors" title={t('sales.editTitle')}>
+                                                    <Edit2 size={14}/>
+                                                </button>
+                                            )}
                                             {(isAdmin || (isMe && isPending)) && (
                                                 <button onClick={() => handleDeleteSale(log.id)} className="p-1.5 text-slate-400 dark:text-zinc-600 hover:text-red-500 transition-colors">
                                                     <Trash2 size={14}/>
@@ -1331,6 +1339,97 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                     })}
                 </div>
             </div>
+            {/* EDIT SALE MODAL — satır düzenleme. Admin her satırı, personel
+                kendi 'Bekliyor' kaydını düzenleyebilir. Submit DB'ye yazar. */}
+            {editingSale && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+                    <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+                        <div className="p-5 border-b border-slate-200 dark:border-zinc-800 flex justify-between items-center">
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                <Edit2 size={18} className="text-indigo-500" /> {t('sales.editTitle')}
+                            </h3>
+                            <button onClick={handleCloseEdit} className="text-slate-500 dark:text-zinc-500 hover:text-slate-900 dark:hover:text-white" aria-label={t('common.close')}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <form
+                            onSubmit={(e) => { e.preventDefault(); handleSaveEdit(); }}
+                            className="p-5 space-y-4"
+                        >
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <label className="text-xs text-slate-600 dark:text-zinc-400">{t('sales.date')}</label>
+                                    <input
+                                        type="date"
+                                        required
+                                        value={editForm.date}
+                                        onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-lg p-2 text-sm text-slate-900 dark:text-white outline-none focus:border-indigo-500"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs text-slate-600 dark:text-zinc-400">{t('sales.branch')}</label>
+                                    <select
+                                        required
+                                        value={editForm.branch}
+                                        onChange={(e) => setEditForm({ ...editForm, branch: e.target.value })}
+                                        className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-lg p-2 text-sm text-slate-900 dark:text-white outline-none focus:border-indigo-500"
+                                    >
+                                        {Object.values(Branch).map(b => <option key={b} value={b}>{b}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs text-slate-600 dark:text-zinc-400">{t('sales.product')}</label>
+                                <select
+                                    required
+                                    value={editForm.product}
+                                    onChange={(e) => setEditForm({ ...editForm, product: e.target.value })}
+                                    className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-lg p-2 text-sm text-slate-900 dark:text-white outline-none focus:border-indigo-500"
+                                >
+                                    {actionProducts
+                                        .filter(p => p.is_active === true || String(p.is_active).toLowerCase() === 'true' || p.is_active === 1)
+                                        .map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+                                    {/* Mevcut ürün kapatılmış olabilir — yine de seçili görünsün */}
+                                    {editForm.product && !actionProducts.some(p => p.name === editForm.product) && (
+                                        <option value={editForm.product}>{editForm.product}</option>
+                                    )}
+                                </select>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs text-slate-600 dark:text-zinc-400">{t('sales.quantity')}</label>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    required
+                                    value={editForm.quantity}
+                                    onChange={(e) => setEditForm({ ...editForm, quantity: Math.max(1, parseInt(e.target.value || '1', 10)) })}
+                                    className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-lg p-2 text-sm text-slate-900 dark:text-white font-bold tabular-nums outline-none focus:border-indigo-500"
+                                />
+                            </div>
+                            <div className="pt-2 flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={handleCloseEdit}
+                                    disabled={isEditSaving}
+                                    className="flex-1 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 rounded-lg text-sm font-semibold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors disabled:opacity-60"
+                                >
+                                    {t('common.cancel')}
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isEditSaving}
+                                    className="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-500 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+                                >
+                                    {isEditSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                                    {t('common.save')}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
             {/* PRODUCT MANAGEMENT MODAL */}
             {showProductModal && isAdmin && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
