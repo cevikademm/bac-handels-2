@@ -49,7 +49,8 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
     const isAdmin = currentUser.role === Role.ADMIN;
     const isMounted = useRef(true);
 
-    // Mesai dışı satış uyarısını sadece bu emailler görür ve onlar engelleme dışıdır.
+    // Mesai dışı satış rozetini (admin görünümü) sadece bu emailler görür.
+    // Giriş engeli kaldırıldığı için artık bypass yetkisi anlamı yok; sadece görünürlük.
     const canSeeOffShift = canSeeOffShiftAlerts(currentUser.email);
 
     // Bu haftanın shift_schedules satırları — satış giriş anındaki vardiya kontrolü için.
@@ -221,12 +222,9 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
         if (!salesForm.product) { alert(t('sales.alertSelectProduct')); return; }
         if (!salesForm.quantity || salesForm.quantity <= 0) { alert(t('sales.alertValidQty')); return; }
 
-        // Mesai kontrolü
-        const onShift = isUserOnShiftAt(currentUser.id, new Date(), currentWeekShifts);
-        if (!onShift && !canSeeOffShift) {
-            alert(t('sales.alertOffShift'));
-            return;
-        }
+        // Mesai dışı satış engeli kaldırıldı — kullanıcı her zaman giriş yapabilir.
+        // Gönderim sırasında is_off_shift flag'i DB'ye yazıldığı için LossControl
+        // (Außer Dienst sütunu) ve admin bildirimleri eskisi gibi çalışmaya devam eder.
 
         // Kaynak seçim modal'ını aç
         setShowSourceModal(true);

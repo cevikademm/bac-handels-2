@@ -89,6 +89,10 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
   const [publishLoading, setPublishLoading] = useState(false);
   const isPublished = publication !== null;
 
+  // Hangi hücrede "+ Kişi ekle" dropdown'ı açık? Format: `${row.id}_${dayIdx}`
+  // Aynı anda yalnızca bir hücre açıktır; seçim sonrası veya blur'da kapanır.
+  const [openAddCell, setOpenAddCell] = useState<string | null>(null);
+
   const weekKey = formatLocalDate(currentWeekStart);
   const currentWeekEnd = new Date(currentWeekStart);
   currentWeekEnd.setDate(currentWeekEnd.getDate() + 6);
@@ -793,20 +797,42 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                                                                     </div>
                                                                 );
                                                             })}
-                                                            {/* Admin için en altta "+ Kişi ekle" dropdown'ı */}
-                                                            {isAdmin && (
-                                                                <select
-                                                                    value=""
-                                                                    onChange={(e) => { addAssignment(row.id, dayIdx, e.target.value); e.target.value = ''; }}
-                                                                    className="w-full bg-transparent text-center text-[11px] outline-none cursor-pointer text-slate-400 dark:text-zinc-500 italic border-t border-dashed border-zinc-700/40 pt-1"
-                                                                >
-                                                                    <option value="" className="bg-white dark:bg-zinc-900 text-slate-900 dark:text-white">{t('shift.addPerson')}</option>
-                                                                    {filteredEmployees.filter(emp => !assignedSet.has(emp.id)).map(emp => {
-                                                                        const empConflict = getEmployeeConflicts.get(`${row.id}_${emp.id}`)?.get(dayIdx);
-                                                                        return (<option key={emp.id} value={emp.id} className={`bg-white dark:bg-zinc-900 ${empConflict ? 'text-red-400' : 'text-slate-900 dark:text-white'}`}>{emp.name}{empConflict ? ' ⚠️' : ''}</option>);
-                                                                    })}
-                                                                </select>
-                                                            )}
+                                                            {/* Admin için "+ Kişi ekle": varsayılan olarak küçük "+" butonu;
+                                                                tıklanınca dropdown'a dönüşür, seçim/blur sonrası kapanır. */}
+                                                            {isAdmin && (() => {
+                                                                const cellKey = `${row.id}_${dayIdx}`;
+                                                                const isOpen = openAddCell === cellKey;
+                                                                const availableEmps = filteredEmployees.filter(emp => !assignedSet.has(emp.id));
+                                                                if (availableEmps.length === 0) return null;
+                                                                return isOpen ? (
+                                                                    <select
+                                                                        autoFocus
+                                                                        value=""
+                                                                        onChange={(e) => {
+                                                                            if (e.target.value) addAssignment(row.id, dayIdx, e.target.value);
+                                                                            setOpenAddCell(null);
+                                                                        }}
+                                                                        onBlur={() => setOpenAddCell(null)}
+                                                                        className="w-full bg-transparent text-center text-[11px] outline-none cursor-pointer text-slate-400 dark:text-zinc-500 italic border-t border-dashed border-zinc-700/40 pt-1"
+                                                                    >
+                                                                        <option value="" className="bg-white dark:bg-zinc-900 text-slate-900 dark:text-white">{t('shift.addPerson')}</option>
+                                                                        {availableEmps.map(emp => {
+                                                                            const empConflict = getEmployeeConflicts.get(`${row.id}_${emp.id}`)?.get(dayIdx);
+                                                                            return (<option key={emp.id} value={emp.id} className={`bg-white dark:bg-zinc-900 ${empConflict ? 'text-red-400' : 'text-slate-900 dark:text-white'}`}>{emp.name}{empConflict ? ' ⚠️' : ''}</option>);
+                                                                        })}
+                                                                    </select>
+                                                                ) : (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setOpenAddCell(cellKey)}
+                                                                        className="self-center mt-0.5 w-5 h-5 inline-flex items-center justify-center rounded-full text-slate-400 dark:text-zinc-600 hover:text-cyan-500 hover:bg-cyan-500/10 transition-all opacity-50 hover:opacity-100"
+                                                                        title={t('shift.addPerson')}
+                                                                        aria-label={t('shift.addPerson')}
+                                                                    >
+                                                                        <Plus size={12} />
+                                                                    </button>
+                                                                );
+                                                            })()}
                                                         </>
                                                     )}
                                                     {cellHasConflict && (
