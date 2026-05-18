@@ -14,10 +14,13 @@ import { buildEmployeeWhatsAppUrl, isValidWhatsAppPhone } from '../lib/phone';
 // production minify'da top-level import edilince mangled constructor hatasi veriyordu).
 // lazyWithRetry: yeni deployment sonrası eski hash'li chunk için MIME hatasında auto-recover
 const QrCheckIn = lazyWithRetry(() => import('./QrCheckIn'));
+// Log Kayıtları sekmesi — personelin kendi aktivite zaman çizgisi
+// (time_logs + sales_logs + audit_logs + MAC adresleri).
+const LogActivity = lazyWithRetry(() => import('./LogActivity'));
 
 
-// Yeni sekme yapısı: FINANCIAL eklendi
-type Tab = 'STAFF' | 'MONTHLY' | 'FINANCIAL' | 'APPROVALS';
+// Yeni sekme yapısı: FINANCIAL + LOGS eklendi
+type Tab = 'STAFF' | 'MONTHLY' | 'FINANCIAL' | 'APPROVALS' | 'LOGS';
 
 // Süper admin: tüm onay bekleyenleri görebilir
 const SUPER_ADMIN_EMAIL = 'cevikademm@gmail.com';
@@ -2322,11 +2325,21 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                         {t('pay.tabStaff')}
                     </button>
                 )}
-                <button 
-                    onClick={() => setCurrentTab('MONTHLY')} 
+                <button
+                    onClick={() => setCurrentTab('MONTHLY')}
                     className={`flex-1 md:flex-none text-center px-4 py-1.5 text-xs font-medium rounded-lg transition-all ${currentTab === 'MONTHLY' ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white shadow' : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-slate-700 dark:text-zinc-300'}`}
                 >
                     {currentUser.role === Role.ADMIN ? 'Bordro' : t('pay.tabMonthly')}
+                </button>
+                {/* LOG KAYITLARI: Personel kendi loglarını her zaman görür.
+                    Admin seçilmiş personelin loglarını görür — selectedEmployeeId
+                    yoksa buton hâlâ tıklanabilir; LOGS içinde "kişi seç" mesajı
+                    yerine boş state gözükür. */}
+                <button
+                    onClick={() => setCurrentTab('LOGS')}
+                    className={`flex-1 md:flex-none text-center px-4 py-1.5 text-xs font-medium rounded-lg transition-all ${currentTab === 'LOGS' ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white shadow' : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-slate-700 dark:text-zinc-300'}`}
+                >
+                    {t('pay.tabLogs')}
                 </button>
                 {/* NEW: FINANCIAL SUMMARY TAB BUTTON - VISIBLE TO ALL ADMINS */}
                 {currentUser.role === Role.ADMIN && (
@@ -2478,11 +2491,42 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
             )}
 
             {/* SAĞ PANEL (İÇERİK) - EĞER PERSONEL İSE TAM EKRAN
-                APPROVALS sekmesi mobilde de tam ekran görünmeli */}
-            <div className={`flex-1 w-full overflow-hidden ${currentTab === 'APPROVALS' || selectedEmployeeId ? 'flex' : 'hidden md:flex'}`}>
+                APPROVALS ve LOGS sekmeleri mobilde de tam ekran görünmeli
+                (LOGS için personelin kendisi her zaman targetEmployeeId yerine
+                 currentUser.id'ye düşer — admin'de selectedEmployeeId şart). */}
+            <div className={`flex-1 w-full overflow-hidden ${currentTab === 'APPROVALS' || currentTab === 'LOGS' || selectedEmployeeId ? 'flex' : 'hidden md:flex'}`}>
                  {currentTab === 'APPROVALS' ? renderApprovalsContent()
                    : currentTab === 'STAFF' ? renderStaffContent()
                    : currentTab === 'FINANCIAL' ? renderFinancialContent()
+                   : currentTab === 'LOGS' ? (
+                       (() => {
+                           // Admin: seçili personel yoksa "kişi seç" göster.
+                           // Personel: her zaman kendi loglarını görür.
+                           const isAdmin = currentUser.role === Role.ADMIN;
+                           const targetId = isAdmin ? selectedEmployeeId : currentUser.id;
+                           if (isAdmin && !targetId) {
+                               return (
+                                   <div className="flex-1 flex items-center justify-center text-slate-400 dark:text-zinc-600 italic text-sm p-8 text-center">
+                                       {t('logs.adminPickPerson')}
+                                   </div>
+                               );
+                           }
+                           const targetName = isAdmin
+                               ? (employees.find(e => e.id === targetId)?.name || '')
+                               : currentUser.name;
+                           return (
+                               <div className="flex-1 w-full h-full overflow-hidden">
+                                   <Suspense fallback={<div className="flex items-center justify-center h-full text-slate-400 dark:text-zinc-600"><Loader2 className="animate-spin" size={20} /></div>}>
+                                       <LogActivity
+                                           currentUser={currentUser}
+                                           targetEmployeeId={targetId!}
+                                           targetEmployeeName={targetName}
+                                       />
+                                   </Suspense>
+                               </div>
+                           );
+                       })()
+                   )
                    : renderMonthlyContent()}
             </div>
         </div>
