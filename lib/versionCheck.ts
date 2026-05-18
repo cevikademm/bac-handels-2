@@ -17,7 +17,15 @@
 const VERSION_URL = '/version.json';
 const POLL_INTERVAL_MS = 60_000;
 
-let bootVersion: string | null = null;
+// vite define ile bundle'a inject edilen build versiyonu. Dev modda
+// undefined olabilir — fallback boş string.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+declare const __BAC_BUILD_VERSION__: string;
+const BUNDLED_VERSION: string =
+  // @ts-ignore — define ile inject ediliyor
+  typeof __BAC_BUILD_VERSION__ === 'string' ? __BAC_BUILD_VERSION__ : '';
+
+let bootVersion: string | null = BUNDLED_VERSION || null;
 let listeners: Array<(latest: string) => void> = [];
 let started = false;
 let fired = false;
@@ -105,3 +113,73 @@ export const startVersionCheck = (): void => {
 
 /** Test/debug için: mevcut boot versiyonu. */
 export const getBootVersion = (): string | null => bootVersion;
+
+/** Test/debug için: bundle'a gömülü build versiyonu. */
+export const getBundledVersion = (): string => BUNDLED_VERSION;
+
+// ----------------------------------------------------------------------
+// BOOT-TIME OTOMATİK GÜNCELLEME
+// ----------------------------------------------------------------------
+// Uygulama yüklendiğinde, bundle'a gömülü build version ile server'daki
+// /version.json'u karşılaştırırız. Fark varsa kullanıcı modalı GÖRMEDEN
+// önce arka planda cache + SW temizlenir ve hard-reload tetiklenir.
+//
+// Reload loop koruması: sessionStorage'a flag yazar; yeniden tetiklenmesi
+// gerekirse aynı oturumda tekrar denemez (next page-load'ta zaten yeni
+// bundle yüklü olacağı için ihtiyaç kalmaz).
+// ----------------------------------------------------------------------
+
+const AUTO_RELOAD_FLAG = 'bac:auto-reloaded';
+
+const purgeCachesAndSw = async (): Promise<void> => {
+  try {
+    if (typeof caches !== 'undefined') {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    }
+  } catch { /* ignore */ }
+  try {
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+    }
+  } catch { /* ignore */ }
+};
+
+/**
+ * Uygulama boot'unda çağrılır. Bundle vs server version farkı tespit ederse
+ * cache + SW temizleyip hard-reload yapar. Promise sadece reload başlatmazsa
+ * resolve olur (reload başladıysa sayfa zaten yenileniyor).
+ *
+ * @returns true → reload tetiklendi (UI render'ı durdurulmalı), false → güncel.
+ */
+export const bootCheckAndReload = async (): Promise<boolean> => {
+  if (typeof window === 'undefined') return false;
+  // @ts-ignore — Vite env
+  if (!(import.meta as any).env?.PROD) return false;
+  // Bundle versiyonu yoksa karşılaştırma yapılamaz
+  if (!BUNDLED_VERSION) return false;
+
+  // Sonsuz reload korumasi
+  try {
+    if (sessionStorage.getItem(AUTO_RELOAD_FLAG)) {
+      sessionStorage.removeItem(AUTO_RELOAD_FLAG);
+      return false;
+    }
+  } catch { /* ignore */ }
+
+  const latest = await fetchLatestVersion();
+  if (!latest) return false;
+  if (latest === BUNDLED_VERSION) return false;
+
+  // Sürüm farklı → reload başlat
+  try { sessionStorage.setItem(AUTO_RELOAD_FLAG, '1'); } catch { /* ignore */ }
+  try { sessionStorage.removeItem('bac:chunk-reloaded'); } catch { /* ignore */ }
+
+  await purgeCachesAndSw();
+
+  const url = new URL(window.location.href);
+  url.searchParams.set('_v', latest);
+  window.location.replace(url.toString());
+  return true;
+};

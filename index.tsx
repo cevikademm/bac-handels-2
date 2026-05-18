@@ -4,22 +4,42 @@ import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
 import UpdateGuard from './components/UpdateGuard';
 import { registerServiceWorker } from './lib/push';
+import { bootCheckAndReload } from './lib/versionCheck';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error("Could not find root element to mount to");
 }
 
-const root = ReactDOM.createRoot(rootElement);
-root.render(
-  <React.StrictMode>
-    <ErrorBoundary>
-      <UpdateGuard>
-        <App />
-      </UpdateGuard>
-    </ErrorBoundary>
-  </React.StrictMode>
+// ─────────────────────────────────────────────────────────────────────
+// BOOT-TIME OTOMATİK GÜNCELLEME
+// Render'dan ÖNCE bundle versiyonunu server'dakiyle karşılaştır;
+// fark varsa cache + SW temizle, hard-reload yap. Reload tetiklenirse
+// aşağıdaki render kodu yine yürür ama window.location.replace zaten
+// sayfayı değiştirdiği için kullanıcı bunu görmez (kısa flash).
+// async non-blocking: 800ms timeout — version.json yavaşsa render'ı
+// daha fazla geciktirme.
+// ─────────────────────────────────────────────────────────────────────
+const renderApp = (): void => {
+  const root = ReactDOM.createRoot(rootElement);
+  root.render(
+    <React.StrictMode>
+      <ErrorBoundary>
+        <UpdateGuard>
+          <App />
+        </UpdateGuard>
+      </ErrorBoundary>
+    </React.StrictMode>
+  );
+};
+
+const bootTimeout = new Promise<boolean>((resolve) =>
+  setTimeout(() => resolve(false), 800)
 );
+Promise.race([bootCheckAndReload(), bootTimeout]).then((reloading) => {
+  if (!reloading) renderApp();
+  // reloading=true ise window.location.replace zaten çalıştı; render etmeye gerek yok.
+});
 
 // PWA / Web Push: Service Worker kaydı (HTTPS veya localhost gereklidir)
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {

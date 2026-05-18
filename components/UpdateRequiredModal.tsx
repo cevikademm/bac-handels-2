@@ -6,7 +6,7 @@
 // edemez. Buton: SW + cache temizle + tam reload.
 // =============================================================
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { RefreshCw, Sparkles, Loader2 } from 'lucide-react';
 
 interface Props {
@@ -30,11 +30,17 @@ const purgeCachesAndSw = async (): Promise<void> => {
   } catch { /* ignore */ }
 };
 
+// Modal göründükten kaç saniye sonra otomatik güncelleme tetiklensin
+const AUTO_REFRESH_SECONDS = 5;
+
 const UpdateRequiredModal: React.FC<Props> = ({ latestVersion }) => {
   const [refreshing, setRefreshing] = useState(false);
+  const [countdown, setCountdown] = useState<number>(AUTO_REFRESH_SECONDS);
+  const triggeredRef = useRef(false);
 
   const handleRefresh = async (): Promise<void> => {
-    if (refreshing) return;
+    if (triggeredRef.current) return;
+    triggeredRef.current = true;
     setRefreshing(true);
     await purgeCachesAndSw();
     try { sessionStorage.removeItem('bac:chunk-reloaded'); } catch { /* ignore */ }
@@ -42,6 +48,17 @@ const UpdateRequiredModal: React.FC<Props> = ({ latestVersion }) => {
     url.searchParams.set('_v', Date.now().toString(36));
     window.location.replace(url.toString());
   };
+
+  // Geri sayım → 0 olunca otomatik tetikle. Kullanıcı butona basarsa
+  // handleRefresh zaten triggeredRef ile çift tetiklemeyi engeller.
+  useEffect(() => {
+    if (countdown <= 0) {
+      void handleRefresh();
+      return;
+    }
+    const id = setTimeout(() => setCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(id);
+  }, [countdown]);
 
   return (
     <div
@@ -58,11 +75,16 @@ const UpdateRequiredModal: React.FC<Props> = ({ latestVersion }) => {
           Yeni Sürüm Mevcut
         </h1>
         <p className="text-zinc-400 text-sm mb-2">
-          Programın yeni bir sürümü yayınlandı. Devam edebilmek için lütfen güncellemeyi yükleyin.
+          Programın yeni bir sürümü yayınlandı. Önbellek otomatik temizlenip uygulama yenilenecek.
         </p>
-        <p className="text-zinc-500 text-xs mb-6">
-          Bu işlem birkaç saniye sürer ve mevcut oturumunuz korunur.
+        <p className="text-zinc-500 text-xs mb-4">
+          Mevcut oturumunuz korunur. Şimdi yenilemek için butona basabilirsiniz.
         </p>
+        {!refreshing && countdown > 0 && (
+          <p className="text-indigo-400 text-xs mb-4 font-mono">
+            {countdown} saniye sonra otomatik güncelleniyor…
+          </p>
+        )}
 
         {latestVersion ? (
           <div className="bg-black/30 px-3 py-2 rounded-lg border border-zinc-800 w-full mb-6">
