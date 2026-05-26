@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { lazyWithRetry } from '../lib/lazyWithRetry';
 import { Employee, Branch, Role, TimeLog, AppNotification } from '../types';
 import { Search, Plus, Filter, Calculator, Save, Trash2, Phone, Mail, X, MapPin, Briefcase, Link as LinkIcon, ThumbsUp, ThumbsDown, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Wallet, Banknote, Map as MapIcon, Timer, Edit2, Loader2, ArrowRightLeft, Building2, CalendarRange, Lock, Rocket, PieChart, Upload, Shield, AlertTriangle, QrCode, AlarmClockOff, Zap, MessageCircle } from 'lucide-react';
-import { includeAsPersonnel, isDualRoleAdmin, isRestrictedAdmin } from '../constants';
+import { includeAsPersonnel, isDualRoleAdmin, isRestrictedAdmin, canUseManualTimeEntry } from '../constants';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
 import { GlowingEffect } from './ui/glowing-effect';
@@ -1082,9 +1082,10 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
       if (!targetEmployee) return <div className="h-full flex items-center justify-center text-slate-500 dark:text-zinc-500"><p>{t('pay.selectStaff')}</p></div>;
       
       return (
-          // MODIFIED: Changed justify-start md:justify-center to justify-start and items-stretch to force full width
-          // Mobil: alt nav bar (h-16 + güvenli alan) içeriği örtmesin diye pb-28 verildi.
-          <div className="h-full flex flex-col items-stretch justify-start p-4 pb-28 md:p-6 md:pb-6 bg-slate-50 dark:bg-zinc-950 overflow-y-auto overscroll-contain">
+          // Mobil/tablet: alt nav bar (h-16 + güvenli alan) içeriği örtmesin diye pb-28 verildi.
+          // min-h-0 + w-full → flex parent içinde h-full'un düzgün hesaplanması ve overflow-y-auto'nun aktif olması için şart.
+          // Önceki flex flex-col items-stretch justify-start kombinasyonu mobilde scroll'u kilitliyordu.
+          <div className="h-full w-full min-h-0 p-4 pb-28 md:p-6 md:pb-6 bg-slate-50 dark:bg-zinc-950 overflow-y-auto overscroll-contain">
               {/* MODIFIED: Removed max-w-lg to allow full width */}
               <div className="w-full bg-white dark:bg-gradient-to-br dark:from-zinc-900 dark:to-black border border-slate-200 dark:border-zinc-800 rounded-3xl shadow-2xl overflow-hidden relative">
                   {/* Decorative Background — sadece dark modda görünür (light'ta tamamen beyaz kart) */}
@@ -1724,10 +1725,11 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                 </div>
                 <div className="flex gap-2 w-full md:w-auto">
                     <button onClick={() => setShowQrModal(true)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-900 dark:text-white text-xs md:text-sm font-medium rounded-lg"><QrCode size={16} /> <span className="inline">{t('qr.scanBtn')}</span></button>
-                    {/* Manuel "Saat Ekle" — herkese açık (personel + tüm adminler).
-                        Personel kayıtları status='Bekliyor' olarak admin onayına düşer
-                        (handleSaveTimeLog:782); admin kayıtları doğrudan 'Onaylandı'. */}
-                    <button onClick={handleOpenTimeModal} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-slate-900 dark:text-white text-xs md:text-sm font-medium rounded-lg"><Plus size={16} /> <span className="inline">{t('pay.addHours')}</span></button>
+                    {/* Manuel "Saat Ekle" — yalnızca süper adminlere (cevikadem, hakan, seda, gurcan).
+                        Diğer personel ve şube adminleri (Apo/Malik) sadece QR ile giriş yapabilir. */}
+                    {canUseManualTimeEntry(currentUser.email) && (
+                        <button onClick={handleOpenTimeModal} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-slate-900 dark:text-white text-xs md:text-sm font-medium rounded-lg"><Plus size={16} /> <span className="inline">{t('pay.addHours')}</span></button>
+                    )}
                 </div>
             </div>
             <div className="flex-1 overflow-hidden flex flex-col md:flex-row min-h-0">

@@ -46,6 +46,19 @@ export const NOTIFICATION_CENTER_ALLOWED_EMAILS: string[] = [
 export const canSeeNotificationCenter = (email?: string | null): boolean =>
     !!email && NOTIFICATION_CENTER_ALLOWED_EMAILS.includes(email.trim().toLowerCase());
 
+// Manuel mesai girişi yetkisi — "Saat Ekle" butonu yalnızca bu süper adminlere
+// gösterilir. Diğer tüm kullanıcılar (personel + Apo/Malik gibi şube adminleri)
+// sadece QR check-in/out ile mesai kaydı oluşturabilir.
+export const MANUAL_TIME_ENTRY_ALLOWED_EMAILS: string[] = [
+    'cevikademm@gmail.com',
+    'gurcan@bac.de',
+    'hakan@bac.de',
+    'seda@bac.de',
+];
+
+export const canUseManualTimeEntry = (email?: string | null): boolean =>
+    !!email && MANUAL_TIME_ENTRY_ALLOWED_EMAILS.includes(email.trim().toLowerCase());
+
 export const MOCK_EMPLOYEES: Employee[] = [];
 
 // NOTE: Titles and descriptions use i18n keys (e.g., task.mock.1.title) to support dynamic translation
