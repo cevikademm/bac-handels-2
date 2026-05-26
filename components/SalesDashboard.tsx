@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { SalesLog, Employee, Role, Branch } from '../types';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
-import { formatLocalDate, isUserOnShiftAt, getUserBranchAt, formatTimeOfDay, canSeeOffShiftAlerts, compressImageToJpeg } from '../lib/utils';
+import { formatLocalDate, isUserOnShiftAt, getUserBranchAt, formatTimeOfDay, canSeeOffShiftAlerts, compressImageToJpeg, computeReceiptFingerprint } from '../lib/utils';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
 import { Trophy, TrendingUp, ShoppingBag, MapPin, Award, Medal, Calendar, Package, Activity, BarChart3, ListTodo, User, Lock, EyeOff, Filter, ChevronDown, Clock, Tag, Send, Loader2, CheckCircle2, XCircle, Trash2, X, Star, Zap, Crown, Percent, Settings, AlertTriangle, Camera, Receipt, Upload, Edit2, Save } from 'lucide-react';
 import { GlowingEffect } from './ui/glowing-effect';
@@ -141,7 +141,12 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                     status: l.status,
                     createdAt: l.created_at,
                     isOffShift: !!l.is_off_shift,
-                    receiptUrl: l.receipt_url || undefined
+                    receiptUrl: l.receipt_url || undefined,
+                    receiptSha256: l.receipt_sha256 || undefined,
+                    receiptDhash: l.receipt_dhash != null ? String(l.receipt_dhash) : undefined,
+                    dedupWarning: !!l.dedup_warning,
+                    dedupOverrideBy: l.dedup_override_by || undefined,
+                    dedupOverrideAt: l.dedup_override_at || undefined,
                 }));
                 setSalesData(formattedSales);
             }
@@ -233,6 +238,29 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
     // Kaynak seçim modal'ı
     const [showSourceModal, setShowSourceModal] = useState(false);
 
+    // Fiş resmi lightbox — tabloda thumbnail'a tıklayınca büyük önizleme açar.
+    // Hem masaüstü hem mobilde aynı modal kullanılır.
+    const [previewReceiptUrl, setPreviewReceiptUrl] = useState<string | null>(null);
+
+    // Mükerrer fiş tespit modalları (sales_receipt_dedup migration).
+    // Pending payload pattern: similar modal "Yine de gönder" derse upload akışı kaldığı yerden devam eder.
+    interface DuplicateMatch {
+        match_type: 'exact' | 'similar';
+        matched_log_id: string;
+        matched_employee_id: string;
+        matched_employee_name: string;
+        matched_sale_date: string;
+        matched_branch: string;
+        hamming_distance: number;
+    }
+    const [duplicateBlocked, setDuplicateBlocked] = useState<DuplicateMatch | null>(null);
+    const [duplicateSimilar, setDuplicateSimilar] = useState<DuplicateMatch | null>(null);
+    const pendingUploadRef = useRef<{
+        blob: Blob;
+        sha256: string;
+        dhash: string;
+    } | null>(null);
+
     // 1. ADIM: form gönderilince validate + kaynak seçim modal'ı aç.
     const handleSaveSale = (e: React.FormEvent) => {
         e.preventDefault();
@@ -261,7 +289,9 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
         }
     };
 
-    // 2. ADIM: kullanıcı fişi seçince → sıkıştır → Storage'a yükle → satışı kaydet.
+    // 2. ADIM: kullanıcı fişi seçince → sıkıştır + hash → duplicate pre-check → temizse upload.
+    // Exact match → hard block (modal, hiç storage'a gitme). Similar match → kullanıcıya
+    // sor; "Yönetici Onayına Gönder" derse pendingUploadRef üzerinden upload devam.
     const handleReceiptSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (e.target) e.target.value = '';
@@ -269,75 +299,146 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
 
         setIsSaving(true);
         try {
-            // Fişi sıkıştır (max 800px, q=0.6 — ~30-80 KB ama metin okunaklı)
-            const blob = await compressImageToJpeg(file, { maxWidth: 800, quality: 0.6 });
+            // Sıkıştır + SHA-256 + dHash tek seferde
+            const { blob, sha256, dhash } = await computeReceiptFingerprint(file);
 
-            // Storage path: <userId>/<timestamp>.jpg — çakışmaz, kullanıcıya göre gruplanır
-            const path = `${currentUser.id}/${Date.now()}.jpg`;
-            const { error: upErr } = await supabase.storage
-                .from('sales_receipts')
-                .upload(path, blob, { contentType: 'image/jpeg', upsert: false });
-            if (upErr) throw upErr;
-
-            const { data: pub } = supabase.storage.from('sales_receipts').getPublicUrl(path);
-            const receiptUrl = pub.publicUrl;
-
-            // is_off_shift değeri formun submit'lendiği andaki vardiya durumuna göre
-            const onShift = isUserOnShiftAt(currentUser.id, new Date(), currentWeekShifts);
-            // Branch: kullanıcı dropdown'dan değiştirdiyse onu, değiştirmediyse
-            // vardiya planındaki şubeyi kullan. Dropdown default zaten plandan
-            // dolduruluyor; bu satır, fetch tamamlanmadan submit edilen kenar
-            // durumlarda da plan branch'ini garanti eder.
-            const planBranch = getUserBranchAt(currentUser.id, new Date(), currentWeekShifts);
-            const effectiveBranch = salesForm.branch || planBranch || (currentUser.branch as string) || '';
-
-            const payload = {
-                employee_id: currentUser.id,
-                branch: effectiveBranch,
-                product_name: salesForm.product,
-                quantity: salesForm.quantity,
-                sale_date: salesForm.date,
-                status: 'Bekliyor',
-                is_off_shift: !onShift,
-                receipt_url: receiptUrl
-            };
-            const { data, error } = await supabase.from('sales_logs').insert([payload]).select();
-            if (error) throw error;
-
-            if (data && isMounted.current) {
-                const newLog: SalesLog = {
-                    id: data[0].id,
-                    employeeId: data[0].employee_id,
-                    branch: data[0].branch,
-                    productName: data[0].product_name,
-                    quantity: data[0].quantity,
-                    saleDate: data[0].sale_date,
-                    status: 'Bekliyor',
-                    createdAt: data[0].created_at,
-                    isOffShift: !!data[0].is_off_shift,
-                    receiptUrl: data[0].receipt_url || receiptUrl
-                };
-                setSalesData(prev => [newLog, ...prev]);
-
-                // Vardiya dışı ise admin'lere push gönder
-                if (!onShift) {
-                    notifyEvent({
-                        type: 'off_shift_sale',
-                        employee_id: currentUser.id,
-                        employee_name: currentUser.name,
-                        branch: effectiveBranch,
-                        product_name: salesForm.product,
-                        quantity: salesForm.quantity,
-                    });
-                }
-
-                alert(t('sales.alertSuccess'));
+            // Pre-check: bit-eşit duplicate veya perceptual benzer var mı?
+            const { data: dupRows, error: rpcErr } = await supabase.rpc('check_receipt_duplicate', {
+                p_sha256: sha256,
+                p_dhash: dhash,
+            });
+            // RPC hata verirse (örn. migration uygulanmamış) güvenli tarafta kal — upload'a devam.
+            // Duplicate korumasını kaybederiz ama mevcut UX bozulmaz.
+            if (rpcErr) {
+                console.warn('check_receipt_duplicate RPC hatası — duplicate kontrol atlandı:', rpcErr);
             }
+            const dup = (dupRows as DuplicateMatch[] | null)?.[0];
+
+            if (dup?.match_type === 'exact') {
+                setDuplicateBlocked(dup);
+                pendingUploadRef.current = null;
+                return; // Storage'a HİÇ gitme
+            }
+
+            if (dup?.match_type === 'similar') {
+                // Modal'da "Yönetici Onayına Gönder" tıklanırsa proceedReceiptUpload çağırır.
+                pendingUploadRef.current = { blob, sha256, dhash };
+                setDuplicateSimilar(dup);
+                return;
+            }
+
+            // Temiz — doğrudan upload
+            await proceedReceiptUpload(blob, sha256, dhash, false);
         } catch (err: any) {
             alert(t('sales.alertUploadFailed') + (err.message || err));
         } finally {
             if (isMounted.current) setIsSaving(false);
         }
+    };
+
+    // Upload akışı — temiz yükleme ve similar-onaylı yükleme tarafından paylaşılır.
+    const proceedReceiptUpload = async (
+        blob: Blob,
+        sha256: string,
+        dhash: string,
+        dedupWarning: boolean,
+    ) => {
+        // Storage path: <userId>/<timestamp>.jpg — çakışmaz, kullanıcıya göre gruplanır
+        const path = `${currentUser.id}/${Date.now()}.jpg`;
+        const { error: upErr } = await supabase.storage
+            .from('sales_receipts')
+            .upload(path, blob, { contentType: 'image/jpeg', upsert: false });
+        if (upErr) throw upErr;
+
+        const { data: pub } = supabase.storage.from('sales_receipts').getPublicUrl(path);
+        const receiptUrl = pub.publicUrl;
+
+        // is_off_shift değeri formun submit'lendiği andaki vardiya durumuna göre
+        const onShift = isUserOnShiftAt(currentUser.id, new Date(), currentWeekShifts);
+        const planBranch = getUserBranchAt(currentUser.id, new Date(), currentWeekShifts);
+        const effectiveBranch = salesForm.branch || planBranch || (currentUser.branch as string) || '';
+
+        const payload: Record<string, unknown> = {
+            employee_id: currentUser.id,
+            branch: effectiveBranch,
+            product_name: salesForm.product,
+            quantity: salesForm.quantity,
+            sale_date: salesForm.date,
+            status: 'Bekliyor',
+            is_off_shift: !onShift,
+            receipt_url: receiptUrl,
+            receipt_sha256: sha256,
+            receipt_dhash: dhash,
+            dedup_warning: dedupWarning,
+        };
+
+        const { data, error } = await supabase.from('sales_logs').insert([payload]).select();
+        if (error) {
+            // Postgres 23505 = UNIQUE violation → race condition: iki sekmeden aynı anda submit.
+            if ((error as any).code === '23505') {
+                alert(t('sales.duplicateRace'));
+                return;
+            }
+            throw error;
+        }
+
+        if (data && isMounted.current) {
+            const newLog: SalesLog = {
+                id: data[0].id,
+                employeeId: data[0].employee_id,
+                branch: data[0].branch,
+                productName: data[0].product_name,
+                quantity: data[0].quantity,
+                saleDate: data[0].sale_date,
+                status: 'Bekliyor',
+                createdAt: data[0].created_at,
+                isOffShift: !!data[0].is_off_shift,
+                receiptUrl: data[0].receipt_url || receiptUrl,
+                receiptSha256: data[0].receipt_sha256 || sha256,
+                receiptDhash: data[0].receipt_dhash?.toString?.() || dhash,
+                dedupWarning: !!data[0].dedup_warning,
+            };
+            setSalesData(prev => [newLog, ...prev]);
+
+            // Vardiya dışı ise admin'lere push gönder
+            if (!onShift) {
+                notifyEvent({
+                    type: 'off_shift_sale',
+                    employee_id: currentUser.id,
+                    employee_name: currentUser.name,
+                    branch: effectiveBranch,
+                    product_name: salesForm.product,
+                    quantity: salesForm.quantity,
+                });
+            }
+
+            alert(t('sales.alertSuccess'));
+        }
+    };
+
+    // Similar modal "Yönetici Onayına Gönder" — pending upload'u dedup_warning=true ile gönder.
+    const handleApproveSimilarUpload = async () => {
+        const pending = pendingUploadRef.current;
+        if (!pending) {
+            setDuplicateSimilar(null);
+            return;
+        }
+        setDuplicateSimilar(null);
+        setIsSaving(true);
+        try {
+            await proceedReceiptUpload(pending.blob, pending.sha256, pending.dhash, true);
+        } catch (err: any) {
+            alert(t('sales.alertUploadFailed') + (err.message || err));
+        } finally {
+            pendingUploadRef.current = null;
+            if (isMounted.current) setIsSaving(false);
+        }
+    };
+
+    // Similar modal "İptal" — pending payload'u temizle
+    const handleCancelSimilarUpload = () => {
+        pendingUploadRef.current = null;
+        setDuplicateSimilar(null);
     };
 
     const handleUpdateStatus = async (id: string, newStatus: 'Onaylandı' | 'Reddedildi') => {
@@ -1139,8 +1240,10 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
 
                                 const entryTime = formatTimeOfDay(log.createdAt);
                                 const showOffShift = canSeeOffShift && log.isOffShift;
+                                // Mükerrer fiş uyarısı sadece admine gösterilir — benzer fişle yüklendi, override edilmemiş.
+                                const showDedupWarning = isAdmin && log.dedupWarning && !log.dedupOverrideAt;
                                 return (
-                                    <tr key={log.id} className={`hover:bg-slate-200 dark:hover:bg-slate-100 dark:hover:bg-zinc-800/30 transition-colors group ${isPending ? 'bg-orange-500/5' : ''} ${showOffShift ? 'bg-red-500/5' : ''}`}>
+                                    <tr key={log.id} className={`hover:bg-slate-200 dark:hover:bg-slate-100 dark:hover:bg-zinc-800/30 transition-colors group ${isPending ? 'bg-orange-500/5' : ''} ${showOffShift ? 'bg-red-500/5' : ''} ${showDedupWarning ? 'border-l-2 border-l-amber-500' : ''}`}>
                                         <td className="p-4">
                                             <div className="flex flex-col gap-1">
                                                 <div className="flex items-center gap-2">
@@ -1155,6 +1258,11 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                                                 {showOffShift && (
                                                     <span className="inline-flex items-center gap-1 self-start text-[9px] font-bold uppercase tracking-wider text-red-400 bg-red-500/10 border border-red-500/30 px-1.5 py-0.5 rounded" title={t('sales.offShiftBadgeTitle')}>
                                                         <AlertTriangle size={10} /> {t('sales.offShift')}
+                                                    </span>
+                                                )}
+                                                {showDedupWarning && (
+                                                    <span className="inline-flex items-center gap-1 self-start text-[9px] font-bold uppercase tracking-wider text-amber-500 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded" title={t('sales.dedupWarningTitle')}>
+                                                        <AlertTriangle size={10} /> {t('sales.dedupWarningBadge')}
                                                     </span>
                                                 )}
                                             </div>
@@ -1176,7 +1284,24 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                                         </td>
                                         <td className="p-4">
                                             <div className="flex items-center gap-2">
-                                                <Package size={14} className="text-indigo-400" />
+                                                {log.receiptUrl && (isAdmin || isMe) ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setPreviewReceiptUrl(log.receiptUrl!)}
+                                                        className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shrink-0 hover:ring-2 hover:ring-indigo-500/40 transition-all"
+                                                        title={t('sales.viewReceipt')}
+                                                    >
+                                                        <img
+                                                            src={log.receiptUrl}
+                                                            alt={t('sales.receiptBadge')}
+                                                            className="w-full h-full object-cover"
+                                                            loading="lazy"
+                                                            referrerPolicy="no-referrer"
+                                                        />
+                                                    </button>
+                                                ) : (
+                                                    <Package size={14} className="text-indigo-400" />
+                                                )}
                                                 <span className="text-sm text-slate-800 dark:text-zinc-200">{log.productName}</span>
                                             </div>
                                         </td>
@@ -1252,8 +1377,9 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
 
                         const entryTime = formatTimeOfDay(log.createdAt);
                         const showOffShift = canSeeOffShift && log.isOffShift;
+                        const showDedupWarning = isAdmin && log.dedupWarning && !log.dedupOverrideAt;
                         return (
-                            <div key={log.id} className={`p-4 flex flex-col gap-3 hover:bg-slate-200 dark:hover:bg-slate-100 dark:hover:bg-zinc-800/30 transition-colors ${isPending ? 'bg-orange-500/5' : ''} ${showOffShift ? 'bg-red-500/5' : ''}`}>
+                            <div key={log.id} className={`p-4 flex flex-col gap-3 hover:bg-slate-200 dark:hover:bg-slate-100 dark:hover:bg-zinc-800/30 transition-colors ${isPending ? 'bg-orange-500/5' : ''} ${showOffShift ? 'bg-red-500/5' : ''} ${showDedupWarning ? 'border-l-2 border-l-amber-500' : ''}`}>
                                 <div className="flex justify-between items-start">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-full overflow-hidden border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shrink-0">
@@ -1274,6 +1400,11 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                                                 {showOffShift && (
                                                     <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-red-400 bg-red-500/10 border border-red-500/30 px-1.5 py-0.5 rounded">
                                                         <AlertTriangle size={9} /> {t('sales.offShift')}
+                                                    </span>
+                                                )}
+                                                {showDedupWarning && (
+                                                    <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-amber-500 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded" title={t('sales.dedupWarningTitle')}>
+                                                        <AlertTriangle size={9} /> {t('sales.dedupWarningBadge')}
                                                     </span>
                                                 )}
                                             </div>
@@ -1298,16 +1429,21 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                                             <span className="text-xs text-slate-700 dark:text-zinc-300 truncate">{log.productName}</span>
                                         </div>
                                         {log.receiptUrl && (isAdmin || isMe) && (
-                                            <a
-                                                href={log.receiptUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-1.5 px-2 py-1 bg-indigo-500/10 border border-indigo-500/30 rounded hover:bg-indigo-500/20 transition-colors"
+                                            <button
+                                                type="button"
+                                                onClick={() => setPreviewReceiptUrl(log.receiptUrl!)}
+                                                className="inline-flex items-center gap-1.5 px-1.5 py-0.5 bg-indigo-500/10 border border-indigo-500/30 rounded hover:bg-indigo-500/20 transition-colors"
                                                 title={t('sales.viewReceipt')}
                                             >
-                                                <Receipt size={12} className="text-indigo-400 shrink-0" />
+                                                <img
+                                                    src={log.receiptUrl}
+                                                    alt={t('sales.receiptBadge')}
+                                                    className="w-8 h-8 rounded object-cover shrink-0"
+                                                    loading="lazy"
+                                                    referrerPolicy="no-referrer"
+                                                />
                                                 <span className="text-[10px] font-bold text-indigo-300">{t('sales.receiptBadge')}</span>
-                                            </a>
+                                            </button>
                                         )}
                                     </div>
                                     
@@ -1355,6 +1491,118 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
                     })}
                 </div>
             </div>
+            {/* RECEIPT PREVIEW MODAL — tabloda fiş thumbnail'ına tıklayınca
+                resmi büyük göster. Backdrop veya X ile kapanır. */}
+            {/* MÜKERRER FİŞ — EXACT BLOCK (hard, kullanıcı sadece kapatabilir) */}
+            {duplicateBlocked && (
+                <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+                    <div className="bg-white dark:bg-zinc-900 border-2 border-red-500/40 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+                        <div className="p-6 border-b border-slate-200 dark:border-zinc-800 flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-full bg-red-500/15 border border-red-500/30 flex items-center justify-center shrink-0">
+                                <XCircle size={20} className="text-red-500" />
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                                    {t('sales.duplicateExactTitle')}
+                                </h3>
+                                <p className="mt-2 text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                                    {t('sales.duplicateExactBody')
+                                        .replace('{name}', duplicateBlocked.matched_employee_name)
+                                        .replace('{date}', formatDate(duplicateBlocked.matched_sale_date))
+                                        .replace('{branch}', duplicateBlocked.matched_branch || '—')}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="px-6 py-4 bg-slate-50 dark:bg-zinc-950 flex justify-end">
+                            <button
+                                type="button"
+                                onClick={() => setDuplicateBlocked(null)}
+                                className="px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-semibold rounded-lg hover:opacity-90"
+                            >
+                                {t('sales.duplicateOk')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MÜKERRER FİŞ — SIMILAR WARNING (soft, kullanıcı onayı ile devam) */}
+            {duplicateSimilar && (
+                <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+                    <div className="bg-white dark:bg-zinc-900 border-2 border-amber-500/40 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+                        <div className="p-6 border-b border-slate-200 dark:border-zinc-800 flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
+                                <AlertTriangle size={20} className="text-amber-500" />
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                                    {t('sales.duplicateSimilarTitle')}
+                                </h3>
+                                <p className="mt-2 text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                                    {t('sales.duplicateSimilarBody')
+                                        .replace('{name}', duplicateSimilar.matched_employee_name)
+                                        .replace('{date}', formatDate(duplicateSimilar.matched_sale_date))
+                                        .replace('{branch}', duplicateSimilar.matched_branch || '—')}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="px-6 py-4 bg-slate-50 dark:bg-zinc-950 flex flex-col sm:flex-row justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={handleCancelSimilarUpload}
+                                className="px-4 py-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 text-sm font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800"
+                            >
+                                {t('sales.duplicateCancel')}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleApproveSimilarUpload}
+                                disabled={isSaving}
+                                className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold rounded-lg disabled:opacity-50 inline-flex items-center justify-center gap-2"
+                            >
+                                {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                                {t('sales.duplicateRequestApproval')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {previewReceiptUrl && (
+                <div
+                    className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+                    onClick={() => setPreviewReceiptUrl(null)}
+                >
+                    <div
+                        className="relative max-w-3xl max-h-[90vh] w-full flex items-center justify-center"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <button
+                            type="button"
+                            onClick={() => setPreviewReceiptUrl(null)}
+                            className="absolute -top-3 -right-3 z-10 w-9 h-9 rounded-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-lg text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 flex items-center justify-center"
+                            aria-label={t('common.close')}
+                        >
+                            <X size={18} />
+                        </button>
+                        <img
+                            src={previewReceiptUrl}
+                            alt={t('sales.receiptBadge')}
+                            className="max-w-full max-h-[85vh] rounded-xl shadow-2xl object-contain bg-white"
+                            referrerPolicy="no-referrer"
+                        />
+                        <a
+                            href={previewReceiptUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg shadow-lg transition-colors"
+                        >
+                            <Receipt size={14} /> {t('sales.viewReceipt')}
+                        </a>
+                    </div>
+                </div>
+            )}
+
             {/* EDIT SALE MODAL — satır düzenleme. Admin her satırı, personel
                 kendi 'Bekliyor' kaydını düzenleyebilir. Submit DB'ye yazar. */}
             {editingSale && (

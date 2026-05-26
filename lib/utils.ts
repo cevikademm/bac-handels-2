@@ -346,3 +346,68 @@ export async function compressImageToJpeg(
     );
   });
 }
+
+// SHA-256 — sıkıştırılmış JPEG blob'unun bit-eşit parmak izi.
+// Bir kullanıcının aynı dosyayı tekrar yüklemesini engellemek için kullanılır.
+export async function sha256Hex(blob: Blob): Promise<string> {
+  const buf = await blob.arrayBuffer();
+  const hash = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(hash))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+// dHash 64-bit — perceptual hash. Görüntüyü 9×8 grayscale'e küçültür,
+// her satırda yatay komşu piksel farkını 1 bit olarak kodlar (toplam 8×8=64 bit).
+// Aynı fişin screenshot'u, hafif kırpılmış veya re-encode edilmiş versiyonu
+// için Hamming distance ≤ 6 çıkar; tamamen farklı görseller ≥ 20 olur.
+// BigInt döner — Postgres BIGINT'e signed 64-bit olarak yazılır.
+export async function computeDHash(bitmap: ImageBitmap): Promise<bigint> {
+  const w = 9, h = 8;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas context kullanılamıyor');
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  const px = ctx.getImageData(0, 0, w, h).data;
+  let hash = 0n;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w - 1; x++) {
+      const i1 = (y * w + x) * 4;
+      const i2 = (y * w + x + 1) * 4;
+      const g1 = 0.299 * px[i1] + 0.587 * px[i1 + 1] + 0.114 * px[i1 + 2];
+      const g2 = 0.299 * px[i2] + 0.587 * px[i2 + 1] + 0.114 * px[i2 + 2];
+      hash = (hash << 1n) | (g1 < g2 ? 1n : 0n);
+    }
+  }
+  return hash;
+}
+
+// Postgres BIGINT signed 64-bit (-2^63..2^63-1). dHash unsigned 64-bit olabildiği
+// için en yüksek bit set olunca signed'a sıkıştırılması gerekir. PG tarafında
+// XOR + popcount aynı çalıştığı sürece eşleşme korunur.
+export function dhashToPgBigint(hash: bigint): string {
+  const MAX_U64 = 1n << 64n;
+  const SIGNED_MAX = (1n << 63n) - 1n;
+  let v = hash;
+  if (v > SIGNED_MAX) v = v - MAX_U64;
+  return v.toString();
+}
+
+// Tek adımda: sıkıştır + SHA-256 + dHash. SalesDashboard'da upload öncesi
+// çağrılır; sonuç check_receipt_duplicate RPC'sine gider, temizse storage'a yüklenir.
+export async function computeReceiptFingerprint(
+  file: File
+): Promise<{ blob: Blob; sha256: string; dhash: string }> {
+  const blob = await compressImageToJpeg(file, { maxWidth: 800, quality: 0.6 });
+  const sha256 = await sha256Hex(blob);
+  // @ts-ignore — imageOrientation 'from-image' Chrome 79+ / Safari 13.4+
+  const bitmap = await createImageBitmap(blob, { imageOrientation: 'from-image' });
+  try {
+    const dhash = await computeDHash(bitmap);
+    return { blob, sha256, dhash: dhashToPgBigint(dhash) };
+  } finally {
+    bitmap.close?.();
+  }
+}

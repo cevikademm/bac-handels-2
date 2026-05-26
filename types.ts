@@ -142,4 +142,10 @@ export interface SalesLog {
     createdAt: string;
     isOffShift?: boolean; // satış girişi anında kullanıcı vardiyada mıydı (false) yoksa evdeyken mi girdi (true)
     receiptUrl?: string;  // fiş fotoğrafının Supabase Storage URL'i (sales_receipts bucket)
+    // Mükerrer fiş engelleme (sales_receipt_dedup migration)
+    receiptSha256?: string;     // bit-eşit dosya tespiti
+    receiptDhash?: string;      // perceptual hash (signed 64-bit, string olarak gelir)
+    dedupWarning?: boolean;     // benzer fiş tespit edildi, admin onayı bekliyor
+    dedupOverrideBy?: string;   // admin onayladıysa kim
+    dedupOverrideAt?: string;
 }
