@@ -3,7 +3,7 @@ import { useLanguage } from '../lib/i18n';
 import { useTheme } from '../lib/theme';
 import { Branch, Employee, Role } from '../types';
 import { Save, ChevronLeft, ChevronRight, Copy, Plus, Trash2, Loader2, AlertTriangle, CheckCircle2, Lock, Send, Undo2, X } from 'lucide-react';
-import { includeAsPersonnel } from '../constants';
+import { includeAsPersonnel, canEditShiftSchedule } from '../constants';
 import { supabase } from '../lib/supabase';
 import { formatLocalDate, parseCellIds, joinCellIds } from '../lib/utils';
 import { GlowingEffect } from './ui/glowing-effect';
@@ -68,7 +68,11 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
         badgeBg: '#10b981', badgeShadow: '0 0 0 2px #ffffff',
         activeBadgeBg: '#ffffff', activeBadgeText: '#dd2d4a',
       };
+  // Görüntüleme yetkisi: tüm adminler planın tamamını (tüm satır + isimler) görür.
   const isAdmin = currentUser.role === Role.ADMIN;
+  // Düzenleme yetkisi: yalnızca süper adminler (seda + cevikademm) değişiklik yapar.
+  // Diğer adminler salt-okunur görür; mutasyon fonksiyonları ve edit UI'ı kapalıdır.
+  const canEdit = isAdmin && canEditShiftSchedule(currentUser.email);
 
   // Personel artık şubeye bağlı değil - admin tüm şubeleri görür, personel de tüm şubeleri görebilir
   const [activeBranch, setActiveBranch] = useState<string>(Branch.MULHEIM);
@@ -286,7 +290,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
   };
 
   const publishWeek = async () => {
-      if (!isAdmin) return;
+      if (!canEdit) return;
       if (rosterData.length === 0) {
           alert(t('shift.publishEmptyError'));
           return;
@@ -329,7 +333,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
   };
 
   const unpublishWeek = async () => {
-      if (!isAdmin || !publication) return;
+      if (!canEdit || !publication) return;
       if (!confirm(t('shift.unpublishConfirm'))) return;
       setPublishLoading(true);
       try {
@@ -399,7 +403,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
   };
 
   const saveRowToDb = async (row: RosterRow) => {
-      if (!isAdmin) return;
+      if (!canEdit) return;
       setIsSaving(true);
       try {
           const payload = { week_start_date: weekKey, branch: String(activeBranch), time_slot: row.timeLabel, days: row.assignments };
@@ -416,7 +420,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
   // assignments[dayIndex]'e yazar ve DB'ye kaydeder. Aşağıdaki add/remove/replace
   // handler'ları bunu kullanır; "tek hücre = tek string" olarak ham veri kalır.
   const mutateCell = (rowId: string | undefined, dayIndex: number, mutator: (currentIds: string[]) => string[]) => {
-      if (!isAdmin) return;
+      if (!canEdit) return;
       const updatedRows = rosterData.map(row => {
           if (row.id !== rowId) return row;
           const currentIds = parseCellIds(row.assignments[dayIndex]);
@@ -441,7 +445,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
 
   // Hücreye yeni kişi ekle (zaten varsa eklemez)
   const addAssignment = (rowId: string | undefined, dayIndex: number, employeeId: string) => {
-      if (!isAdmin || !employeeId) return;
+      if (!canEdit || !employeeId) return;
       const row = rosterData.find(r => r.id === rowId);
       if (!row) return;
       if (!confirmIfConflict(employeeId, dayIndex, row.timeLabel)) return;
@@ -450,13 +454,13 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
 
   // Hücreden bir kişiyi çıkar
   const removeAssignment = (rowId: string | undefined, dayIndex: number, employeeId: string) => {
-      if (!isAdmin || !employeeId) return;
+      if (!canEdit || !employeeId) return;
       mutateCell(rowId, dayIndex, ids => ids.filter(id => id !== employeeId));
   };
 
   // Hücredeki bir kişiyi başka biriyle değiştir (mevcut select onChange için)
   const replaceAssignment = (rowId: string | undefined, dayIndex: number, oldId: string, newId: string) => {
-      if (!isAdmin) return;
+      if (!canEdit) return;
       const row = rosterData.find(r => r.id === rowId);
       if (!row) return;
       if (newId && !confirmIfConflict(newId, dayIndex, row.timeLabel)) return;
@@ -474,18 +478,18 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
   };
 
   const handleTimeLabelChange = (rowId: string | undefined, newLabel: string) => {
-      if (!isAdmin) return;
+      if (!canEdit) return;
       setRosterData(prev => prev.map(row => row.id === rowId ? { ...row, timeLabel: newLabel } : row));
   };
 
   const addNewRow = async () => {
-      if (!isAdmin) return;
+      if (!canEdit) return;
       const newRow: RosterRow = { id: `temp_${Date.now()}`, timeLabel: '', assignments: Array(7).fill('') };
       setRosterData([...rosterData, newRow]);
   };
 
   const deleteRow = async (rowId: string) => {
-      if (!isAdmin) return;
+      if (!canEdit) return;
       if(!confirm(t('shift.deleteConfirm'))) return;
       setRosterData(prev => prev.filter(r => r.id !== rowId));
       if (rowId && !rowId.startsWith('temp_')) await supabase.from('shift_schedules').delete().eq('id', rowId);
@@ -497,17 +501,69 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
   };
 
   const handleCopyNextWeek = async () => {
-      if (!isAdmin) return;
-      const nextWeekDate = new Date(currentWeekStart); nextWeekDate.setDate(nextWeekDate.getDate() + 7);
+      if (!canEdit || isLoading) return;
+      // Boş roster ile kopyalama → hedef haftanın delete'i çalışır ama insert
+      // çalışmaz, sessizce veri kaybı olur. publishWeek aynı pattern'i blokluyor.
+      if (rosterData.length === 0) {
+          alert(t('shift.copyEmptyError'));
+          return;
+      }
+      const nextWeekDate = new Date(currentWeekStart);
+      nextWeekDate.setDate(nextWeekDate.getDate() + 7);
       const nextWeekKey = formatLocalDate(nextWeekDate);
-      if (confirm(t('shift.copyConfirm').replace('{date}', formatDate(nextWeekDate)))) {
-          setIsLoading(true);
-          try {
-              await supabase.from('shift_schedules').delete().eq('week_start_date', nextWeekKey).eq('branch', String(activeBranch));
-              const payload = rosterData.map(row => ({ week_start_date: nextWeekKey, branch: String(activeBranch), time_slot: row.timeLabel, days: row.assignments }));
-              if(payload.length > 0) await supabase.from('shift_schedules').insert(payload);
-              if (isMounted.current) setCurrentWeekStart(nextWeekDate);
-          } catch (err: any) { console.error(err); } finally { if (isMounted.current) setIsLoading(false); }
+
+      // Hedef hafta zaten yayındaysa içerik ezildiğinde personel eski
+      // "yayında" banner'ını yeni içerikle görür. İkinci onay al ve başarılı
+      // kopya sonrası yayın kaydını düşür — taze onay gerekiyor.
+      let existingPubId: string | null = null;
+      try {
+          const { data: pub } = await supabase
+              .from('shift_publications')
+              .select('id')
+              .eq('week_start_date', nextWeekKey)
+              .eq('branch', String(activeBranch))
+              .maybeSingle();
+          if (pub) existingPubId = pub.id;
+      } catch {
+          // shift_publications tablosu henüz yoksa eski davranışa düş
+      }
+      if (existingPubId && !confirm(t('shift.copyOverridePublishedConfirm').replace('{date}', formatDate(nextWeekDate)))) {
+          return;
+      }
+
+      if (!confirm(t('shift.copyConfirm').replace('{date}', formatDate(nextWeekDate)))) return;
+
+      setIsLoading(true);
+      try {
+          const payload = rosterData.map(row => ({
+              week_start_date: nextWeekKey,
+              branch: String(activeBranch),
+              time_slot: row.timeLabel,
+              days: row.assignments,
+          }));
+
+          const { error: delErr } = await supabase
+              .from('shift_schedules')
+              .delete()
+              .eq('week_start_date', nextWeekKey)
+              .eq('branch', String(activeBranch));
+          if (delErr) throw delErr;
+
+          const { error: insErr } = await supabase
+              .from('shift_schedules')
+              .insert(payload);
+          if (insErr) throw insErr;
+
+          if (existingPubId) {
+              await supabase.from('shift_publications').delete().eq('id', existingPubId);
+          }
+
+          if (isMounted.current) setCurrentWeekStart(nextWeekDate);
+      } catch (err: any) {
+          console.error('handleCopyNextWeek error:', err);
+          alert(t('shift.copyError') + (err?.message || ''));
+      } finally {
+          if (isMounted.current) setIsLoading(false);
       }
   };
 
@@ -600,10 +656,10 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                   </div>
               </div>
 
-              {/* Admin butonları */}
-              {isAdmin && (
+              {/* Admin butonları — yalnızca düzenleme yetkisi olan süper adminlere */}
+              {canEdit && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-                      <button onClick={handleCopyNextWeek} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: mobilePalette.cellBg, border: `1px solid ${mobilePalette.cellBorder}`, borderRadius: '12px', color: mobilePalette.muted, minHeight: '44px' }} title={t('shift.copyTitle')}><Copy size={18} /></button>
+                      <button onClick={handleCopyNextWeek} disabled={isLoading} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: mobilePalette.cellBg, border: `1px solid ${mobilePalette.cellBorder}`, borderRadius: '12px', color: mobilePalette.muted, minHeight: '44px', opacity: isLoading ? 0.5 : 1, cursor: isLoading ? 'not-allowed' : 'pointer' }} title={t('shift.copyTitle')}>{isLoading ? <Loader2 size={18} className="animate-spin" /> : <Copy size={18} />}</button>
                       <button onClick={addNewRow} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: mobilePalette.primaryBg, border: 'none', borderRadius: '12px', color: mobilePalette.primaryText, fontWeight: 700, minHeight: '44px' }} title={t('shift.newRow')}><Plus size={18} /></button>
                       <button onClick={handleManualSave} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: mobilePalette.successBg, border: 'none', borderRadius: '12px', color: mobilePalette.successText, fontWeight: 700, minHeight: '44px' }} title={t('shift.saveTitle')}>{isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}</button>
                   </div>
@@ -633,9 +689,9 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                       <div className="px-4 text-center min-w-[140px] text-sm font-bold text-slate-900 dark:text-white">{formatDate(currentWeekStart, { day: 'numeric', month: 'short' })} - {formatDate(currentWeekEnd, { day: 'numeric', month: 'short' })}</div>
                       <button onClick={() => handleWeekChange('next')} className="p-2 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"><ChevronRight size={20}/></button>
                   </div>
-                  {isAdmin && (
+                  {canEdit && (
                       <div className="flex items-center gap-2">
-                          <button onClick={handleCopyNextWeek} className="p-3 flex items-center justify-center bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white min-h-[44px]" title={t('shift.copyTitle')}><Copy size={18} /></button>
+                          <button onClick={handleCopyNextWeek} disabled={isLoading} className="p-3 flex items-center justify-center bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed" title={t('shift.copyTitle')}>{isLoading ? <Loader2 size={18} className="animate-spin" /> : <Copy size={18} />}</button>
                           <button onClick={addNewRow} className="px-6 py-3 flex items-center justify-center bg-indigo-600 text-slate-900 dark:text-white rounded-xl font-bold shadow-lg min-h-[44px]" title={t('shift.newRow')}><Plus size={18} /></button>
                           <button onClick={handleManualSave} className="px-6 py-3 flex items-center justify-center bg-green-600 text-slate-900 dark:text-white rounded-xl font-bold shadow-lg min-h-[44px]" title={t('shift.saveTitle')}>{isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}</button>
                       </div>
@@ -671,7 +727,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                                 : t('shift.statusDraftDesc')}
                         </div>
                     </div>
-                    {isPublished ? (
+                    {canEdit && (isPublished ? (
                         <button
                             onClick={unpublishWeek}
                             disabled={publishLoading}
@@ -689,7 +745,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                             {publishLoading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
                             {t('shift.publish')}
                         </button>
-                    )}
+                    ))}
                 </div>
             )}
 
@@ -718,7 +774,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                                     const isToday = new Date().toDateString() === d.toDateString();
                                     return (<th key={day} className={`p-4 text-center border-r border-slate-200 dark:border-zinc-800/50 ${isToday ? 'bg-red-600/10 text-red-500' : 'text-slate-500 dark:text-zinc-500'}`}><span className="text-xs font-black uppercase">{day}</span></th>);
                                 })}
-                                {isAdmin && <th className="w-16"></th>}
+                                {canEdit && <th className="w-16"></th>}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-800/50">
@@ -728,7 +784,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                                 displayedRows.map((row) => (
                                     <tr key={row.id} className="group hover:bg-slate-200 dark:hover:bg-slate-100 dark:hover:bg-zinc-800/20">
                                         <td className="p-2 border-r border-slate-200 dark:border-zinc-800 sticky left-0 z-10 bg-slate-50 dark:bg-zinc-950 shadow-[2px_0_8px_rgba(0,0,0,0.5)]">
-                                            {isAdmin ? (<input type="text" value={row.timeLabel} onChange={(e) => handleTimeLabelChange(row.id, e.target.value)} onBlur={() => { saveRowToDb(row); fetchOtherBranchData(); }} className="w-full bg-transparent text-center font-bold text-slate-800 dark:text-zinc-200 outline-none" placeholder="00:00-00:00"/>) : (<div className="text-center font-bold text-slate-900 dark:text-white">{row.timeLabel}</div>)}
+                                            {canEdit ? (<input type="text" value={row.timeLabel} onChange={(e) => handleTimeLabelChange(row.id, e.target.value)} onBlur={() => { saveRowToDb(row); fetchOtherBranchData(); }} className="w-full bg-transparent text-center font-bold text-slate-800 dark:text-zinc-200 outline-none" placeholder="00:00-00:00"/>) : (<div className="text-center font-bold text-slate-900 dark:text-white">{row.timeLabel}</div>)}
                                         </td>
                                         {row.assignments.map((cellRaw, dayIdx) => {
                                             // Hücre artık CSV: birden çok personel olabilir.
@@ -741,8 +797,8 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                                             <td key={dayIdx} className={`p-2 border-r border-slate-200 dark:border-zinc-800/30 align-top ${cellHasConflict ? 'bg-red-900/10' : ''}`}>
                                                 <div className="flex flex-col items-stretch gap-1 min-w-[120px]">
                                                     {cellIds.length === 0 ? (
-                                                        // Boş hücre: admin için yalın dropdown, personel için "-"
-                                                        isAdmin ? (
+                                                        // Boş hücre: düzenleyen süper admin için dropdown, diğerlerine "-"
+                                                        canEdit ? (
                                                             <div className="flex justify-center h-8 w-full">
                                                                 <select
                                                                     value=""
@@ -770,7 +826,14 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                                                                         <span key={id} className="text-sm text-green-500 font-black text-center">{currentUser.name}</span>
                                                                     );
                                                                 }
-                                                                // Admin: select + X
+                                                                if (!canEdit) {
+                                                                    // Salt-okunur admin: tüm isimleri görür ama düzenleyemez
+                                                                    const empName = availableEmployees.find(e => e.id === id)?.name || id;
+                                                                    return (
+                                                                        <span key={id} className={`text-xs font-black text-center ${conflict ? 'text-red-400' : 'text-slate-900 dark:text-white'}`}>{empName}</span>
+                                                                    );
+                                                                }
+                                                                // Düzenleyen süper admin: select + X
                                                                 return (
                                                                     <div key={id} className="flex items-center gap-1 w-full">
                                                                         <select
@@ -799,7 +862,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                                                             })}
                                                             {/* Admin için "+ Kişi ekle": varsayılan olarak küçük "+" butonu;
                                                                 tıklanınca dropdown'a dönüşür, seçim/blur sonrası kapanır. */}
-                                                            {isAdmin && (() => {
+                                                            {canEdit && (() => {
                                                                 const cellKey = `${row.id}_${dayIdx}`;
                                                                 const isOpen = openAddCell === cellKey;
                                                                 const availableEmps = filteredEmployees.filter(emp => !assignedSet.has(emp.id));
@@ -847,7 +910,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                                             </td>
                                             );
                                         })}
-                                        {isAdmin && (<td className="p-2 text-center opacity-0 group-hover:opacity-100"><button onClick={() => deleteRow(row.id!)} className="text-slate-300 dark:text-zinc-700 hover:text-red-500"><Trash2 size={16} /></button></td>)}
+                                        {canEdit && (<td className="p-2 text-center opacity-0 group-hover:opacity-100"><button onClick={() => deleteRow(row.id!)} className="text-slate-300 dark:text-zinc-700 hover:text-red-500"><Trash2 size={16} /></button></td>)}
                                     </tr>
                                 ))
                             )}

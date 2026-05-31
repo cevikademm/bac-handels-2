@@ -637,6 +637,9 @@ const translations: Record<Language, Record<string, string>> = {
     'shift.conflictWarn': 'UYARI: {name} bu gün zaten {conflict} şubesinde atanmış ve saat çakışması var!\n\nYine de atamak istiyor musunuz?',
     'shift.deleteConfirm': 'Silmek istediğinize emin misiniz?',
     'shift.copyConfirm': '{date} haftasına kopyalamak istiyor musunuz?',
+    'shift.copyEmptyError': 'Boş vardiya kopyalanamaz. Önce satır ekleyin.',
+    'shift.copyOverridePublishedConfirm': '{date} haftası zaten YAYINDA. Kopyalarsanız mevcut içerik silinir ve yayın geri çekilir; tekrar yayınlamanız gerekir.\n\nDevam edilsin mi?',
+    'shift.copyError': 'Kopyalama hatası: ',
     'shift.selectEmployee': '— Personel Seç —',
     'shift.unassigned': 'Bu hafta atanmamış personeller',
 
@@ -1677,6 +1680,9 @@ const translations: Record<Language, Record<string, string>> = {
     'shift.conflictWarn': 'ACHTUNG: {name} ist an diesem Tag bereits in der Filiale {conflict} eingeteilt und es gibt eine Zeitüberschneidung!\n\nTrotzdem zuweisen?',
     'shift.deleteConfirm': 'Sind Sie sicher, dass Sie dies löschen möchten?',
     'shift.copyConfirm': 'Möchten Sie in die Woche {date} kopieren?',
+    'shift.copyEmptyError': 'Leere Schicht kann nicht kopiert werden. Fügen Sie zuerst Zeilen hinzu.',
+    'shift.copyOverridePublishedConfirm': 'Die Woche {date} ist bereits FREIGEGEBEN. Beim Kopieren wird der bestehende Inhalt gelöscht und die Freigabe zurückgezogen; Sie müssen erneut freigeben.\n\nFortfahren?',
+    'shift.copyError': 'Kopierfehler: ',
     'shift.selectEmployee': '— Mitarbeiter wählen —',
     'shift.unassigned': 'Diese Woche nicht zugewiesen',
 

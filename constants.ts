@@ -59,6 +59,17 @@ export const MANUAL_TIME_ENTRY_ALLOWED_EMAILS: string[] = [
 export const canUseManualTimeEntry = (email?: string | null): boolean =>
     !!email && MANUAL_TIME_ENTRY_ALLOWED_EMAILS.includes(email.trim().toLowerCase());
 
+// Vardiya planı düzenleme yetkisi — satır ekleme/silme/düzenleme, kişi atama,
+// haftayı kopyalama ve yayınlama yalnızca bu süper adminlere açıktır. Diğer tüm
+// adminler (Apo/Malik gibi şube adminleri dahil) planı YALNIZCA görüntüler.
+export const SHIFT_EDIT_ALLOWED_EMAILS: string[] = [
+    'cevikademm@gmail.com',
+    'seda@bac.de',
+];
+
+export const canEditShiftSchedule = (email?: string | null): boolean =>
+    !!email && SHIFT_EDIT_ALLOWED_EMAILS.includes(email.trim().toLowerCase());
+
 export const MOCK_EMPLOYEES: Employee[] = [];
 
 // NOTE: Titles and descriptions use i18n keys (e.g., task.mock.1.title) to support dynamic translation
