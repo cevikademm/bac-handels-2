@@ -761,7 +761,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
             {/* ══════════════════════════════════════════════════
                 TABLO GÖRÜNÜMÜ — Yatay kaydırmalı (mobil + masaüstü)
                ══════════════════════════════════════════════════ */}
-            <div className={`h-full pb-20 ${!isAdmin && !isPublished ? 'hidden' : ''}`}>
+            <div className={`pb-40 xl:pb-20 ${!isAdmin && !isPublished ? 'hidden' : ''}`}>
                 <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 overflow-x-auto shadow-2xl relative" style={{ WebkitOverflowScrolling: 'touch' }}>
 <GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} />
                     {isLoading && (<div className="absolute inset-0 z-50 bg-slate-50 dark:bg-zinc-950/80 backdrop-blur-sm flex items-center justify-center"><Loader2 size={40} className="text-blue-500 animate-spin" /></div>)}
