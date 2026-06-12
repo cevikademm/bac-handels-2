@@ -69,8 +69,9 @@ export const triggerForceUpdate = async (triggeredByName?: string | null): Promi
       { onConflict: 'key' }
     );
   if (error) throw error;
-  // Tetikleyen cihaz kendini güncellemeye zorlamasın — nonce'u ack'le.
-  setAckedNonce(nonce);
+  // NOT: Tetikleyen cihaz BİLEREK ack'lenmiyor — süper admin de güncelleme
+  // kartını görsün ("tüm kullanıcıları zorla" gerçekten herkesi kapsasın).
+  // Kart "Şimdi Güncelle" deyince ack'lenir, reload sonrası "Aldı" olur.
   return signal;
 };
 
@@ -152,14 +153,24 @@ export const reportUpdateStatus = async (
   }
 };
 
-/** Tüm cihazların güncelleme durumu satırlarını çeker (süper admin listesi için). */
-export const fetchUpdateStatuses = async (): Promise<UpdateStatusRow[]> => {
+/**
+ * Tüm cihazların güncelleme durumu satırlarını çeker (süper admin listesi için).
+ * Tablo henüz oluşturulmadıysa `null` döner (migration gerekli) — boş `[]`
+ * (tablo var ama kayıt yok) ile karıştırılmamalı, UI ayrı uyarı gösterir.
+ */
+export const fetchUpdateStatuses = async (): Promise<UpdateStatusRow[] | null> => {
   try {
     const { data, error } = await supabase
       .from(STATUS_TABLE)
       .select('user_id, user_name, app_version, acked_nonce, last_seen_at');
-    if (error || !data) return [];
-    return data as UpdateStatusRow[];
+    if (error) {
+      const msg = String(error.message || error.code || '').toLowerCase();
+      const tableMissing =
+        msg.includes(STATUS_TABLE) &&
+        (msg.includes('does not exist') || msg.includes('could not find') || msg.includes('schema cache'));
+      return tableMissing ? null : [];
+    }
+    return (data || []) as UpdateStatusRow[];
   } catch {
     return [];
   }

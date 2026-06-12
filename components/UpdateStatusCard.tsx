@@ -12,7 +12,7 @@
 // =============================================================
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { RefreshCw, Loader2, CheckCircle2, Clock, HelpCircle } from 'lucide-react';
+import { RefreshCw, Loader2, CheckCircle2, Clock, HelpCircle, Database } from 'lucide-react';
 import { useLanguage } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
 import { Employee } from '../types';
@@ -45,6 +45,7 @@ const UpdateStatusCard: React.FC<Props> = ({ currentUser }) => {
   const { t, formatDate } = useLanguage();
   const [rows, setRows] = useState<MergedRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [tableMissing, setTableMissing] = useState(false);
   const isMounted = useRef(true);
 
   const load = async () => {
@@ -57,6 +58,14 @@ const UpdateStatusCard: React.FC<Props> = ({ currentUser }) => {
         fetchLatestPublishedVersion(),
       ]);
       if (!isMounted.current) return;
+
+      // statuses === null → tablo yok (migration gerekli)
+      if (statuses === null) {
+        setTableMissing(true);
+        setRows([]);
+        return;
+      }
+      setTableMissing(false);
 
       const currentNonce = signal?.nonce || null;
       const statusByUser = new Map<string, UpdateStatusRow>();
@@ -155,6 +164,13 @@ const UpdateStatusCard: React.FC<Props> = ({ currentUser }) => {
         </button>
       </div>
       <p className="text-sm text-slate-600 dark:text-zinc-400 mb-4">{t('updateStatus.cardDesc')}</p>
+
+      {tableMissing && (
+        <div className="mb-4 flex items-start gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+          <Database size={16} className="text-amber-500 shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-600 dark:text-amber-400 leading-relaxed">{t('updateStatus.tableMissing')}</p>
+        </div>
+      )}
 
       {/* Özet rozetleri */}
       <div className="grid grid-cols-3 gap-2 mb-5">
