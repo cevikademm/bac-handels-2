@@ -70,6 +70,33 @@ export const SHIFT_EDIT_ALLOWED_EMAILS: string[] = [
 export const canEditShiftSchedule = (email?: string | null): boolean =>
     !!email && SHIFT_EDIT_ALLOWED_EMAILS.includes(email.trim().toLowerCase());
 
+// Vardiya TASLAĞINI görüntüleme yetkisi — yayınlanmamış (taslak) planı yalnızca
+// bu süper adminler görebilir. Düzenleme yetkisinden (yalnızca cevikadem+seda)
+// ayrıdır ve daha geniştir: hakan ve gurcan taslağı görür ama düzenleyemez.
+// Personel + diğer adminler taslağı HİÇ göremez; yalnızca admin "Yayınla"
+// dedikten sonra kendi yayınlanmış satırlarını görür.
+// NOT: Bu liste DB tarafında shift_can_view_draft() ile bire bir eşleşmelidir.
+export const SHIFT_DRAFT_VIEW_ALLOWED_EMAILS: string[] = [
+    'cevikademm@gmail.com',
+    'seda@bac.de',
+    'hakan@bac.de',
+    'gurcan@bac.de',
+];
+
+export const canViewShiftDraft = (email?: string | null): boolean =>
+    !!email && SHIFT_DRAFT_VIEW_ALLOWED_EMAILS.includes(email.trim().toLowerCase());
+
+// Zorunlu güncelleme tetikleme yetkisi — "Tüm kullanıcıları güncellemeye zorla"
+// butonu YALNIZCA bu süper admine gösterilir. Buton, app_config.force_update
+// satırının nonce'unu yeniler ve tüm açık istemcilerde engelleyici güncelleme
+// kartını tetikler (cache + SW temizleyip hard-reload).
+export const FORCE_UPDATE_ADMIN_EMAILS: string[] = [
+    'cevikademm@gmail.com',
+];
+
+export const canTriggerForceUpdate = (email?: string | null): boolean =>
+    !!email && FORCE_UPDATE_ADMIN_EMAILS.includes(email.trim().toLowerCase());
+
 export const MOCK_EMPLOYEES: Employee[] = [];
 
 // NOTE: Titles and descriptions use i18n keys (e.g., task.mock.1.title) to support dynamic translation

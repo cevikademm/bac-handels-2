@@ -11,7 +11,11 @@
 // - message : main thread'den postMessage ile lokal bildirim göster
 // =============================================================
 
-const CACHE_VERSION = 'bac-handels-v2';
+// SÜRÜM YÜKSELTME: bu sabit her değiştiğinde activate handler eski cache'leri
+// siler ve clients.claim ile yeni SW kontrolü hemen devralır. Böylece eski
+// sürümde kalmış (güncelleme almamış) cihazlar bir sonraki açılışta network-first
+// ile taze index.html + JS bundle çeker → zorunlu güncelleme garanti altına alınır.
+const CACHE_VERSION = 'bac-handels-v3';
 const APP_SHELL = [
   '/',
   '/index.html',

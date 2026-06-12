@@ -16,6 +16,7 @@ import RequirePhoneModal from './components/RequirePhoneModal';
 import PWAInstallBanner, { PushSubscriptionCard } from './components/PWAInstallBanner';
 import NotificationPreferencesCard from './components/NotificationPreferencesCard';
 import { DeviceHistoryCard, PhoneConflictsCard } from './components/DeviceTrustCard';
+import ForceUpdateOverlay from './components/ForceUpdateOverlay';
 import { canSeeMap } from './lib/geofence';
 import { canSeeDeviceInfo } from './lib/utils';
 
@@ -24,8 +25,9 @@ import { canSeeDeviceInfo } from './lib/utils';
 const QrCheckIn = lazyWithRetry(() => import('./components/QrCheckIn'));
 // Lazy: Leaflet+react-leaflet ~140kB; harita sekmesine girilene dek yüklenmesin
 const Map = lazyWithRetry(() => import('./components/Map'));
-import { Settings as SettingsIcon, Shield, Volume2, Upload, RefreshCw, Play, Loader2, KeyRound, Globe, Lock, Server, CheckCircle, Sun, Moon } from 'lucide-react';
-import { MOCK_EMPLOYEES, NOTIFICATION_SOUND, isDualRoleAdmin } from './constants';
+import { Settings as SettingsIcon, Shield, Volume2, Upload, RefreshCw, Play, Loader2, KeyRound, Globe, Lock, Server, CheckCircle, Sun, Moon, Rocket, DownloadCloud } from 'lucide-react';
+import { MOCK_EMPLOYEES, NOTIFICATION_SOUND, isDualRoleAdmin, canTriggerForceUpdate } from './constants';
+import { triggerForceUpdate, fetchForceUpdateSignal } from './lib/forceUpdate';
 import { Employee, Role, AppNotification } from './types';
 import { supabase } from './lib/supabase';
 import { LanguageProvider, useLanguage } from './lib/i18n';
@@ -39,7 +41,7 @@ initProductionGuard();
 const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null, onUpdateUser?: (user: Employee) => void }) => {
     const [soundLoading, setSoundLoading] = useState(false);
     const [hasCustomSound, setHasCustomSound] = useState(false);
-    const { language, setLanguage, t } = useLanguage();
+    const { language, setLanguage, t, formatDate } = useLanguage();
     const { theme, setTheme } = useTheme();
 
     // Password State
@@ -53,6 +55,34 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
 
     // Avatar Upload State
     const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
+    // Zorunlu güncelleme tetikleme (yalnızca cevikademm)
+    const [forceUpdateLoading, setForceUpdateLoading] = useState(false);
+    const [lastForceUpdate, setLastForceUpdate] = useState<{ by?: string | null; at?: string | null } | null>(null);
+    const canForceUpdate = canTriggerForceUpdate(currentUser?.email);
+
+    useEffect(() => {
+        if (!canForceUpdate) return;
+        fetchForceUpdateSignal().then(sig => {
+            if (sig) setLastForceUpdate({ by: sig.triggeredBy, at: sig.triggeredAt });
+        });
+    }, [canForceUpdate]);
+
+    const handleForceUpdate = async () => {
+        if (!canForceUpdate || forceUpdateLoading) return;
+        if (!confirm(t('forceUpdate.confirm'))) return;
+        setForceUpdateLoading(true);
+        try {
+            const sig = await triggerForceUpdate(currentUser?.name);
+            setLastForceUpdate({ by: sig.triggeredBy, at: sig.triggeredAt });
+            alert(t('forceUpdate.success'));
+        } catch (err: any) {
+            console.error('triggerForceUpdate error:', err);
+            alert(t('forceUpdate.error') + (err?.message || ''));
+        } finally {
+            setForceUpdateLoading(false);
+        }
+    };
 
     const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -506,6 +536,43 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                       </>
                     )}
 
+                    {/* ZORUNLU GÜNCELLEME — yalnızca cevikademm@gmail.com.
+                        Tüm açık cihazlarda engelleyici güncelleme kartını tetikler. */}
+                    {canForceUpdate && (
+                        <div className="relative rounded-xl p-[1px] overflow-hidden"
+                             style={{ background: 'linear-gradient(140deg,#6366f1,#8b5cf6 45%,#ec4899 80%)' }}>
+                            <div className="rounded-[11px] bg-white dark:bg-zinc-950 p-6">
+                                <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+                                    <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                                          style={{ background: 'linear-gradient(135deg,#4f46e5,#db2777)' }}>
+                                        <Rocket size={18} className="text-white" />
+                                    </span>
+                                    {t('forceUpdate.cardTitle')}
+                                </h3>
+                                <p className="text-sm text-slate-600 dark:text-zinc-400 mb-5 mt-2">
+                                    {t('forceUpdate.cardDesc')}
+                                </p>
+                                <button
+                                    onClick={handleForceUpdate}
+                                    disabled={forceUpdateLoading}
+                                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white shadow-lg shadow-indigo-900/30 transition-transform active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+                                    style={{ background: 'linear-gradient(135deg,#4f46e5,#7c3aed 55%,#db2777)' }}
+                                >
+                                    {forceUpdateLoading
+                                        ? <><Loader2 size={16} className="animate-spin" /> {t('forceUpdate.sending')}</>
+                                        : <><DownloadCloud size={16} /> {t('forceUpdate.cardBtn')}</>}
+                                </button>
+                                {lastForceUpdate?.at && (
+                                    <p className="text-[11px] text-slate-500 dark:text-zinc-500 mt-4">
+                                        {t('forceUpdate.lastTriggered')
+                                            .replace('{by}', lastForceUpdate.by || '—')
+                                            .replace('{at}', formatDate(lastForceUpdate.at, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }))}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     {/* PASSWORD CHANGE SECTION */}
                     <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl p-6">
                         <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-4 flex items-center gap-2">
@@ -860,6 +927,8 @@ const AppContent: React.FC = () => {
       </Layout>
       <PWAInstallBanner userId={currentUser?.id} />
       <LiveLocationTracker currentUser={currentUser} />
+      {/* Süper admin tetiklemeli zorunlu güncelleme — tüm kullanıcılarda engelleyici kart */}
+      <ForceUpdateOverlay />
       {requiresPhoneEntry && currentUser && (
         <RequirePhoneModal
           currentUser={currentUser}
