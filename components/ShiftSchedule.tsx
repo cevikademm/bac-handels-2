@@ -3,7 +3,7 @@ import { useLanguage } from '../lib/i18n';
 import { useTheme } from '../lib/theme';
 import { Branch, Employee, Role } from '../types';
 import { Save, ChevronLeft, ChevronRight, Copy, Plus, Trash2, Loader2, AlertTriangle, CheckCircle2, Lock, Send, Undo2, X } from 'lucide-react';
-import { includeAsPersonnel, canEditShiftSchedule } from '../constants';
+import { includeAsPersonnel, canEditShiftSchedule, canViewShiftDraft } from '../constants';
 import { supabase } from '../lib/supabase';
 import { formatLocalDate, parseCellIds, joinCellIds } from '../lib/utils';
 import { GlowingEffect } from './ui/glowing-effect';
@@ -25,6 +25,23 @@ const parseTimeRange = (label: string): { start: number; end: number } | null =>
 // İki zaman aralığı çakışıyor mu?
 const timeRangesOverlap = (a: { start: number; end: number }, b: { start: number; end: number }): boolean => {
     return a.start < b.end && b.start < a.end;
+};
+
+// Vardiya satırlarını başlangıç saatine göre artan sırada diz.
+// Adminler için kritik: kopyalama/oluşturma sırası ne olursa olsun tablo
+// her zaman erken saatten geç saate doğru görünmeli. Aynı başlangıçta bitiş
+// saatine bakılır; saati parse edilemeyen / boş satırlar (henüz doldurulmamış
+// yeni satırlar) en sona alınır.
+const sortRosterByTime = (rows: RosterRow[]): RosterRow[] => {
+    return [...rows].sort((a, b) => {
+        const ra = parseTimeRange(a.timeLabel);
+        const rb = parseTimeRange(b.timeLabel);
+        if (!ra && !rb) return 0;
+        if (!ra) return 1;
+        if (!rb) return -1;
+        if (ra.start !== rb.start) return ra.start - rb.start;
+        return ra.end - rb.end;
+    });
 };
 
 interface RosterRow {
@@ -73,6 +90,12 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
   // Düzenleme yetkisi: yalnızca süper adminler (seda + cevikademm) değişiklik yapar.
   // Diğer adminler salt-okunur görür; mutasyon fonksiyonları ve edit UI'ı kapalıdır.
   const canEdit = isAdmin && canEditShiftSchedule(currentUser.email);
+  // Taslak görüntüleme yetkisi: yalnızca cevikadem, seda, hakan, gurcan
+  // yayınlanmamış (taslak) planı görür. Diğer herkes (personel + Apo/Malik gibi
+  // şube adminleri) yalnızca "Yayınla" sonrası yayınlanmış satırları görür.
+  // DB tarafında shift_get_week_rows + shift_can_view_draft ile zorlanır;
+  // bu yüzden taslak satırları yetkisiz cihaza REST/realtime ile hiç ulaşmaz.
+  const canViewDraft = isAdmin && canViewShiftDraft(currentUser.email);
 
   // Personel artık şubeye bağlı değil - admin tüm şubeleri görür, personel de tüm şubeleri görebilir
   const [activeBranch, setActiveBranch] = useState<string>(Branch.MULHEIM);
@@ -230,27 +253,43 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
       } catch (err) { console.error(err); }
   };
 
+  // Vardiya satırları yalnızca shift_get_week_rows RPC'si üzerinden okunur.
+  // RPC, caller_id'yi doğrular: taslak görme yetkisi yoksa SADECE yayınlanmış
+  // satırları döner. Doğrudan .from('shift_schedules') artık taslağı sızdırmaz.
   const fetchWeekData = async () => {
       setIsLoading(true);
       try {
-          const { data, error } = await supabase.from('shift_schedules').select('*').eq('week_start_date', weekKey).eq('branch', activeBranch).order('created_at', { ascending: true });
+          const { data, error } = await supabase.rpc('shift_get_week_rows', {
+              p_caller_id: currentUser.id,
+              p_week: weekKey,
+              p_branch: String(activeBranch),
+          });
           if (!isMounted.current) return;
           if (error) { console.error('fetchWeekData error:', error); }
-          if (data) setRosterData(data.map((r: any) => ({ id: r.id, timeLabel: r.time_slot || '', assignments: Array.isArray(r.days) ? r.days : Array(7).fill('') })));
+          if (data) setRosterData(sortRosterByTime(data.map((r: any) => ({ id: r.id, timeLabel: r.time_slot || '', assignments: Array.isArray(r.days) ? r.days : Array(7).fill('') }))));
       } catch (err: any) { console.error(err); } finally { if (isMounted.current) setIsLoading(false); }
   };
 
-  // Diğer şubelerin aynı hafta verilerini çek - çakışma kontrolü için
+  // Diğer şubelerin aynı hafta verilerini çek - çakışma kontrolü için.
+  // RPC ile tüm haftayı (taslak yetkisine göre) çekip mevcut şubeyi ayıkla.
   const fetchOtherBranchData = async () => {
       try {
-          const { data } = await supabase.from('shift_schedules').select('*').eq('week_start_date', weekKey).neq('branch', activeBranch);
+          const { data } = await supabase.rpc('shift_get_week_rows', {
+              p_caller_id: currentUser.id,
+              p_week: weekKey,
+              p_branch: null,
+          });
           if (!isMounted.current) return;
           if (data) {
-              setOtherBranchSchedules(data.map((r: any) => ({
-                  branch: r.branch,
-                  timeLabel: r.time_slot || '',
-                  assignments: r.days || Array(7).fill('')
-              })));
+              setOtherBranchSchedules(
+                  data
+                      .filter((r: any) => String(r.branch) !== String(activeBranch))
+                      .map((r: any) => ({
+                          branch: r.branch,
+                          timeLabel: r.time_slot || '',
+                          assignments: r.days || Array(7).fill('')
+                      }))
+              );
           }
       } catch (err) { console.error(err); }
   };
@@ -298,20 +337,13 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
       if (!confirm(t('shift.publishConfirm'))) return;
       setPublishLoading(true);
       try {
-          const { data, error } = await supabase
-              .from('shift_publications')
-              .upsert(
-                  {
-                      week_start_date: weekKey,
-                      branch: String(activeBranch),
-                      published_at: new Date().toISOString(),
-                      published_by: currentUser.id,
-                      published_by_name: currentUser.name,
-                  },
-                  { onConflict: 'week_start_date,branch' }
-              )
-              .select()
-              .single();
+          const { data, error } = await supabase.rpc('shift_publish', {
+              p_caller_id: currentUser.id,
+              p_week: weekKey,
+              p_branch: String(activeBranch),
+              p_published_by: currentUser.id,
+              p_published_by_name: currentUser.name,
+          });
           if (error) throw error;
           if (isMounted.current && data) {
               setPublication({
@@ -337,10 +369,10 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
       if (!confirm(t('shift.unpublishConfirm'))) return;
       setPublishLoading(true);
       try {
-          const { error } = await supabase
-              .from('shift_publications')
-              .delete()
-              .eq('id', publication.id);
+          const { error } = await supabase.rpc('shift_unpublish', {
+              p_caller_id: currentUser.id,
+              p_id: publication.id,
+          });
           if (error) throw error;
           if (isMounted.current) setPublication(null);
       } catch (err: any) {
@@ -406,12 +438,21 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
       if (!canEdit) return;
       setIsSaving(true);
       try {
-          const payload = { week_start_date: weekKey, branch: String(activeBranch), time_slot: row.timeLabel, days: row.assignments };
-          if (row.id && !row.id.startsWith('temp_')) {
-              await supabase.from('shift_schedules').update(payload).eq('id', row.id);
-          } else {
-              const { data, error } = await supabase.from('shift_schedules').insert([payload]).select().single();
-              if(!error && data && isMounted.current) setRosterData(prev => prev.map(r => r.id === row.id ? { ...r, id: data.id } : r));
+          const isExisting = !!row.id && !row.id.startsWith('temp_');
+          // Yazma artık SECURITY DEFINER RPC üzerinden — yetki DB'de doğrulanır,
+          // eski sürümdeki adminlerin doğrudan REST yazması engellenir.
+          const { data, error } = await supabase.rpc('shift_save_row', {
+              p_caller_id: currentUser.id,
+              p_id: isExisting ? row.id : null,
+              p_week: weekKey,
+              p_branch: String(activeBranch),
+              p_time_slot: row.timeLabel,
+              p_days: row.assignments,
+          });
+          if (error) throw error;
+          // Yeni satır → geçici temp_ id'yi gerçek DB id'siyle değiştir.
+          if (!isExisting && data && isMounted.current) {
+              setRosterData(prev => prev.map(r => r.id === row.id ? { ...r, id: (data as any).id } : r));
           }
       } catch (err) { console.error(err); } finally { if (isMounted.current) setIsSaving(false); }
   };
@@ -492,7 +533,10 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
       if (!canEdit) return;
       if(!confirm(t('shift.deleteConfirm'))) return;
       setRosterData(prev => prev.filter(r => r.id !== rowId));
-      if (rowId && !rowId.startsWith('temp_')) await supabase.from('shift_schedules').delete().eq('id', rowId);
+      if (rowId && !rowId.startsWith('temp_')) {
+          const { error } = await supabase.rpc('shift_delete_row', { p_caller_id: currentUser.id, p_id: rowId });
+          if (error) console.error('deleteRow error:', error);
+      }
   };
 
   const handleManualSave = async () => {
@@ -535,28 +579,23 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
 
       setIsLoading(true);
       try {
-          const payload = rosterData.map(row => ({
-              week_start_date: nextWeekKey,
-              branch: String(activeBranch),
+          // Saat sırasına göre kopyala — hedef haftada da erken→geç düzeninde insert et.
+          // (Hedef hafta fetch'i ayrıca sortRosterByTime uygular; bu insert sırası
+          //  created_at sırasının da doğru olmasını garantiler.)
+          // Tek RPC: hedef hafta+şube satırlarını siler, yeniden ekler ve hedef
+          // haftanın yayın kaydını düşürür (taze onay gerekir). Yetki DB'de kontrol edilir.
+          const rows = sortRosterByTime(rosterData).map(row => ({
               time_slot: row.timeLabel,
               days: row.assignments,
           }));
 
-          const { error: delErr } = await supabase
-              .from('shift_schedules')
-              .delete()
-              .eq('week_start_date', nextWeekKey)
-              .eq('branch', String(activeBranch));
-          if (delErr) throw delErr;
-
-          const { error: insErr } = await supabase
-              .from('shift_schedules')
-              .insert(payload);
-          if (insErr) throw insErr;
-
-          if (existingPubId) {
-              await supabase.from('shift_publications').delete().eq('id', existingPubId);
-          }
+          const { error: rpcErr } = await supabase.rpc('shift_replace_week', {
+              p_caller_id: currentUser.id,
+              p_week: nextWeekKey,
+              p_branch: String(activeBranch),
+              p_rows: rows,
+          });
+          if (rpcErr) throw rpcErr;
 
           if (isMounted.current) setCurrentWeekStart(nextWeekDate);
       } catch (err: any) {
@@ -586,7 +625,13 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
 
   useEffect(() => {
       const fetchAllWeekSchedules = async () => {
-          const { data } = await supabase.from('shift_schedules').select('*').eq('week_start_date', weekKey);
+          // RPC: taslak yetkisi yoksa yalnızca yayınlanmış satırlar döner →
+          // personel rozet sayımı onaylanmamış vardiyayı asla saymaz.
+          const { data } = await supabase.rpc('shift_get_week_rows', {
+              p_caller_id: currentUser.id,
+              p_week: weekKey,
+              p_branch: null,
+          });
           if (data && isMounted.current) setAllWeekSchedules(data);
       };
       const fetchPublishedBranches = async () => {
@@ -603,14 +648,19 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
       };
       fetchAllWeekSchedules();
       fetchPublishedBranches();
+      // Yayın durumu değişince (publish/unpublish) mevcut şube satırlarını da
+      // yenile: taslak görme yetkisi olmayan kullanıcılar yayınlanan satırları
+      // RLS'ten artık okuyabildiği için tablonun anında dolması/boşalması gerekir.
+      fetchWeekData();
   }, [weekKey, publication]);
 
   const branchShiftCounts = useMemo((): Map<string, number> => {
       const counts = new Map<string, number>();
       allWeekSchedules.forEach((schedule: any) => {
           const branch = schedule.branch;
-          // Personel için onaylanmamış şubelerin sayımı sızmasın
-          if (!isAdmin && !publishedBranches.has(branch)) return;
+          // Taslak görme yetkisi olmayan herkes için onaylanmamış şube sayımı sızmasın.
+          // (allWeekSchedules zaten RPC'den yetkiye göre süzülü gelir; bu ek savunma katmanı.)
+          if (!canViewDraft && !publishedBranches.has(branch)) return;
           const days: string[] = schedule.days || [];
           // Hücre CSV olabilir — her hücredeki ID'leri ayrı kontrol et
           const userDays = days.filter((cell: string) => parseCellIds(cell).includes(currentUser.id)).length;
@@ -619,7 +669,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
           }
       });
       return counts;
-  }, [allWeekSchedules, currentUser, isAdmin, publishedBranches]);
+  }, [allWeekSchedules, currentUser, canViewDraft, publishedBranches]);
 
   return (
     <div className="h-full w-full flex flex-col bg-[#09090b] relative overflow-hidden">
@@ -749,8 +799,9 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                 </div>
             )}
 
-            {/* Personel + yayında değil → büyük "henüz onaylanmadı" kutusu */}
-            {!isAdmin && !isPublished && !isLoading && (
+            {/* Taslak görme yetkisi yok + yayında değil → büyük "henüz onaylanmadı" kutusu.
+                Personel ve taslak yetkisi olmayan adminler (Apo/Malik) bu kutuyu görür. */}
+            {!canViewDraft && !isPublished && !isLoading && (
                 <div className="mt-2 mb-4 mx-auto max-w-2xl bg-white dark:bg-zinc-900/50 border border-amber-900/40 rounded-2xl p-8 text-center">
                     <Lock size={32} className="text-amber-400 mx-auto mb-3" />
                     <h3 className="text-base font-semibold text-slate-900 dark:text-white mb-1">{t('shift.notPublishedTitle')}</h3>
@@ -761,7 +812,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
             {/* ══════════════════════════════════════════════════
                 TABLO GÖRÜNÜMÜ — Yatay kaydırmalı (mobil + masaüstü)
                ══════════════════════════════════════════════════ */}
-            <div className={`${!isAdmin && !isPublished ? 'hidden' : ''}`}>
+            <div className={`${!canViewDraft && !isPublished ? 'hidden' : ''}`}>
                 <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 overflow-x-auto shadow-2xl relative" style={{ WebkitOverflowScrolling: 'touch' }}>
 <GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} />
                     {isLoading && (<div className="absolute inset-0 z-50 bg-slate-50 dark:bg-zinc-950/80 backdrop-blur-sm flex items-center justify-center"><Loader2 size={40} className="text-blue-500 animate-spin" /></div>)}
@@ -784,7 +835,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                                 displayedRows.map((row) => (
                                     <tr key={row.id} className="group hover:bg-slate-200 dark:hover:bg-slate-100 dark:hover:bg-zinc-800/20">
                                         <td className="p-2 border-r border-slate-200 dark:border-zinc-800 sticky left-0 z-10 bg-slate-50 dark:bg-zinc-950 shadow-[2px_0_8px_rgba(0,0,0,0.5)]">
-                                            {canEdit ? (<input type="text" value={row.timeLabel} onChange={(e) => handleTimeLabelChange(row.id, e.target.value)} onBlur={() => { saveRowToDb(row); fetchOtherBranchData(); }} className="w-full bg-transparent text-center font-bold text-slate-800 dark:text-zinc-200 outline-none" placeholder="00:00-00:00"/>) : (<div className="text-center font-bold text-slate-900 dark:text-white">{row.timeLabel}</div>)}
+                                            {canEdit ? (<input type="text" value={row.timeLabel} onChange={(e) => handleTimeLabelChange(row.id, e.target.value)} onBlur={() => { saveRowToDb(row); fetchOtherBranchData(); setRosterData(prev => sortRosterByTime(prev)); }} className="w-full bg-transparent text-center font-bold text-slate-800 dark:text-zinc-200 outline-none" placeholder="00:00-00:00"/>) : (<div className="text-center font-bold text-slate-900 dark:text-white">{row.timeLabel}</div>)}
                                         </td>
                                         {row.assignments.map((cellRaw, dayIdx) => {
                                             // Hücre artık CSV: birden çok personel olabilir.
