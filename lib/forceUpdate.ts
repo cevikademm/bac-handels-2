@@ -14,9 +14,11 @@
 // =============================================================
 
 import { supabase } from './supabase';
+import { getBundledVersion } from './versionCheck';
 
 const CONFIG_KEY = 'force_update';
 const ACK_STORAGE_KEY = 'bac:force-update-ack';
+const STATUS_TABLE = 'app_update_status';
 
 export interface ForceUpdateSignal {
   nonce: string;
@@ -107,6 +109,77 @@ export const purgeCachesAndSw = async (): Promise<void> => {
     }
   } catch {
     /* ignore */
+  }
+};
+
+// ---------------------------------------------------------------------------
+// GÜNCELLEME DURUMU TAKİBİ — kim son sürümü aldı / almadı?
+// ---------------------------------------------------------------------------
+
+export interface UpdateStatusRow {
+  user_id: string;
+  user_name: string | null;
+  app_version: string | null;
+  acked_nonce: string | null;
+  last_seen_at: string | null;
+}
+
+/**
+ * Bu cihazın güncel durumunu app_update_status'a yazar: çalıştığı build
+ * sürümü + uyguladığı zorunlu güncelleme nonce'u + şimdiki zaman. Açılışta,
+ * pencere odaklanınca ve periyodik olarak çağrılır. Tablo yoksa sessiz degrade.
+ */
+export const reportUpdateStatus = async (
+  userId?: string | null,
+  userName?: string | null
+): Promise<void> => {
+  if (!userId) return;
+  try {
+    const now = new Date().toISOString();
+    await supabase.from(STATUS_TABLE).upsert(
+      {
+        user_id: userId,
+        user_name: userName || null,
+        app_version: getBundledVersion() || null,
+        acked_nonce: getAckedNonce(),
+        last_seen_at: now,
+        updated_at: now,
+      },
+      { onConflict: 'user_id' }
+    );
+  } catch {
+    /* tablo yok / ağ hatası — sessizce yok say */
+  }
+};
+
+/** Tüm cihazların güncelleme durumu satırlarını çeker (süper admin listesi için). */
+export const fetchUpdateStatuses = async (): Promise<UpdateStatusRow[]> => {
+  try {
+    const { data, error } = await supabase
+      .from(STATUS_TABLE)
+      .select('user_id, user_name, app_version, acked_nonce, last_seen_at');
+    if (error || !data) return [];
+    return data as UpdateStatusRow[];
+  } catch {
+    return [];
+  }
+};
+
+/** /version.json'daki en güncel yayınlanmış sürümü çeker (yoksa null). */
+export const fetchLatestPublishedVersion = async (): Promise<string | null> => {
+  try {
+    const resp = await fetch(`/version.json?t=${Date.now()}`, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache' },
+      credentials: 'omit',
+    });
+    if (!resp.ok) return null;
+    const ct = (resp.headers.get('content-type') || '').toLowerCase();
+    if (!ct.includes('json')) return null;
+    const data = (await resp.json()) as { version?: unknown };
+    return typeof data.version === 'string' && data.version.length > 0 ? data.version : null;
+  } catch {
+    return null;
   }
 };
 

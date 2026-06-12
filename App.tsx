@@ -17,6 +17,7 @@ import PWAInstallBanner, { PushSubscriptionCard } from './components/PWAInstallB
 import NotificationPreferencesCard from './components/NotificationPreferencesCard';
 import { DeviceHistoryCard, PhoneConflictsCard } from './components/DeviceTrustCard';
 import ForceUpdateOverlay from './components/ForceUpdateOverlay';
+import UpdateStatusCard from './components/UpdateStatusCard';
 import { canSeeMap } from './lib/geofence';
 import { canSeeDeviceInfo } from './lib/utils';
 
@@ -27,7 +28,7 @@ const QrCheckIn = lazyWithRetry(() => import('./components/QrCheckIn'));
 const Map = lazyWithRetry(() => import('./components/Map'));
 import { Settings as SettingsIcon, Shield, Volume2, Upload, RefreshCw, Play, Loader2, KeyRound, Globe, Lock, Server, CheckCircle, Sun, Moon, Rocket, DownloadCloud } from 'lucide-react';
 import { MOCK_EMPLOYEES, NOTIFICATION_SOUND, isDualRoleAdmin, canTriggerForceUpdate } from './constants';
-import { triggerForceUpdate, fetchForceUpdateSignal } from './lib/forceUpdate';
+import { triggerForceUpdate, fetchForceUpdateSignal, reportUpdateStatus } from './lib/forceUpdate';
 import { Employee, Role, AppNotification } from './types';
 import { supabase } from './lib/supabase';
 import { LanguageProvider, useLanguage } from './lib/i18n';
@@ -573,6 +574,10 @@ const Settings = ({ currentUser, onUpdateUser }: { currentUser: Employee | null,
                         </div>
                     )}
 
+                    {/* GÜNCELLEME DURUMU LİSTESİ — yalnızca cevikademm@gmail.com.
+                        Kim son sürümü aldı / kim bekliyor. */}
+                    {canForceUpdate && <UpdateStatusCard currentUser={currentUser} />}
+
                     {/* PASSWORD CHANGE SECTION */}
                     <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-xl p-6">
                         <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-4 flex items-center gap-2">
@@ -792,6 +797,25 @@ const AppContent: React.FC = () => {
         supabase.removeChannel(channel);
     };
   }, [currentUser, t]);
+
+  // Güncelleme durumu raporu: bu cihazın çalıştığı sürüm + uyguladığı zorunlu
+  // güncelleme nonce'u app_update_status'a yazılır. Süper admin Ayarlar'da
+  // kimin son sürümü alıp almadığını görür. Açılış + odak + 5dk periyot.
+  useEffect(() => {
+      if (!currentUser?.id) return;
+      const report = () => reportUpdateStatus(currentUser.id, currentUser.name);
+      report();
+      const intervalId = window.setInterval(report, 5 * 60 * 1000);
+      const onFocus = () => report();
+      const onVisible = () => { if (document.visibilityState === 'visible') report(); };
+      window.addEventListener('focus', onFocus);
+      document.addEventListener('visibilitychange', onVisible);
+      return () => {
+          window.clearInterval(intervalId);
+          window.removeEventListener('focus', onFocus);
+          document.removeEventListener('visibilitychange', onVisible);
+      };
+  }, [currentUser?.id, currentUser?.name]);
 
   useEffect(() => {
       const handleHashChange = () => {

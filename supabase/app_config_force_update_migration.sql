@@ -44,15 +44,55 @@ INSERT INTO public.app_config (key, value)
 VALUES ('force_update', '{}'::jsonb)
 ON CONFLICT (key) DO NOTHING;
 
+-- ===================================================================
+-- GÜNCELLEME DURUMU TAKİBİ — kim son sürümü aldı / almadı?
+-- Her kullanıcının cihazı açılışta/odakta/periyodik olarak burayı
+-- günceller: çalıştığı build sürümü (app_version), uyguladığı zorunlu
+-- güncelleme nonce'u (acked_nonce) ve son görülme zamanı. Süper admin
+-- (cevikademm) Ayarlar > "Güncelleme Durumu" kartında bu satırları
+-- güncel force_update nonce'u / en son sürümle karşılaştırıp listeler.
+-- ===================================================================
+CREATE TABLE IF NOT EXISTS public.app_update_status (
+  -- profiles.id TEXT olduğu için user_id de TEXT (mevcut şema ile uyumlu)
+  user_id       text PRIMARY KEY,
+  user_name     text,
+  app_version   text,
+  acked_nonce   text,
+  last_seen_at  timestamptz NOT NULL DEFAULT NOW(),
+  updated_at    timestamptz NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.app_update_status ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "app_update_status_read_all"   ON public.app_update_status;
+DROP POLICY IF EXISTS "app_update_status_write_open" ON public.app_update_status;
+
+-- Okuma açık — liste UI tarafında yalnızca cevikademm'e gösterilir.
+CREATE POLICY "app_update_status_read_all"
+  ON public.app_update_status FOR SELECT
+  USING (true);
+
+-- Yazma açık — her cihaz kendi durumunu upsert eder (app-side).
+CREATE POLICY "app_update_status_write_open"
+  ON public.app_update_status FOR ALL
+  USING (true)
+  WITH CHECK (true);
+
 -- PostgREST schema cache'ini hemen yenile
 NOTIFY pgrst, 'reload schema';
 
--- Realtime publication: nonce değişikliği tüm bağlı cihazlara anında yansısın.
+-- Realtime publication: nonce + durum değişiklikleri tüm bağlı cihazlara
+-- anında yansısın.
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
     BEGIN
       ALTER PUBLICATION supabase_realtime ADD TABLE public.app_config;
+    EXCEPTION WHEN duplicate_object THEN
+      NULL;
+    END;
+    BEGIN
+      ALTER PUBLICATION supabase_realtime ADD TABLE public.app_update_status;
     EXCEPTION WHEN duplicate_object THEN
       NULL;
     END;
