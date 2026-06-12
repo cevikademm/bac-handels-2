@@ -159,8 +159,12 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
       window.addEventListener('focus', handleFocus);
       // Realtime düşerse savunma katmanı: 45 saniyede bir yayın durumunu yenile.
       // Personel cihazında admin yayını geri çektikten en geç 45sn sonra tablo gizlenir.
+      // Taslak görüntüleyiciler için satırları da yenile: yayın-bazlı RLS sonrası
+      // realtime taslak satır değişikliklerini iletmez, bu süper-adminler arası
+      // canlı taslak senkronunu (en geç 45sn) korur.
       const intervalId = window.setInterval(() => {
           fetchPublication();
+          if (canViewDraft) fetchWeekData();
       }, 45_000);
       return () => {
           document.removeEventListener('visibilitychange', handleVisibility);

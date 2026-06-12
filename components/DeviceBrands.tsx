@@ -672,7 +672,7 @@ const DeviceBrands: React.FC<DeviceBrandsProps> = ({ currentUser }) => {
     if (!allowed) return;
     let cancelled = false;
     setShiftsLoading(true);
-    fetchShiftsForDate(fromYmd(shiftDateYmd))
+    fetchShiftsForDate(fromYmd(shiftDateYmd), currentUser.id)
       .then(rs => { if (!cancelled) setShiftRows(rs); })
       .catch(err => { if (!cancelled) { console.warn('[Vardiyalar] fetch error:', err); setShiftRows([]); } })
       .finally(() => { if (!cancelled) setShiftsLoading(false); });

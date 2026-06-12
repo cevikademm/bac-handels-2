@@ -434,9 +434,9 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
       let cancelled = false;
       void (async () => {
           try {
+              // RPC: taslak görme yetkisi yoksa yalnızca yayınlanmış vardiyalar döner.
               const { data, error } = await supabase
-                  .from('shift_schedules')
-                  .select('week_start_date, time_slot, days');
+                  .rpc('shift_get_rows_for_viewer', { p_caller_id: currentUser.id, p_weeks: null });
               if (cancelled || error || !Array.isArray(data)) return;
               const rows = data
                   .filter((r: any) => Array.isArray(r.days) && r.days.includes(targetEmployeeId))

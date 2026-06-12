@@ -120,7 +120,10 @@ interface QrErrorRow {
 // Belirli bir tarih için (lokal gün) tüm vardiyaları ve QR durumlarını döndürür.
 // Gece geçişi vardiyaları doğal olarak kapsanır (önceki gün başlayıp hedef güne
 // sarkan + hedef gün başlayıp ertesi güne sarkan).
-export async function fetchShiftsForDate(targetDate: Date = new Date()): Promise<ShiftWithStatus[]> {
+// callerId: çağıran kullanıcının profiles.id'si. Vardiya satırları artık
+// shift_get_rows_for_viewer RPC'si ile okunur — taslak görme yetkisi olmayan
+// çağıran yalnızca yayınlanmış vardiyaları alır. Boş callerId → yalnızca yayınlanmış.
+export async function fetchShiftsForDate(targetDate: Date = new Date(), callerId: string = ''): Promise<ShiftWithStatus[]> {
   // İlgili tarihin etrafındaki 3 haftayı çek (önceki/bu/sonraki) —
   // gece geçişi en fazla 1 gün sarkabilir, hafta sınırı için tampon.
   // Tüm gün sınırları Berlin yerelinde alınır (firma Almanya'da).
@@ -137,11 +140,9 @@ export async function fetchShiftsForDate(targetDate: Date = new Date()): Promise
   // 1) profiller (isim ↔ id eşlemesi)
   const profilesPromise = supabase.from('profiles').select('id, full_name, branch').limit(1000);
 
-  // 2) ilgili haftaların shift_schedules kayıtları
+  // 2) ilgili haftaların shift_schedules kayıtları (RPC: taslak yetkisine göre süzülür)
   const schedulesPromise = supabase
-    .from('shift_schedules')
-    .select('week_start_date, branch, time_slot, days')
-    .in('week_start_date', uniqueWeeks);
+    .rpc('shift_get_rows_for_viewer', { p_caller_id: callerId, p_weeks: uniqueWeeks });
 
   // 3) hedef gün ± 1 gün penceresindeki QR time_logs (gece geçişi için)
   const winStartIso = new Date(dayStartMs - 24 * 60 * 60 * 1000).toISOString();

@@ -157,10 +157,9 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
             const monday = new Date(today);
             monday.setDate(monday.getDate() - dayIdx);
             const weekKey = formatLocalDate(monday);
+            // RPC: taslak görme yetkisi yoksa yalnızca yayınlanmış vardiyalar döner.
             const { data: shiftRows } = await supabase
-                .from('shift_schedules')
-                .select('week_start_date, branch, time_slot, days')
-                .eq('week_start_date', weekKey);
+                .rpc('shift_get_rows_for_viewer', { p_caller_id: currentUser.id, p_weeks: [weekKey] });
             if (shiftRows && isMounted.current) {
                 setCurrentWeekShifts(shiftRows);
                 // İlk yüklemede form default'u plana göre ayarla — currentUser.branch
@@ -175,8 +174,7 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
             // Tüm vardiya satırları — geçmiş satışların görüntüde doğru şubeye
             // eşlenmesi için. (Tablo küçük: hafta × time_slot × branch.)
             const { data: allShiftRows } = await supabase
-                .from('shift_schedules')
-                .select('week_start_date, branch, time_slot, days');
+                .rpc('shift_get_rows_for_viewer', { p_caller_id: currentUser.id, p_weeks: null });
             if (allShiftRows && isMounted.current) setAllShifts(allShiftRows);
 
             const { data: profiles } = await supabase.from('profiles').select('*');

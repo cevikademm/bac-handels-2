@@ -1,11 +1,22 @@
 -- ===================================================================
--- VARDİYA PLANI — SÜPER ADMIN YALNIZCA YAZMA (Supabase Migration)
+-- VARDİYA PLANI — YAZMA KİLİDİ + TASLAK GÖRÜNÜRLÜĞÜ (Supabase Migration)
 -- Hedef proje: xbbzwitvlrdwnoushgpf.supabase.co
 -- Çalıştırma: Supabase Dashboard > SQL Editor > Run
 --
--- Amaç: shift_schedules ve shift_publications tablolarına YALNIZCA
---       süper adminler (cevikademm@gmail.com + seda@bac.de) yazabilir.
---       Diğer tüm adminler/personeller planı yalnızca GÖRÜNTÜLER.
+-- Amaç (2 katman):
+--   A) YAZMA: shift_schedules/shift_publications'a YALNIZCA süper adminler
+--      (cevikademm@gmail.com + seda@bac.de) yazabilir.
+--   B) TASLAK OKUMA: Yayınlanmamış (taslak) vardiya satırları doğrudan REST'ten
+--      HİÇ okunamaz; yalnızca taslak görme yetkisi olan 4 kişi (cevikadem, seda,
+--      hakan, gurcan) shift_get_week_rows / shift_get_rows_for_viewer RPC'leri
+--      üzerinden taslağı görür. Admin "Yayınla" deyince satırlar herkese açılır
+--      (personel kendi yayınlanmış vardiyasını görür).
+--
+-- ÖNEMLİ: B katmanı uygulandıktan sonra TÜM frontend okumaları RPC'ye taşınmıştır
+--         (ShiftSchedule, Calendar, Dashboard, LossControl, shiftStatus, Payroll,
+--         SalesDashboard). Doğrudan .from('shift_schedules').select() artık yalnızca
+--         yayınlanmış satırları döndürür — bu migration olmadan deploy edilirse
+--         taslak ekranları boş kalır. ÖNCE bu migration, SONRA frontend deploy.
 --
 -- NEDEN SUNUCU TARAFI? İstemci (ShiftSchedule.tsx) içinde
 -- canEditShiftSchedule kontrolü zaten var; AMA eski sürümde kalmış
@@ -14,10 +25,10 @@
 -- hangi uygulama sürümünü çalıştırırsa çalıştırsın, yalnızca yetkili
 -- süper adminin RPC çağrısı geçerlidir. Diğer her yazma reddedilir.
 --
--- Mimari: tablolarda doğrudan INSERT/UPDATE/DELETE RLS ile kapatılır
---         (SELECT herkese açık kalır). Tüm yazma işlemleri SECURITY
---         DEFINER RPC'ler üzerinden yapılır; her RPC çağıranın süper
---         admin olduğunu profiles.email üzerinden doğrular.
+-- Mimari: tablolarda doğrudan INSERT/UPDATE/DELETE RLS ile kapatılır;
+--         SELECT yalnızca YAYINLANMIŞ satırlara açıktır. Tüm yazma ve taslak
+--         okuma işlemleri SECURITY DEFINER RPC'ler üzerinden yapılır; her RPC
+--         çağıranın yetkisini profiles.email üzerinden doğrular.
 --         (loss_control_admin_only.sql ile aynı desen.)
 --
 -- Not: profiles.id şeması TEXT olduğu için tüm caller_id'ler TEXT'tir.
@@ -107,6 +118,38 @@ $$;
 
 COMMENT ON FUNCTION public.shift_get_week_rows(TEXT, TEXT, TEXT) IS
   'Hafta vardiya satırlarını döner. Taslak yetkisi yoksa yalnızca yayınlanmışları verir.';
+
+-- 1d) ÇOK-HAFTA / TÜM-SATIR GÜVENLİ OKU -----------------------------
+-- Vardiya Planı tabı dışındaki tüketiciler (Calendar, Dashboard, LossControl,
+-- shiftStatus, Payroll, SalesDashboard) için genel okuma. p_weeks NULL ise
+-- TÜM haftalar, doluysa yalnızca o haftalar döner. Yetki mantığı aynıdır:
+-- taslak görme yetkisi varsa taslak dahil tümü; yoksa yalnızca yayınlanmışlar.
+CREATE OR REPLACE FUNCTION public.shift_get_rows_for_viewer(
+  p_caller_id TEXT,
+  p_weeks     TEXT[] DEFAULT NULL
+) RETURNS SETOF public.shift_schedules
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT s.*
+    FROM public.shift_schedules s
+   WHERE (p_weeks IS NULL OR s.week_start_date = ANY(p_weeks))
+     AND (
+       public.shift_can_view_draft(p_caller_id)
+       OR EXISTS (
+         SELECT 1
+           FROM public.shift_publications pub
+          WHERE pub.week_start_date::text = s.week_start_date
+            AND pub.branch = s.branch
+       )
+     )
+   ORDER BY s.created_at ASC;
+$$;
+
+COMMENT ON FUNCTION public.shift_get_rows_for_viewer(TEXT, TEXT[]) IS
+  'Çok-hafta/tüm-satır vardiya okuması. Taslak yetkisi yoksa yalnızca yayınlanmışları verir.';
 
 -- 2) TEK SATIR KAYDET (INSERT/UPDATE) -------------------------------
 -- p_id NULL ise INSERT, dolu ise UPDATE. Kaydedilen satırı geri döner.
@@ -257,7 +300,8 @@ BEGIN
 END;
 $$;
 
--- 7) RLS SIKILAŞTIRMA — doğrudan yazma kapatılır, SELECT açık kalır --
+-- 7) RLS SIKILAŞTIRMA — yazma kapatılır; SELECT yalnızca YAYINLANMIŞ satırlara --
+--    açılır (taslaklar doğrudan REST'ten görünmez; taslak okuması RPC ile).     --
 ALTER TABLE public.shift_schedules    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.shift_publications ENABLE ROW LEVEL SECURITY;
 
@@ -301,6 +345,7 @@ CREATE POLICY "shift_publications_select_all" ON public.shift_publications
 GRANT EXECUTE ON FUNCTION public.shift_is_editor(TEXT)                        TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.shift_can_view_draft(TEXT)                   TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.shift_get_week_rows(TEXT, TEXT, TEXT)        TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.shift_get_rows_for_viewer(TEXT, TEXT[])      TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.shift_save_row(TEXT, UUID, TEXT, TEXT, TEXT, TEXT[]) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.shift_delete_row(TEXT, UUID)                 TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.shift_replace_week(TEXT, TEXT, TEXT, JSONB)  TO anon, authenticated;

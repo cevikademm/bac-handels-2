@@ -174,9 +174,10 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
         .from('profiles')
         .select('*');
 
-      // Vardiya planı — sadece super admin pairing analizi için kullanır
+      // Vardiya planı — sadece super admin pairing analizi için kullanır.
+      // RPC: super adminler (cevikadem+gurcan) taslak dahil tüm satırları alır.
       const { data: shiftData } = isSuper
-        ? await supabase.from('shift_schedules').select('*')
+        ? await supabase.rpc('shift_get_rows_for_viewer', { p_caller_id: currentUser.id, p_weeks: null })
         : { data: null };
       if (shiftData) setShifts(shiftData);
       setLastRefresh(new Date());

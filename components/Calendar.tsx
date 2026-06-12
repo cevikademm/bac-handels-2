@@ -155,9 +155,11 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
             // 3. Shifts (Vardiyalar) — vardiya planı saatleri (planlı), referans olarak tutulur.
             // Filter render zamanında yapılır (useMemo ile) — böylece publishedKeys
             // değiştiğinde shifts state'i kalsa bile görünüm anında güncellenir.
+            // RPC: taslak görme yetkisi yoksa yalnızca yayınlanmış vardiyalar döner.
+            // Personel zaten publishedKeys ile süzülür; bu DB katmanı taslağın
+            // yetkisiz cihaza hiç ulaşmamasını garanti eder.
             const { data: shiftData } = await supabase
-                .from('shift_schedules')
-                .select('*');
+                .rpc('shift_get_rows_for_viewer', { p_caller_id: currentUser.id, p_weeks: null });
             if (shiftData) setShifts(shiftData);
 
             // Yayın anahtarlarını her zaman (admin dahil) çek — admin için göstergesi

@@ -351,10 +351,9 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
         monday.setHours(0, 0, 0, 0);
         const weekKey = monday.toISOString().split('T')[0];
 
+        // RPC: taslak görme yetkisi yoksa yalnızca yayınlanmış satırlar döner.
         const { data: shiftRows } = await supabase
-            .from('shift_schedules')
-            .select('*')
-            .eq('week_start_date', weekKey);
+            .rpc('shift_get_rows_for_viewer', { p_caller_id: currentUser.id, p_weeks: [weekKey] });
 
         if (shiftRows) {
           // Toplam planlı saat = time_slot süresi × gün başına atanan personel sayısı
@@ -383,8 +382,8 @@ const Dashboard: React.FC<DashboardProps> = ({ notifications = [], currentUser, 
         const tomorrowDate = new Date(todayDate);
         tomorrowDate.setDate(tomorrowDate.getDate() + 1);
         const [todayShifts, tomorrowShifts] = await Promise.all([
-          fetchShiftsForDate(todayDate),
-          fetchShiftsForDate(tomorrowDate),
+          fetchShiftsForDate(todayDate, currentUser.id),
+          fetchShiftsForDate(tomorrowDate, currentUser.id),
         ]);
         const todayYmd = todayDate.toISOString().split('T')[0];
         const merged: typeof upcomingShifts = [];
