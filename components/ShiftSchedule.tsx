@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useLanguage } from '../lib/i18n';
 import { useTheme } from '../lib/theme';
 import { Branch, Employee, Role } from '../types';
-import { Save, ChevronLeft, ChevronRight, Copy, Plus, Trash2, Loader2, AlertTriangle, CheckCircle2, Lock, Send, Undo2, X } from 'lucide-react';
+import { RefreshCw, ChevronLeft, ChevronRight, Copy, Plus, Trash2, Loader2, AlertTriangle, CheckCircle2, Lock, Send, Undo2, X } from 'lucide-react';
 import { includeAsPersonnel, canEditShiftSchedule, canViewShiftDraft } from '../constants';
 import { supabase } from '../lib/supabase';
 import { formatLocalDate, parseCellIds, joinCellIds } from '../lib/utils';
@@ -125,6 +125,19 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
   currentWeekEnd.setDate(currentWeekEnd.getDate() + 6);
 
   const isMounted = useRef(true);
+
+  // ── Kayıt/yenileme yarışı korumaları ──────────────────────────────
+  // pendingSavesRef: uçuştaki yazma sayısı. >0 iken fetchWeekData grid'i
+  // sunucu haliyle EZMEZ (optimistic değişiklik commit'ten önce silinmesin);
+  // istek kuyruklanır ve son yazma bitince bir kez çalışır.
+  const pendingSavesRef = useRef(0);
+  const refetchQueuedRef = useRef(false);
+  // fetchSeqRef: geç gelen (bayat) fetch yanıtı taze state'i ezmesin.
+  const fetchSeqRef = useRef(0);
+  // rowSaveSeqRef: satır başına son yazma sırası — yalnızca en son
+  // operasyonun RPC dönüşü reconcile edilir (geç yanıt ezmesi koruması).
+  const rowSaveSeqRef = useRef(new Map<string, number>());
+  const [isAddingRow, setIsAddingRow] = useState(false);
 
   useEffect(() => {
     isMounted.current = true;
@@ -261,6 +274,11 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
   // RPC, caller_id'yi doğrular: taslak görme yetkisi yoksa SADECE yayınlanmış
   // satırları döner. Doğrudan .from('shift_schedules') artık taslağı sızdırmaz.
   const fetchWeekData = async () => {
+      // Uçuşta yazma varken grid'i sunucu haliyle ezme: optimistic değişiklik
+      // commit'ten önce silinir, sonraki hücre yazması bayat satırı kalıcılaştırırdı.
+      // İstek kuyruklanır; son yazma bitince finishSave bir kez çalıştırır.
+      if (pendingSavesRef.current > 0) { refetchQueuedRef.current = true; return; }
+      const seq = ++fetchSeqRef.current;
       setIsLoading(true);
       try {
           const { data, error } = await supabase.rpc('shift_get_week_rows', {
@@ -270,6 +288,10 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
           });
           if (!isMounted.current) return;
           if (error) { console.error('fetchWeekData error:', error); }
+          // Bayat yanıt guard'ı: biz beklerken yeni bir fetch/yazma başladıysa
+          // bu sonuç eskidir — taze state'in üzerine yazılmaz.
+          if (seq !== fetchSeqRef.current) return;
+          if (pendingSavesRef.current > 0) { refetchQueuedRef.current = true; return; }
           if (data) setRosterData(sortRosterByTime(data.map((r: any) => ({ id: r.id, timeLabel: r.time_slot || '', assignments: Array.isArray(r.days) ? r.days : Array(7).fill('') }))));
       } catch (err: any) { console.error(err); } finally { if (isMounted.current) setIsLoading(false); }
   };
@@ -438,45 +460,84 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
       setCurrentWeekStart(newDate);
   };
 
-  const saveRowToDb = async (row: RosterRow) => {
-      if (!canEdit) return;
+  // Yazma yaşam döngüsü: her yazma başlarken uçuştaki fetch yanıtlarını
+  // geçersiz kılar (fetchSeqRef++), biterken kuyruklanmış refetch'i çalıştırır.
+  const beginSave = () => {
+      pendingSavesRef.current++;
+      fetchSeqRef.current++;
       setIsSaving(true);
-      try {
-          const isExisting = !!row.id && !row.id.startsWith('temp_');
-          // Yazma artık SECURITY DEFINER RPC üzerinden — yetki DB'de doğrulanır,
-          // eski sürümdeki adminlerin doğrudan REST yazması engellenir.
-          const { data, error } = await supabase.rpc('shift_save_row', {
-              p_caller_id: currentUser.id,
-              p_id: isExisting ? row.id : null,
-              p_week: weekKey,
-              p_branch: String(activeBranch),
-              p_time_slot: row.timeLabel,
-              p_days: row.assignments,
-          });
-          if (error) throw error;
-          // Yeni satır → geçici temp_ id'yi gerçek DB id'siyle değiştir.
-          if (!isExisting && data && isMounted.current) {
-              setRosterData(prev => prev.map(r => r.id === row.id ? { ...r, id: (data as any).id } : r));
-          }
-      } catch (err) { console.error(err); } finally { if (isMounted.current) setIsSaving(false); }
+  };
+  const finishSave = () => {
+      pendingSavesRef.current = Math.max(0, pendingSavesRef.current - 1);
+      if (!isMounted.current) return;
+      setIsSaving(pendingSavesRef.current > 0);
+      if (pendingSavesRef.current === 0 && refetchQueuedRef.current) {
+          refetchQueuedRef.current = false;
+          fetchWeekData();
+      }
   };
 
-  // Ortak hücre mutasyon helper'ı — yeni ID dizisini hesaplayıp CSV olarak
-  // assignments[dayIndex]'e yazar ve DB'ye kaydeder. Aşağıdaki add/remove/replace
-  // handler'ları bunu kullanır; "tek hücre = tek string" olarak ham veri kalır.
-  const mutateCell = (rowId: string | undefined, dayIndex: number, mutator: (currentIds: string[]) => string[]) => {
-      if (!canEdit) return;
-      const updatedRows = rosterData.map(row => {
+  // Ortak hücre mutasyonu — istemci SONUCU değil OPERASYONU (ekle/çıkar/
+  // değiştir) gönderir; shift_cell_apply RPC'si satırı FOR UPDATE ile kilitleyip
+  // operasyonu DB'deki GÜNCEL hücre değerine uygular ve yalnızca o hücreyi yazar.
+  // Eski akış tüm satırı (7 gün) bayat lokal kopyadan yazıyordu — iki cihaz/admin
+  // veya refetch yarışında diğer günlerdeki atamalar kalıcı siliniyordu.
+  const applyCellChange = async (rowId: string | undefined, dayIndex: number, op: { add?: string; remove?: string }) => {
+      if (!canEdit || !rowId) return;
+      if (!op.add && !op.remove) return;
+      // Optimistic lokal güncelleme — UI anında tepki verir; RPC dönüşü ve
+      // hata durumundaki refetch DB gerçeğiyle hizalar.
+      setRosterData(prev => prev.map(row => {
           if (row.id !== rowId) return row;
-          const currentIds = parseCellIds(row.assignments[dayIndex]);
-          const nextIds = mutator(currentIds);
+          const ids = parseCellIds(row.assignments[dayIndex]);
+          let next: string[];
+          if (op.add && op.remove) {
+              next = ids.includes(op.remove)
+                  ? ids.map(id => (id === op.remove ? op.add! : id))
+                  : (ids.includes(op.add) ? ids : [...ids, op.add]);
+          } else if (op.add) {
+              next = ids.includes(op.add) ? ids : [...ids, op.add];
+          } else {
+              next = ids.filter(id => id !== op.remove);
+          }
           const newAssignments = [...row.assignments];
-          newAssignments[dayIndex] = joinCellIds(nextIds);
+          newAssignments[dayIndex] = joinCellIds(next);
           return { ...row, assignments: newAssignments };
-      });
-      setRosterData(updatedRows);
-      const rowToSave = updatedRows.find(r => r.id === rowId);
-      if (rowToSave) saveRowToDb(rowToSave);
+      }));
+
+      const mySeq = (rowSaveSeqRef.current.get(rowId) || 0) + 1;
+      rowSaveSeqRef.current.set(rowId, mySeq);
+      beginSave();
+      try {
+          const { data, error } = await supabase.rpc('shift_cell_apply', {
+              p_caller_id: currentUser.id,
+              p_id: rowId,
+              p_day_index: dayIndex,
+              p_add: op.add ?? null,
+              p_remove: op.remove ?? null,
+          });
+          if (error) throw error;
+          // Yalnızca bu satırın EN SON operasyonunun dönüşü reconcile edilir;
+          // geç gelen eski yanıt taze optimistic state'i ezemez. timeLabel'a
+          // dokunulmaz — kullanıcı o an saat alanını düzenliyor olabilir.
+          if (isMounted.current && data && rowSaveSeqRef.current.get(rowId) === mySeq) {
+              const days = (data as any).days;
+              if (Array.isArray(days)) {
+                  setRosterData(prev => prev.map(r => r.id === rowId ? { ...r, assignments: days } : r));
+              }
+          }
+      } catch (err: any) {
+          console.error('applyCellChange error:', err);
+          if (isMounted.current) {
+              alert(err?.code === 'P0002'
+                  ? t('shift.rowGoneError')
+                  : t('shift.saveError') + (err?.message || ''));
+          }
+          // DB gerçeğine dön — optimistic değişiklik geri alınır.
+          refetchQueuedRef.current = true;
+      } finally {
+          finishSave();
+      }
   };
 
   // Çakışma uyarısı + onay; kullanıcı reddederse false dön.
@@ -494,13 +555,13 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
       const row = rosterData.find(r => r.id === rowId);
       if (!row) return;
       if (!confirmIfConflict(employeeId, dayIndex, row.timeLabel)) return;
-      mutateCell(rowId, dayIndex, ids => ids.includes(employeeId) ? ids : [...ids, employeeId]);
+      applyCellChange(rowId, dayIndex, { add: employeeId });
   };
 
   // Hücreden bir kişiyi çıkar
   const removeAssignment = (rowId: string | undefined, dayIndex: number, employeeId: string) => {
       if (!canEdit || !employeeId) return;
-      mutateCell(rowId, dayIndex, ids => ids.filter(id => id !== employeeId));
+      applyCellChange(rowId, dayIndex, { remove: employeeId });
   };
 
   // Hücredeki bir kişiyi başka biriyle değiştir (mevcut select onChange için)
@@ -509,17 +570,11 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
       const row = rosterData.find(r => r.id === rowId);
       if (!row) return;
       if (newId && !confirmIfConflict(newId, dayIndex, row.timeLabel)) return;
-      mutateCell(rowId, dayIndex, ids => {
-          if (!newId) return ids.filter(id => id !== oldId); // boş seçilirse kaldır
-          // Sırayı koruyarak swap; yeni ID zaten varsa dedup için filtre
-          const seen = new Set<string>();
-          const result: string[] = [];
-          for (const id of ids) {
-              const candidate = id === oldId ? newId : id;
-              if (!seen.has(candidate)) { result.push(candidate); seen.add(candidate); }
-          }
-          return result;
-      });
+      if (!newId) {
+          applyCellChange(rowId, dayIndex, { remove: oldId }); // boş seçilirse kaldır
+      } else {
+          applyCellChange(rowId, dayIndex, { add: newId, remove: oldId }); // yerinde değiştir
+      }
   };
 
   const handleTimeLabelChange = (rowId: string | undefined, newLabel: string) => {
@@ -527,23 +582,94 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
       setRosterData(prev => prev.map(row => row.id === rowId ? { ...row, timeLabel: newLabel } : row));
   };
 
-  const addNewRow = async () => {
-      if (!canEdit) return;
-      const newRow: RosterRow = { id: `temp_${Date.now()}`, timeLabel: '', assignments: Array(7).fill('') };
-      setRosterData([...rosterData, newRow]);
-  };
-
-  const deleteRow = async (rowId: string) => {
-      if (!canEdit) return;
-      if(!confirm(t('shift.deleteConfirm'))) return;
-      setRosterData(prev => prev.filter(r => r.id !== rowId));
-      if (rowId && !rowId.startsWith('temp_')) {
-          const { error } = await supabase.rpc('shift_delete_row', { p_caller_id: currentUser.id, p_id: rowId });
-          if (error) console.error('deleteRow error:', error);
+  // Saat etiketini kaydet (onBlur) — shift_set_time_slot yalnızca time_slot
+  // yazar, days'e hiç dokunmaz. Eski akış tüm satırı (days dahil) bayat render
+  // kopyasından yazıyordu; o kayıp yolu kapandı. Değer güncel state'ten okunur.
+  const saveTimeSlot = async (rowId: string | undefined) => {
+      if (!canEdit || !rowId) return;
+      const row = rosterData.find(r => r.id === rowId);
+      if (!row) return;
+      const mySeq = (rowSaveSeqRef.current.get(rowId) || 0) + 1;
+      rowSaveSeqRef.current.set(rowId, mySeq);
+      beginSave();
+      try {
+          const { data, error } = await supabase.rpc('shift_set_time_slot', {
+              p_caller_id: currentUser.id,
+              p_id: rowId,
+              p_time_slot: row.timeLabel,
+          });
+          if (error) throw error;
+          if (isMounted.current && data && rowSaveSeqRef.current.get(rowId) === mySeq) {
+              const slot = (data as any).time_slot || '';
+              setRosterData(prev => prev.map(r => r.id === rowId ? { ...r, timeLabel: slot } : r));
+          }
+      } catch (err: any) {
+          console.error('saveTimeSlot error:', err);
+          if (isMounted.current) {
+              alert(err?.code === 'P0002'
+                  ? t('shift.rowGoneError')
+                  : t('shift.saveError') + (err?.message || ''));
+          }
+          refetchQueuedRef.current = true;
+      } finally {
+          finishSave();
       }
   };
 
-  const handleManualSave = async () => {
+  // Yeni satır: INSERT'i bekleyip gerçek DB id'siyle ekler. Eski temp_ id
+  // yaklaşımı, yanıt gelmeden ikinci işlemde çift INSERT (duplike satır)
+  // üretebiliyordu; buton isAddingRow ile kilitlenir, temp id kavramı kalktı.
+  const addNewRow = async () => {
+      if (!canEdit || isAddingRow) return;
+      setIsAddingRow(true);
+      beginSave();
+      try {
+          const { data, error } = await supabase.rpc('shift_save_row', {
+              p_caller_id: currentUser.id,
+              p_id: null,
+              p_week: weekKey,
+              p_branch: String(activeBranch),
+              p_time_slot: '',
+              p_days: Array(7).fill(''),
+          });
+          if (error) throw error;
+          if (isMounted.current && data) {
+              const newRow: RosterRow = {
+                  id: (data as any).id,
+                  timeLabel: (data as any).time_slot || '',
+                  assignments: Array.isArray((data as any).days) ? (data as any).days : Array(7).fill(''),
+              };
+              setRosterData(prev => prev.some(r => r.id === newRow.id) ? prev : [...prev, newRow]);
+          }
+      } catch (err: any) {
+          console.error('addNewRow error:', err);
+          if (isMounted.current) alert(t('shift.addRowError') + (err?.message || ''));
+      } finally {
+          if (isMounted.current) setIsAddingRow(false);
+          finishSave();
+      }
+  };
+
+  const deleteRow = async (rowId: string) => {
+      if (!canEdit || !rowId) return;
+      if (!confirm(t('shift.deleteConfirm'))) return;
+      setRosterData(prev => prev.filter(r => r.id !== rowId));
+      beginSave();
+      try {
+          const { error } = await supabase.rpc('shift_delete_row', { p_caller_id: currentUser.id, p_id: rowId });
+          if (error) throw error;
+      } catch (err: any) {
+          console.error('deleteRow error:', err);
+          if (isMounted.current) alert(t('shift.deleteRowError') + (err?.message || ''));
+          refetchQueuedRef.current = true; // optimistic silmeyi geri yükle
+      } finally {
+          finishSave();
+      }
+  };
+
+  // Autosave her mutasyonda zaten çalışıyor — bu buton grid'i sunucudan
+  // yeniler (eski adı "Kaydet" yanıltıcıydı: kaydetmiyor, çekiyordu).
+  const handleRefresh = async () => {
       await fetchWeekData();
       await fetchOtherBranchData();
   };
@@ -714,8 +840,8 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
               {canEdit && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
                       <button onClick={handleCopyNextWeek} disabled={isLoading} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: mobilePalette.cellBg, border: `1px solid ${mobilePalette.cellBorder}`, borderRadius: '12px', color: mobilePalette.muted, minHeight: '44px', opacity: isLoading ? 0.5 : 1, cursor: isLoading ? 'not-allowed' : 'pointer' }} title={t('shift.copyTitle')}>{isLoading ? <Loader2 size={18} className="animate-spin" /> : <Copy size={18} />}</button>
-                      <button onClick={addNewRow} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: mobilePalette.primaryBg, border: 'none', borderRadius: '12px', color: mobilePalette.primaryText, fontWeight: 700, minHeight: '44px' }} title={t('shift.newRow')}><Plus size={18} /></button>
-                      <button onClick={handleManualSave} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: mobilePalette.successBg, border: 'none', borderRadius: '12px', color: mobilePalette.successText, fontWeight: 700, minHeight: '44px' }} title={t('shift.saveTitle')}>{isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}</button>
+                      <button onClick={addNewRow} disabled={isAddingRow} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: mobilePalette.primaryBg, border: 'none', borderRadius: '12px', color: mobilePalette.primaryText, fontWeight: 700, minHeight: '44px', opacity: isAddingRow ? 0.5 : 1, cursor: isAddingRow ? 'not-allowed' : 'pointer' }} title={t('shift.newRow')}>{isAddingRow ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}</button>
+                      <button onClick={handleRefresh} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: mobilePalette.successBg, border: 'none', borderRadius: '12px', color: mobilePalette.successText, fontWeight: 700, minHeight: '44px' }} title={t('shift.refreshTitle')}>{isSaving ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} />}</button>
                   </div>
               )}
           </div>
@@ -746,8 +872,8 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                   {canEdit && (
                       <div className="flex items-center gap-2">
                           <button onClick={handleCopyNextWeek} disabled={isLoading} className="p-3 flex items-center justify-center bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed" title={t('shift.copyTitle')}>{isLoading ? <Loader2 size={18} className="animate-spin" /> : <Copy size={18} />}</button>
-                          <button onClick={addNewRow} className="px-6 py-3 flex items-center justify-center bg-indigo-600 text-slate-900 dark:text-white rounded-xl font-bold shadow-lg min-h-[44px]" title={t('shift.newRow')}><Plus size={18} /></button>
-                          <button onClick={handleManualSave} className="px-6 py-3 flex items-center justify-center bg-green-600 text-slate-900 dark:text-white rounded-xl font-bold shadow-lg min-h-[44px]" title={t('shift.saveTitle')}>{isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}</button>
+                          <button onClick={addNewRow} disabled={isAddingRow} className="px-6 py-3 flex items-center justify-center bg-indigo-600 text-slate-900 dark:text-white rounded-xl font-bold shadow-lg min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed" title={t('shift.newRow')}>{isAddingRow ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}</button>
+                          <button onClick={handleRefresh} className="px-6 py-3 flex items-center justify-center bg-green-600 text-slate-900 dark:text-white rounded-xl font-bold shadow-lg min-h-[44px]" title={t('shift.refreshTitle')}>{isSaving ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} />}</button>
                       </div>
                   )}
               </div>
@@ -839,7 +965,7 @@ const ShiftSchedule: React.FC<ShiftScheduleProps> = ({ currentUser }) => {
                                 displayedRows.map((row) => (
                                     <tr key={row.id} className="group hover:bg-slate-200 dark:hover:bg-slate-100 dark:hover:bg-zinc-800/20">
                                         <td className="p-2 border-r border-slate-200 dark:border-zinc-800 sticky left-0 z-10 bg-slate-50 dark:bg-zinc-950 shadow-[2px_0_8px_rgba(0,0,0,0.5)]">
-                                            {canEdit ? (<input type="text" value={row.timeLabel} onChange={(e) => handleTimeLabelChange(row.id, e.target.value)} onBlur={() => { saveRowToDb(row); fetchOtherBranchData(); setRosterData(prev => sortRosterByTime(prev)); }} className="w-full bg-transparent text-center font-bold text-slate-800 dark:text-zinc-200 outline-none" placeholder="00:00-00:00"/>) : (<div className="text-center font-bold text-slate-900 dark:text-white">{row.timeLabel}</div>)}
+                                            {canEdit ? (<input type="text" value={row.timeLabel} onChange={(e) => handleTimeLabelChange(row.id, e.target.value)} onBlur={() => { saveTimeSlot(row.id); fetchOtherBranchData(); setRosterData(prev => sortRosterByTime(prev)); }} className="w-full bg-transparent text-center font-bold text-slate-800 dark:text-zinc-200 outline-none" placeholder="00:00-00:00"/>) : (<div className="text-center font-bold text-slate-900 dark:text-white">{row.timeLabel}</div>)}
                                         </td>
                                         {row.assignments.map((cellRaw, dayIdx) => {
                                             // Hücre artık CSV: birden çok personel olabilir.
