@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
 import { Employee, Role } from '../types';
-import { canSeeDeviceInfo, formatTimeOfDay, formatHoursHumanTR } from '../lib/utils';
+import { canSeeDeviceInfo, formatTimeOfDay, formatHoursHumanTR, fetchAllPages } from '../lib/utils';
 import {
   Clock, LogIn, LogOut, ShoppingBag, Shield, Smartphone,
   MapPin, AlertTriangle, Loader2, Filter, RefreshCw, KeyRound
@@ -138,13 +138,16 @@ const LogActivity: React.FC<LogActivityProps> = ({ currentUser, targetEmployeeId
         }
       });
 
-      // 2) sales_logs (satış aktivitesi)
-      const { data: salesRows } = await supabase
-        .from('sales_logs')
-        .select('id, branch, product_name, quantity, sale_date, status, is_off_shift, created_at')
-        .eq('employee_id', targetEmployeeId)
-        .order('created_at', { ascending: false })
-        .limit(200);
+      // 2) sales_logs (satış aktivitesi) — kişinin tüm satışları, en fazla 10.000
+      const { data: salesRows } = await fetchAllPages((from, to) =>
+        supabase
+          .from('sales_logs')
+          .select('id, branch, product_name, quantity, sale_date, status, is_off_shift, created_at')
+          .eq('employee_id', targetEmployeeId)
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: true })
+          .range(from, to)
+      );
 
       (salesRows || []).forEach((r: any) => {
         results.push({

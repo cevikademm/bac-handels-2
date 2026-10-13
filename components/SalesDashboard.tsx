@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { SalesLog, Employee, Role, Branch } from '../types';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/i18n';
-import { formatLocalDate, isUserOnShiftAt, getUserBranchAt, formatTimeOfDay, canSeeOffShiftAlerts, compressImageToJpeg, computeReceiptFingerprint } from '../lib/utils';
+import { formatLocalDate, isUserOnShiftAt, getUserBranchAt, formatTimeOfDay, canSeeOffShiftAlerts, compressImageToJpeg, computeReceiptFingerprint, fetchAllPages } from '../lib/utils';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
 import { Trophy, TrendingUp, ShoppingBag, MapPin, Award, Medal, Calendar, Package, Activity, BarChart3, ListTodo, User, Lock, EyeOff, Filter, ChevronDown, Clock, Tag, Send, Loader2, CheckCircle2, XCircle, Trash2, X, Star, Zap, Crown, Percent, Settings, AlertTriangle, Camera, Receipt, Upload, Edit2, Save } from 'lucide-react';
 import { GlowingEffect } from './ui/glowing-effect';
@@ -125,11 +125,16 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ currentUser }) => {
             }
 
             // Admin dışında herkes sadece kendi satışlarını görür.
-            let salesQuery = supabase.from('sales_logs').select('*').order('sale_date', { ascending: false });
-            if (!isAdmin) {
-                salesQuery = salesQuery.eq('employee_id', currentUser.id);
-            }
-            const { data: sales } = await salesQuery;
+            // Supabase tek sorguda 1.000 satır sınırı koyar — 1.000'lik sayfalarla
+            // en fazla 10.000 kayıt çekilir (en yeni tarih önce, id ile kararlı sıra).
+            const { data: sales } = await fetchAllPages((from, to) => {
+                let q = supabase.from('sales_logs').select('*');
+                if (!isAdmin) q = q.eq('employee_id', currentUser.id);
+                return q
+                    .order('sale_date', { ascending: false })
+                    .order('id', { ascending: true })
+                    .range(from, to);
+            });
             if (sales && isMounted.current) {
                 const formattedSales = sales.map((l: any) => ({
                     id: l.id,

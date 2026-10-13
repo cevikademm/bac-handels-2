@@ -411,3 +411,25 @@ export async function computeReceiptFingerprint(
     bitmap.close?.();
   }
 }
+
+// Supabase (PostgREST) tek sorguda en fazla 1.000 satır döndürür. Bu yardımcı
+// aynı sorguyu 1.000'lik sayfalarla tekrarlayıp en fazla `max` (varsayılan
+// 10.000) satır toplar. `build(from, to)` her sayfa için YENİ bir sorgu
+// döndürmeli ve kararlı bir sıralama içermelidir (ör. tarih + id) — aksi halde
+// sayfalar arasında satır atlanabilir veya tekrar edebilir.
+export async function fetchAllPages<T = any>(
+  build: (from: number, to: number) => PromiseLike<any>,
+  max: number = 10000,
+  pageSize: number = 1000,
+): Promise<{ data: T[]; error: any }> {
+  let all: T[] = [];
+  for (let from = 0; from < max; from += pageSize) {
+    const to = Math.min(from + pageSize, max) - 1;
+    const { data, error } = await build(from, to);
+    if (error) return { data: all, error };
+    const rows: T[] = data || [];
+    all = all.concat(rows);
+    if (rows.length < to - from + 1) break;
+  }
+  return { data: all, error: null };
+}

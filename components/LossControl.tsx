@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Employee, Branch } from '../types';
 import { supabase } from '../lib/supabase';
+import { fetchAllPages } from '../lib/utils';
 import { useLanguage } from '../lib/i18n';
 import {
   AlertTriangle, Package, TrendingDown, TrendingUp, ShieldAlert, BarChart3,
@@ -158,10 +159,15 @@ const LossControl: React.FC<LossControlProps> = ({ currentUser }) => {
       if (countErr) console.warn('lc_list_stock_counts:', countErr.message);
 
       // Fetch all sales (approved only for loss calc)
-      const { data: sales } = await supabase
-        .from('sales_logs')
-        .select('*')
-        .order('sale_date', { ascending: false });
+      // 1.000 satır sınırı nedeniyle sayfalı: en fazla 10.000 kayıt.
+      const { data: sales } = await fetchAllPages((from, to) =>
+        supabase
+          .from('sales_logs')
+          .select('*')
+          .order('sale_date', { ascending: false })
+          .order('id', { ascending: true })
+          .range(from, to)
+      );
 
       // Fetch products
       const { data: productsData } = await supabase
