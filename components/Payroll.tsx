@@ -171,15 +171,30 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
         }
 
         // 2. Zaman Loglarını Çek
-        let logQuery = supabase.from('time_logs').select('*');
+        // Supabase tek sorguda en fazla 1.000 satır döndürür. Adminlerin tüm
+        // kayıtları görebilmesi için 1.000'lik sayfalar halinde en fazla
+        // 10.000 kayıt çekilir (en yeni tarih önce).
+        const LOG_PAGE_SIZE = 1000;
+        const LOG_MAX_ROWS = 10000;
 
         // GÜVENLİK: Admin değilse VEYA kısıtlanmış admin (Apo, Malik) ise
         // sadece kendi loglarını gör.
-        if (currentUser.role !== Role.ADMIN || isRestrictedAdmin(currentUser)) {
-             logQuery = logQuery.eq('employee_id', currentUser.id);
-        }
+        const onlyOwnLogs = currentUser.role !== Role.ADMIN || isRestrictedAdmin(currentUser);
 
-        const { data: logData, error: logError } = await logQuery;
+        let logData: any[] = [];
+        for (let from = 0; from < LOG_MAX_ROWS; from += LOG_PAGE_SIZE) {
+            let logQuery = supabase.from('time_logs').select('*');
+            if (onlyOwnLogs) {
+                logQuery = logQuery.eq('employee_id', currentUser.id);
+            }
+            const { data: page, error: pageError } = await logQuery
+                .order('date', { ascending: false })
+                .order('id', { ascending: true })
+                .range(from, from + LOG_PAGE_SIZE - 1);
+            if (pageError) break;
+            logData = logData.concat(page || []);
+            if (!page || page.length < LOG_PAGE_SIZE) break;
+        }
         
         const formattedLogs: TimeLog[] = (logData || []).map((l: any) => {
             // FALLBACK HESAPLAMA (0 SAAT HATASI İÇİN)

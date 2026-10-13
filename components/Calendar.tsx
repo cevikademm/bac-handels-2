@@ -269,7 +269,7 @@ const Calendar: React.FC<CalendarProps> = ({ currentUser }) => {
       });
 
       return [...(filteredEvents as DisplayEvent[]), ...taskEvents, ...shiftEvents];
-  }, [events, tasks, shifts, currentUser]);
+  }, [events, tasks, visibleShifts, currentUser]);
 
   // WEEK LOGIC
   const getStartOfWeek = (d: Date) => {
