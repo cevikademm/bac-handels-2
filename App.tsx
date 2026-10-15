@@ -12,6 +12,7 @@ import SalesDashboard from './components/SalesDashboard';
 import LossControl from './components/LossControl';
 import DeviceBrands from './components/DeviceBrands';
 import LiveLocationTracker from './components/LiveLocationTracker';
+import ShiftReminderBanner from './components/ShiftReminderBanner';
 import RequirePhoneModal from './components/RequirePhoneModal';
 import PWAInstallBanner, { PushSubscriptionCard } from './components/PWAInstallBanner';
 import NotificationPreferencesCard from './components/NotificationPreferencesCard';
@@ -950,6 +951,8 @@ const AppContent: React.FC = () => {
         {renderContent()}
       </Layout>
       <PWAInstallBanner userId={currentUser?.id} />
+      {/* Personele "çıkış QR'ını unutma" + "vardiyan otomatik kapatıldı" hatırlatması */}
+      <ShiftReminderBanner currentUser={currentUser} activeTab={activeTab} onNavigate={setActiveTab} />
       <LiveLocationTracker currentUser={currentUser} />
       {/* Süper admin tetiklemeli zorunlu güncelleme — tüm kullanıcılarda engelleyici kart */}
       <ForceUpdateOverlay />

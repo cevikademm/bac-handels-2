@@ -8,6 +8,8 @@ import { useLanguage } from '../lib/i18n';
 import { GlowingEffect } from './ui/glowing-effect';
 import { notifyEvent } from '../lib/notifyEvent';
 import { canSeeDeviceInfo, formatHoursHumanTR } from '../lib/utils';
+import { fmtBerlinHm } from '../lib/berlinTime';
+import { OPEN_OVERTIME_KEY } from '../lib/checkoutReminder';
 import { buildEmployeeWhatsAppUrl, isValidWhatsAppPhone } from '../lib/phone';
 
 // QR sayfa yuklenirken patlamasin diye lazy yukleniyor (zxing/browser
@@ -993,6 +995,21 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
       setOvertimeMinutes(60);
   };
 
+  // Hatırlatma kartındaki "Fazla mesai bildir" → Bordro açılır ve pencere
+  // doğrudan o kayıt için gelir (kayıtlar yüklendikten sonra, bir kez).
+  useEffect(() => {
+      let pending: string | null = null;
+      try { pending = sessionStorage.getItem(OPEN_OVERTIME_KEY); } catch { /* */ }
+      if (!pending) return;
+      const log = timeLogs.find(l => l.id === pending);
+      if (!log) return; // henüz yüklenmedi — timeLogs gelince tekrar dener
+      try { sessionStorage.removeItem(OPEN_OVERTIME_KEY); } catch { /* */ }
+      if (log.employeeId === currentUser.id && log.autoClosedAt && log.status === 'Bekliyor') {
+          setOvertimeLogId(log.id);
+          setOvertimeMinutes(60);
+      }
+  }, [timeLogs, currentUser.id]);
+
   const handleSubmitOvertime = async () => {
       if (!overtimeLogId) return;
       if (!Number.isFinite(overtimeMinutes) || overtimeMinutes < 1 || overtimeMinutes > 720) {
@@ -1001,7 +1018,10 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
       }
       setOvertimeSubmitting(true);
       try {
+          // p_caller_id: uygulama Supabase Auth kullanmıyor (auth.uid() hep NULL);
+          // diğer RPC'ler gibi çağıran kimliği açıkça gönderilir.
           const { data, error } = await supabase.rpc('request_overtime', {
+              p_caller_id: currentUser.id,
               p_log_id: overtimeLogId,
               p_minutes: overtimeMinutes,
           });
@@ -2138,6 +2158,10 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
             const newTotalPreview = log
                 ? Math.max(0, (log.totalHours || 0) + safeMin / 60)
                 : 0;
+            // Personel "kaçta çıktım" diye düşünür: dakikayı yeni çıkış saatine çevir
+            const newEndPreview = log?.checkOutAt && safeMin > 0
+                ? fmtBerlinHm(new Date(new Date(log.checkOutAt).getTime() + safeMin * 60000))
+                : null;
             return (
                 <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
                     <div className="bg-gradient-to-b from-zinc-900 to-zinc-950 border border-indigo-700/40 rounded-2xl shadow-[0_0_60px_rgba(99,102,241,0.15)] w-full max-w-md overflow-hidden">
@@ -2220,6 +2244,11 @@ const Payroll: React.FC<PayrollProps> = ({ currentUser, onNotify }) => {
                                     <div className="text-lg font-bold text-indigo-200">
                                         {formatHoursHumanTR(Number(newTotalPreview.toFixed(2)))}
                                     </div>
+                                    {newEndPreview && (
+                                        <div className="text-[11px] text-indigo-300/80 mt-1">
+                                            {t('pay.overtimeNewEnd')}: <span className="font-mono font-semibold text-indigo-100">{log.endTime} → {newEndPreview}</span>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
